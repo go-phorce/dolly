@@ -26,7 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var logger = xlog.NewPackageLogger("github.com/ekspand/pkg/pkg", "xlog_test")
+var logger = xlog.NewPackageLogger("github.com/ekspand/pkg/xlog", "xlog_test")
 
 const logPrefixFormt = "2018-04-17 20:53:46.589926 "
 
@@ -71,7 +71,7 @@ func Test_NewLogger(t *testing.T) {
 	assert.Contains(t, result, expected, "Log format does not match")
 }
 
-func Test_Levels(t *testing.T) {
+func Test_PrettyFormatter(t *testing.T) {
 	var b bytes.Buffer
 	writer := bufio.NewWriter(&b)
 
@@ -212,4 +212,143 @@ func Test_WithAnnotatedError(t *testing.T) {
 		assert.Equal(t, c.expectedStack, result, "[%d] case failed expectation", idx)
 		b.Reset()
 	}
+}
+
+func Test_LevelAt(t *testing.T) {
+	l, err := xlog.GetRepoLogger("github.com/ekspand/pkg/xlog")
+	require.NoError(t, err)
+
+	l.SetRepoLogLevel(xlog.INFO)
+	assert.False(t, logger.LevelAt(xlog.DEBUG))
+	assert.True(t, logger.LevelAt(xlog.INFO))
+
+	l.SetRepoLogLevel(xlog.TRACE)
+	assert.True(t, logger.LevelAt(xlog.TRACE))
+	assert.True(t, logger.LevelAt(xlog.INFO))
+	assert.True(t, logger.LevelAt(xlog.DEBUG))
+}
+
+func Test_PrettyFormatterDebug(t *testing.T) {
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+
+	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, true))
+	xlog.SetGlobalLogLevel(xlog.INFO)
+
+	logger.Infof("Test Info\n")
+	result := string(b.Bytes())
+	expected := "I | xlog_test: Test Info\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Errorf("Test Error\n")
+	result = string(b.Bytes())
+	expected = "E | xlog_test: Test Error\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Warningf("Test Warning\n")
+	result = string(b.Bytes())
+	expected = "W | xlog_test: Test Warning\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	// Debug level is disabled
+	logger.Debugf("Test Debug\n")
+	result = string(b.Bytes())
+	expected = "[pkg_logger.go:166] D | xlog_test: Test Debug\n"
+	assert.NotContains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	xlog.SetGlobalLogLevel(xlog.DEBUG)
+	logger.Debugf("Test Debug\n")
+	result = string(b.Bytes())
+	expected = "[pkg_logger.go:166] D | xlog_test: Test Debug\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+}
+
+func Test_StringFormatter(t *testing.T) {
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+
+	xlog.SetFormatter(xlog.NewStringFormatter(writer))
+	xlog.SetGlobalLogLevel(xlog.INFO)
+
+	logger.Infof("Test Info\n")
+	result := string(b.Bytes())
+	expected := " xlog_test: Test Info\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Errorf("Test Error\n")
+	result = string(b.Bytes())
+	expected = " xlog_test: Test Error\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Warningf("Test Warning\n")
+	result = string(b.Bytes())
+	expected = " xlog_test: Test Warning\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	// Debug level is disabled
+	logger.Debugf("Test Debug\n")
+	result = string(b.Bytes())
+	expected = "[pkg_logger.go:166] xlog_test: Test Debug\n"
+	assert.NotContains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	xlog.SetGlobalLogLevel(xlog.DEBUG)
+	logger.Debugf("Test Debug\n")
+	result = string(b.Bytes())
+	expected = "xlog_test: Test Debug\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+}
+
+func Test_LogFormatter(t *testing.T) {
+	var b bytes.Buffer
+	writer := bufio.NewWriter(&b)
+
+	xlog.SetGlobalLogLevel(xlog.INFO)
+	xlog.SetFormatter(xlog.NewLogFormatter(writer, "test ", 0))
+
+	logger.Infof("Test Info\n")
+	writer.Flush()
+	result := string(b.Bytes())
+	expected := " xlog_test: Test Info\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Errorf("Test Error\n")
+	writer.Flush()
+	result = string(b.Bytes())
+	expected = " xlog_test: Test Error\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Warningf("Test Warning\n")
+	writer.Flush()
+	result = string(b.Bytes())
+	expected = " xlog_test: Test Warning\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	// Debug level is disabled
+	logger.Debugf("Test Debug\n")
+	writer.Flush()
+	result = string(b.Bytes())
+	expected = "[pkg_logger.go:166] xlog_test: Test Debug\n"
+	assert.NotContains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	xlog.SetGlobalLogLevel(xlog.DEBUG)
+	logger.Debugf("Test Debug\n")
+	writer.Flush()
+	result = string(b.Bytes())
+	expected = "xlog_test: Test Debug\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
 }
