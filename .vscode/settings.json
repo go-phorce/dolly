@@ -1,0 +1,43 @@
+{
+    // The number of spaces a tab is equal to. This setting is overriden based on the file contents when `editor.detectIndentation` is on.
+    "editor.tabSize": 4,
+
+    // Insert spaces when pressing Tab. This setting is overriden based on the file contents when `editor.detectIndentation` is on.
+    "editor.insertSpaces": true,
+
+    // When opening a file, `editor.tabSize` and `editor.insertSpaces` will be detected based on the file contents.
+    "editor.detectIndentation": false,
+
+    "editor.renderWhitespace": "boundary",
+    "editor.renderControlCharacters": true,
+    "editor.renderIndentGuides": true,
+
+    // Controls the font size in pixels.
+    //"editor.fontSize": 14,
+    //"editor.fontFamily": "'Droid Sans Mono',monospace, monospace, 'Droid Sans Fallback'",
+
+    //"terminal.integrated.fontSize": 14,
+    // Controls the font family of the terminal, this defaults to editor.fontFamily's value.
+    //"terminal.integrated.fontFamily": "'Droid Sans Mono', monospace, 'Droid Sans Fallback'",
+
+    "files.trimTrailingWhitespace": true,
+
+    // Configure glob patterns for excluding files and folders in searches. Inherits all glob patterns from the files.exclude setting.
+    "search.exclude": {
+      "**/.coverage": true,
+      "**/.gopath": true,
+      "**/.rpm": true,
+      "**/.vscode": true,
+      "**/vendor": true,
+      "**/bin": true
+    },
+
+    // Configure glob patterns for excluding files and folders. For example, the files explorer decides which files and folders to show or hide based on this setting.
+    "files.exclude": {
+      "**/.gopath": true,
+      "**/.tools": true,
+      "**/.idea": true
+    },
+
+    "go.autocompleteUnimportedPackages": false
+  }
