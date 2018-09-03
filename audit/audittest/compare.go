@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ekspand/pkg/algorithms/slices"
-	"github.com/ekspand/pkg/audit"
+	"github.com/go-phorce/pkg/algorithms/slices"
+	"github.com/go-phorce/pkg/audit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

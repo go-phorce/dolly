@@ -3,7 +3,7 @@ package netutil_test
 import (
 	"testing"
 
-	"github.com/ekspand/pkg/netutil"
+	"github.com/go-phorce/pkg/netutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

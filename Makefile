@@ -1,40 +1,11 @@
-include common.mk
-
-ORG_NAME=github.com/ekspand
-PROJ_NAME=pkg
-REPO_NAME=${ORG_NAME}/${PROJ_NAME}
-PROJ_PACKAGE := ${REPO_NAME}
+include .project/common.mk
 
 GOFILES = $(shell find . -type f -name '*.go')
-GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.gopath/*")
-
-export PROJROOT=$(ROOT)
-
-# if PROJ_GOPATH is defined,
-# then GOPATH and GOROOT are expected to be set, and symbolic link to Stampy must be created;
-# otherwise create necessary environment
-ifndef PROJ_GOPATH
-export PROJ_GOPATH_DIR=.gopath
-export PROJ_GOPATH := ${ROOT}/${PROJ_GOPATH_DIR}
-export GOPATH := ${PROJ_GOPATH}
-export GOROOT := $(shell go env GOROOT)
-export PATH := ${PATH}:${GOPATH}/bin:${GOROOT}/bin
-endif
-
-PROJ_REPO_TARGET := "${PROJ_GOPATH_DIR}/src/${REPO_NAME}"
+GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.tools/*" -not -path "./.gopath/*")
 
 # location for vendor files
 VENDOR_SRC=vendor
 DOCKER_BIN=.docker
-
-# tools path
-export TOOLS_PATH := ${PROJ_GOPATH}/src/${REPO_NAME}/${VENDOR_SRC}/.tools
-export TOOLS_SRC := ${TOOLS_PATH}/src
-export TOOLS_BIN := ${TOOLS_PATH}/bin
-
-# test path
-TEST_GOPATH := "${PROJ_GOPATH}"
-TEST_DIR := "${PROJ_REPO_TARGET}"
 
 COVERAGE_EXCLUSIONS="/rt\.go|/bindata\.go"
 
@@ -70,11 +41,7 @@ vars:
 	echo "VERSION=$(GIT_VERSION)"
 	[ -d "${PROJ_REPO_TARGET}" ] && echo "Link exists: ${PROJ_REPO_TARGET}" || echo "Link does not exist: ${PROJ_REPO_TARGET}"
 
-all: clean gopath vendor tools generate build test
-
-jenkins: purge gopath vendor tools generate build citest cicoverage
-
-jenkinsint: purge gopath vendor tools generate build citestint
+all: clean gopath vendor tools generate test
 
 clean:
 	go clean
@@ -101,21 +68,22 @@ showupdates:
 
 gettools:
 	mkdir -p ${TOOLS_SRC}
-	$(call gitclone,${GITHUB_HOST},golang/tools,             ${TOOLS_SRC}/golang.org/x/tools,                  2226533658007779ffd629b495a088530c84dc50)
-	$(call gitclone,${GITHUB_HOST},golang/lint,              ${TOOLS_SRC}/github.com/golang/lint,              3ea3fa98a8104b2c8f8a7bffaebc7e54dddf99e1)
-	$(call gitclone,${GITHUB_HOST},jteeuwen/go-bindata,      ${TOOLS_SRC}/github.com/jteeuwen/go-bindata,      v3.0.7)
+	$(call gitclone,${GITHUB_HOST},golang/tools,             ${TOOLS_SRC}/golang.org/x/tools,                  release-branch.go1.10)
+	$(call gitclone,${GITHUB_HOST},jteeuwen/go-bindata,      ${TOOLS_SRC}/github.com/jteeuwen/go-bindata,      6025e8de665b31fa74ab1a66f2cddd8c0abf887e)
 	$(call gitclone,${GITHUB_HOST},jstemmer/go-junit-report, ${TOOLS_SRC}/github.com/jstemmer/go-junit-report, 385fac0ced9acaae6dc5b39144194008ded00697)
-	$(call gitclone,${GITHUB_HOST},ekspand/cov-report,       ${TOOLS_SRC}/github.com/ekspand/cov-report,       master)
+	$(call gitclone,${GITHUB_HOST},ekspand/cov-report,       ${TOOLS_SRC}/github.com/go-phorce/cov-report,     master)
+	$(call gitclone,${GITHUB_HOST},golang/lint,              ${TOOLS_SRC}/golang.org/x/lint,                   06c8688daad7faa9da5a0c2f163a3d14aac986ca)
+	#$(call gitclone,${GITHUB_HOST},golangci/golangci-lint,   ${TOOLS_SRC}/github.com/golangci/golangci-lint,   master)
 
 tools: gettools
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/stringer
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/gorename
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/godoc
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/guru
-	GOPATH=${TOOLS_PATH} go install github.com/golang/lint/golint
+	GOPATH=${TOOLS_PATH} go install golang.org/x/lint/golint
 	GOPATH=${TOOLS_PATH} go install github.com/jteeuwen/go-bindata/...
 	GOPATH=${TOOLS_PATH} go install github.com/jstemmer/go-junit-report
-	GOPATH=${TOOLS_PATH} go install github.com/ekspand/cov-report/cmd/cov-report
+	GOPATH=${TOOLS_PATH} go install github.com/go-phorce/cov-report/cmd/cov-report
 
 getdevtools:
 	$(call gitclone,${GITHUB_HOST},golang/tools,                ${GOPATH}/src/golang.org/x/tools,                  master)
@@ -145,12 +113,12 @@ get:
 	$(call gitclone,${GITHUB_HOST},alecthomas/kingpin,    ${VENDOR_SRC}/gopkg.in/alecthomas/kingpin,      a39589180ebd6bbf43076e514b55f20a95d43086)
 	$(call gitclone,${GITHUB_HOST},alecthomas/template,   ${VENDOR_SRC}/github.com/alecthomas/template,   a0175ee3bccc567396460bf5acd36800cb10c49c)
 	$(call gitclone,${GITHUB_HOST},alecthomas/units,      ${VENDOR_SRC}/github.com/alecthomas/units,      2efee857e7cfd4f3d0138cc3cbb1b4966962b93a)
-	$(call gitclone,${GITHUB_HOST},stretchr/testify,      ${VENDOR_SRC}/github.com/stretchr/testify,      4d4bfba8f1d1027c4fdbe371823030df51419987)
-	$(call gitclone,${GITHUB_HOST},ugorji/go,             ${VENDOR_SRC}/github.com/ugorji/go,             5cd0f2b3b6cca8e3a0a4101821e41a73cb59bed6)
-	$(call gitclone,${GITHUB_HOST},golang/crypto,         ${VENDOR_SRC}/golang.org/x/crypto,              453249f01cfeb54c3d549ddb75ff152ca243f9d8)
-	$(call gitclone,${GITHUB_HOST},golang/net,            ${VENDOR_SRC}/golang.org/x/net,                 66aacef3dd8a676686c7ae3716979581e8b03c47)
-	$(call gitclone,${GITHUB_HOST},golang/text,           ${VENDOR_SRC}/golang.org/x/text,                b19bf474d317b857955b12035d2c5acb57ce8b01)
-	$(call gitclone,${GITHUB_HOST},juju/errors,           ${VENDOR_SRC}/github.com/juju/errors,           c7d06af17c68cd34c835053720b21f6549d9b0ee)
+	$(call gitclone,${GITHUB_HOST},stretchr/testify,      ${VENDOR_SRC}/github.com/stretchr/testify,      f35b8ab0b5a2cef36673838d662e249dd9c94686)
+	$(call gitclone,${GITHUB_HOST},ugorji/go,             ${VENDOR_SRC}/github.com/ugorji/go,             e253f1f20942cb6dc505e504e8bbba4b7f434cb2)
+	$(call gitclone,${GITHUB_HOST},golang/crypto,         ${VENDOR_SRC}/golang.org/x/crypto,              182538f80094b6a8efaade63a8fd8e0d9d5843dd)
+	$(call gitclone,${GITHUB_HOST},golang/net,            ${VENDOR_SRC}/golang.org/x/net,                 8a410e7b638dca158bf9e766925842f6651ff828)
+	$(call gitclone,${GITHUB_HOST},golang/text,           ${VENDOR_SRC}/golang.org/x/text,                6e3c4e7365ddcc329f090f96e4348398f6310088)
+	$(call gitclone,${GITHUB_HOST},juju/errors,           ${VENDOR_SRC}/github.com/juju/errors,           22422dad46e14561a0854ad42497a75af9b61909)
 	$(call gitclone,${GITHUB_HOST},natefinch/lumberjack,  ${VENDOR_SRC}/gopkg.in/natefinch/lumberjack.v2, 514cbda263a734ae8caac038dadf05f8f3f9f738)
 
 vendor: get
@@ -161,22 +129,17 @@ generate:
 version:
 	gofmt -r '"GIT_VERSION" -> "$(GIT_VERSION)"' version/current.template > version/current.go
 
-build:
-	echo "Building ${PROJ_NAME}"
-#	cd ${TEST_DIR} && go build -o ${PROJROOT}/bin/${PROJ_NAME} ./cmd/${PROJ_NAME}
-#	cp ${PROJROOT}/bin/${PROJ_NAME} ${TOOLS_BIN}/
-
 listpkg: vars
 	cd ${TEST_DIR} && go list ./...
 
-vet: build
+vet:
 	echo "Running vet"
 	cd ${TEST_DIR} && go vet ./...
 
 lint:
 	echo "Running lint"
-	cd ${TEST_DIR} && GOPATH=${TEST_GOPATH}  go list ./... | grep -v /vendor/ | xargs -L1 ${TOOLS_BIN}/golint -set_exit_status
-	# cd ${TEST_DIR} && GOPATH=${TEST_GOPATH} ${PROJROOT}/golint.sh ${TOOLS_BIN}/golint -set_exit_status ${PROJECT_DIRS}
+	cd ${TEST_DIR} && GOPATH=${TEST_GOPATH}  go list ./... | grep -v /vendor/ | xargs -L1 golint -set_exit_status
+	# cd ${TEST_DIR} && GOPATH=${TEST_GOPATH} ${PROJROOT}/golint.sh golint -set_exit_status ${PROJECT_DIRS}
 
 # print out the go environment
 env:
@@ -186,13 +149,15 @@ testenv:
 	GOPATH=${TEST_GOPATH} go env
 
 bench:
-	GOPATH=${TEST_GOPATH} go test  ${TEST_RACEFLAG} -bench . ${PROJ_PACKAGE}/...
+	echo "Running bench"
+	GOPATH=${TEST_GOPATH} go test ${TEST_RACEFLAG} -bench . ${PROJ_PACKAGE}/...
 
 fmt:
 	echo "Running Fmt"
 	gofmt -s -l -w ${GOFILES_NOVENDOR}
 
 test: fmt vet lint
+	echo "Running test"
 	cd ${TEST_DIR} && go test ${TEST_RACEFLAG} ./...
 
 testshort:
@@ -219,6 +184,6 @@ cicoverage:
 # this unitest step can skip coverage reporting which speeds it up massively
 citest: vet lint
 	$(call go_test_cover_junit,${TEST_DIR},${GOPATH},${TEST_RACEFLAG},${TEST_GORACEOPTIONS},.,${COVERAGE_EXCLUSIONS})
-	${TOOLS_BIN}/cov-report -fmt xml -o ${COVPATH}/coverage.xml -ex ${COVERAGE_EXCLUSIONS} -cc ${COVPATH}/combined.out ${COVPATH}/cc*.out
-	${TOOLS_BIN}/cov-report -fmt ds -o ${COVPATH}/summary.xml -ex ${COVERAGE_EXCLUSIONS} ${COVPATH}/cc*.out
+	cov-report -fmt xml -o ${COVPATH}/coverage.xml -ex ${COVERAGE_EXCLUSIONS} -cc ${COVPATH}/combined.out ${COVPATH}/cc*.out
+	cov-report -fmt ds -o ${COVPATH}/summary.xml -ex ${COVERAGE_EXCLUSIONS} ${COVPATH}/cc*.out
 

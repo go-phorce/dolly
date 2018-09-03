@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ekspand/pkg/netutil"
+	"github.com/go-phorce/pkg/netutil"
 )
 
 // ClientIPFromRequest return client's real public IP address from http request headers.

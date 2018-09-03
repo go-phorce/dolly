@@ -3,11 +3,14 @@
 
 ROOT=`pwd`
 GOROOT=`go env GOROOT`
-echo "Root=$ROOT"
+echo "Working in $ROOT"
 
-ORG_NAME=github.com/ekspand
-PROJ_NAME=pkg
-REPO_NAME=$ORG_NAME/$PROJ_NAME
+# include parse_yaml function
+source .project/yaml.sh
+create_variables ./config.yml
+ORG_NAME=$project_org
+PROJ_NAME=$project_name
+REPO_NAME=$ORG_NAME/$PROJ_NAME	REPO_NAME=$ORG_NAME/$PROJ_NAME
 
 if [[ "$PWD" = *src/$REPO_NAME ]]; then
 #
@@ -34,6 +37,8 @@ else
 #
 # Not in GOPATH format
 #
+echo "WARNING: this project is not cloned in GOPATH"
+
 pushd ..
 CWD=`pwd`
 PROJ_GOPATH_DIR=gopath

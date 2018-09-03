@@ -20,13 +20,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ekspand/pkg/xlog"
+	"github.com/go-phorce/pkg/xlog"
 	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var logger = xlog.NewPackageLogger("github.com/ekspand/pkg/xlog", "xlog_test")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg/xlog", "xlog_test")
 
 const logPrefixFormt = "2018-04-17 20:53:46.589926 "
 
@@ -123,13 +123,13 @@ func Test_WithTracedError(t *testing.T) {
 			"Test_WithTracedError(1)",
 			1,
 			"E | xlog_test: err=[originateError: msg=Test_WithTracedError(1), level=0]\n",
-			"E | xlog_test: stack=[/xlog_test.go:37: originateError: msg=Test_WithTracedError(1), level=0\n/xlog_test.go:44: \n/xlog_test.go:42: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/pkg/xlog/xlog_test.go:37: originateError: msg=Test_WithTracedError(1), level=0\ngithub.com/go-phorce/pkg/xlog/xlog_test.go:44: \ngithub.com/go-phorce/pkg/xlog/xlog_test.go:42: ]\n",
 		},
 		{
 			"Test_WithTracedError(4)",
 			2,
 			"E | xlog_test: err=[originateError: msg=Test_WithTracedError(4), level=0]\n",
-			"E | xlog_test: stack=[/xlog_test.go:37: originateError: msg=Test_WithTracedError(4), level=0\n/xlog_test.go:44: \n/xlog_test.go:42: \n/xlog_test.go:42: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/pkg/xlog/xlog_test.go:37: originateError: msg=Test_WithTracedError(4), level=0\ngithub.com/go-phorce/pkg/xlog/xlog_test.go:44: \ngithub.com/go-phorce/pkg/xlog/xlog_test.go:42: \ngithub.com/go-phorce/pkg/xlog/xlog_test.go:42: ]\n",
 		},
 	}
 
@@ -175,13 +175,13 @@ func Test_WithAnnotatedError(t *testing.T) {
 			"Test_WithAnnotatedError(1)",
 			1,
 			"E | xlog_test: err=[annotateError, level=0: originateError: msg=Test_WithAnnotatedError(1), level=0]\n",
-			"E | xlog_test: stack=[/xlog_test.go:37: originateError: msg=Test_WithAnnotatedError(1), level=0\n/xlog_test.go:51: annotateError, level=0\n/xlog_test.go:49: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/pkg/xlog/xlog_test.go:37: originateError: msg=Test_WithAnnotatedError(1), level=0\ngithub.com/go-phorce/pkg/xlog/xlog_test.go:51: annotateError, level=0\ngithub.com/go-phorce/pkg/xlog/xlog_test.go:49: ]\n",
 		},
 		{
 			"Test_WithAnnotatedError(4)",
 			2,
 			"E | xlog_test: err=[annotateError, level=0: originateError: msg=Test_WithAnnotatedError(4), level=0]\n",
-			"E | xlog_test: stack=[/xlog_test.go:37: originateError: msg=Test_WithAnnotatedError(4), level=0\n/xlog_test.go:51: annotateError, level=0\n/xlog_test.go:49: \n/xlog_test.go:49: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/pkg/xlog/xlog_test.go:37: originateError: msg=Test_WithAnnotatedError(4), level=0\ngithub.com/go-phorce/pkg/xlog/xlog_test.go:51: annotateError, level=0\ngithub.com/go-phorce/pkg/xlog/xlog_test.go:49: \ngithub.com/go-phorce/pkg/xlog/xlog_test.go:49: ]\n",
 		},
 	}
 
@@ -215,7 +215,7 @@ func Test_WithAnnotatedError(t *testing.T) {
 }
 
 func Test_LevelAt(t *testing.T) {
-	l, err := xlog.GetRepoLogger("github.com/ekspand/pkg/xlog")
+	l, err := xlog.GetRepoLogger("github.com/go-phorce/pkg/xlog")
 	require.NoError(t, err)
 
 	l.SetRepoLogLevel(xlog.INFO)

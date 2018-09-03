@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ekspand/pkg/guid"
-	"github.com/ekspand/pkg/resolve"
+	"github.com/go-phorce/pkg/guid"
+	"github.com/go-phorce/pkg/resolve"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

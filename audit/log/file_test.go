@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ekspand/pkg/audit"
+	"github.com/go-phorce/pkg/audit"
 	"github.com/stretchr/testify/suite"
 )
 

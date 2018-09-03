@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/ekspand/pkg/xlog"
+	"github.com/go-phorce/pkg/xlog"
 	"github.com/stretchr/testify/assert"
 )
 
