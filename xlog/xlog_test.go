@@ -20,13 +20,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ekspand/pkg/xlog"
+	"github.com/go-phorce/pkg/xlog"
 	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-var logger = xlog.NewPackageLogger("github.com/ekspand/pkg/xlog", "xlog_test")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg/xlog", "xlog_test")
 
 const logPrefixFormt = "2018-04-17 20:53:46.589926 "
 
@@ -215,7 +215,7 @@ func Test_WithAnnotatedError(t *testing.T) {
 }
 
 func Test_LevelAt(t *testing.T) {
-	l, err := xlog.GetRepoLogger("github.com/ekspand/pkg/xlog")
+	l, err := xlog.GetRepoLogger("github.com/go-phorce/pkg/xlog")
 	require.NoError(t, err)
 
 	l.SetRepoLogLevel(xlog.INFO)

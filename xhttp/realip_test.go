@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ekspand/pkg/xhttp"
+	"github.com/go-phorce/pkg/xhttp"
 	"github.com/stretchr/testify/assert"
 )
 

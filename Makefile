@@ -1,40 +1,11 @@
-include common.mk
-
-ORG_NAME=github.com/ekspand
-PROJ_NAME=pkg
-REPO_NAME=${ORG_NAME}/${PROJ_NAME}
-PROJ_PACKAGE := ${REPO_NAME}
+include .project/common.mk
 
 GOFILES = $(shell find . -type f -name '*.go')
-GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.gopath/*")
-
-export PROJROOT=$(ROOT)
-
-# if PROJ_GOPATH is defined,
-# then GOPATH and GOROOT are expected to be set, and symbolic link to Stampy must be created;
-# otherwise create necessary environment
-ifndef PROJ_GOPATH
-export PROJ_GOPATH_DIR=.gopath
-export PROJ_GOPATH := ${ROOT}/${PROJ_GOPATH_DIR}
-export GOPATH := ${PROJ_GOPATH}
-export GOROOT := $(shell go env GOROOT)
-export PATH := ${PATH}:${GOPATH}/bin:${GOROOT}/bin
-endif
-
-PROJ_REPO_TARGET := "${PROJ_GOPATH_DIR}/src/${REPO_NAME}"
+GOFILES_NOVENDOR = $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.tools/*" -not -path "./.gopath/*")
 
 # location for vendor files
 VENDOR_SRC=vendor
 DOCKER_BIN=.docker
-
-# tools path
-export TOOLS_PATH := ${PROJ_GOPATH}/src/${REPO_NAME}/${VENDOR_SRC}/.tools
-export TOOLS_SRC := ${TOOLS_PATH}/src
-export TOOLS_BIN := ${TOOLS_PATH}/bin
-
-# test path
-TEST_GOPATH := "${PROJ_GOPATH}"
-TEST_DIR := "${PROJ_REPO_TARGET}"
 
 COVERAGE_EXCLUSIONS="/rt\.go|/bindata\.go"
 
@@ -70,11 +41,7 @@ vars:
 	echo "VERSION=$(GIT_VERSION)"
 	[ -d "${PROJ_REPO_TARGET}" ] && echo "Link exists: ${PROJ_REPO_TARGET}" || echo "Link does not exist: ${PROJ_REPO_TARGET}"
 
-all: clean gopath vendor tools generate build test
-
-jenkins: purge gopath vendor tools generate build citest cicoverage
-
-jenkinsint: purge gopath vendor tools generate build citestint
+all: clean gopath vendor tools generate test
 
 clean:
 	go clean
@@ -105,7 +72,7 @@ gettools:
 	$(call gitclone,${GITHUB_HOST},golang/lint,              ${TOOLS_SRC}/github.com/golang/lint,              3ea3fa98a8104b2c8f8a7bffaebc7e54dddf99e1)
 	$(call gitclone,${GITHUB_HOST},jteeuwen/go-bindata,      ${TOOLS_SRC}/github.com/jteeuwen/go-bindata,      v3.0.7)
 	$(call gitclone,${GITHUB_HOST},jstemmer/go-junit-report, ${TOOLS_SRC}/github.com/jstemmer/go-junit-report, 385fac0ced9acaae6dc5b39144194008ded00697)
-	$(call gitclone,${GITHUB_HOST},ekspand/cov-report,       ${TOOLS_SRC}/github.com/ekspand/cov-report,       master)
+	$(call gitclone,${GITHUB_HOST},ekspand/cov-report,       ${TOOLS_SRC}/github.com/go-phorce/cov-report,       master)
 
 tools: gettools
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/stringer
@@ -115,7 +82,7 @@ tools: gettools
 	GOPATH=${TOOLS_PATH} go install github.com/golang/lint/golint
 	GOPATH=${TOOLS_PATH} go install github.com/jteeuwen/go-bindata/...
 	GOPATH=${TOOLS_PATH} go install github.com/jstemmer/go-junit-report
-	GOPATH=${TOOLS_PATH} go install github.com/ekspand/cov-report/cmd/cov-report
+	GOPATH=${TOOLS_PATH} go install github.com/go-phorce/cov-report/cmd/cov-report
 
 getdevtools:
 	$(call gitclone,${GITHUB_HOST},golang/tools,                ${GOPATH}/src/golang.org/x/tools,                  master)
@@ -161,15 +128,10 @@ generate:
 version:
 	gofmt -r '"GIT_VERSION" -> "$(GIT_VERSION)"' version/current.template > version/current.go
 
-build:
-	echo "Building ${PROJ_NAME}"
-#	cd ${TEST_DIR} && go build -o ${PROJROOT}/bin/${PROJ_NAME} ./cmd/${PROJ_NAME}
-#	cp ${PROJROOT}/bin/${PROJ_NAME} ${TOOLS_BIN}/
-
 listpkg: vars
 	cd ${TEST_DIR} && go list ./...
 
-vet: build
+vet:
 	echo "Running vet"
 	cd ${TEST_DIR} && go vet ./...
 
@@ -186,13 +148,15 @@ testenv:
 	GOPATH=${TEST_GOPATH} go env
 
 bench:
-	GOPATH=${TEST_GOPATH} go test  ${TEST_RACEFLAG} -bench . ${PROJ_PACKAGE}/...
+	echo "Running bench"
+	GOPATH=${TEST_GOPATH} go test ${TEST_RACEFLAG} -bench . ${PROJ_PACKAGE}/...
 
 fmt:
 	echo "Running Fmt"
 	gofmt -s -l -w ${GOFILES_NOVENDOR}
 
 test: fmt vet lint
+	echo "Running test"
 	cd ${TEST_DIR} && go test ${TEST_RACEFLAG} ./...
 
 testshort:

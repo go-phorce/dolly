@@ -1,8 +1,10 @@
 /.gopath
 /.coverage
 /.rpm
+/.tools
 /vendor
 
+coverage.out
 pkg/
 bin/
 .idea

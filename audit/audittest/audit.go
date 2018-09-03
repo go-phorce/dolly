@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ekspand/pkg/audit"
+	"github.com/go-phorce/pkg/audit"
 	"github.com/stretchr/testify/assert"
 )
 
