@@ -47,12 +47,12 @@ func (l *NilLogger) Fatalln(args ...interface{}) {}
 
 // Panic does nothing
 func (l *NilLogger) Panic(args ...interface{}) {
-	log.Panic(args)
+	log.Panic(args...)
 }
 
 // Panicf does nothing
 func (l *NilLogger) Panicf(format string, args ...interface{}) {
-	log.Panicf(format, args)
+	log.Panicf(format, args...)
 }
 
 // Info does nothing

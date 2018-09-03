@@ -59,7 +59,7 @@ CLONE_DELAY ?= 0
 # of the command if there are some
 # it runs git log in the relevant directory to show the log entries betweeen HEAD and origin/master
 define show_dep_updates
-	find $(1) -name .git -exec sh -c 'cd {}/.. && [[ $$(git log --oneline HEAD...origin/master | wc -l) -gt 0 ]] && echo "\n" && pwd && git log --pretty=oneline --abbrev=0 --graph HEAD...origin/master' \;
+	find $(1) -name .git -exec sh -c 'cd {}/.. && [ $$(git log --oneline HEAD...origin/master | wc -l) -gt 0 ] && echo "\n" && pwd && git --no-pager log --pretty=oneline --abbrev=0 --graph HEAD...origin/master' \;
 endef
 
 # gitclone is a function that will do a clone, or a fetch / checkout [if we'd previous done a clone]

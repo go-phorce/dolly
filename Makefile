@@ -68,11 +68,11 @@ showupdates:
 
 gettools:
 	mkdir -p ${TOOLS_SRC}
-	$(call gitclone,${GITHUB_HOST},golang/tools,             ${TOOLS_SRC}/golang.org/x/tools,                  2226533658007779ffd629b495a088530c84dc50)
-	$(call gitclone,${GITHUB_HOST},golang/lint,              ${TOOLS_SRC}/github.com/golang/lint,              3ea3fa98a8104b2c8f8a7bffaebc7e54dddf99e1)
+	$(call gitclone,${GITHUB_HOST},golang/tools,             ${TOOLS_SRC}/golang.org/x/tools,                  release-branch.go1.10)
+	$(call gitclone,${GITHUB_HOST},golang/lint,              ${TOOLS_SRC}/golang.org/x/lint,                   06c8688daad7faa9da5a0c2f163a3d14aac986ca)
 	$(call gitclone,${GITHUB_HOST},jteeuwen/go-bindata,      ${TOOLS_SRC}/github.com/jteeuwen/go-bindata,      v3.0.7)
 	$(call gitclone,${GITHUB_HOST},jstemmer/go-junit-report, ${TOOLS_SRC}/github.com/jstemmer/go-junit-report, 385fac0ced9acaae6dc5b39144194008ded00697)
-	$(call gitclone,${GITHUB_HOST},ekspand/cov-report,       ${TOOLS_SRC}/github.com/go-phorce/cov-report,       master)
+	$(call gitclone,${GITHUB_HOST},ekspand/cov-report,       ${TOOLS_SRC}/github.com/go-phorce/cov-report,     master)
 
 tools: gettools
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/stringer
