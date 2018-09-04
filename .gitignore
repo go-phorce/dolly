@@ -2,7 +2,6 @@
 /.coverage
 /.rpm
 /.tools
-/vendor
 
 coverage.out
 pkg/
