@@ -3,9 +3,9 @@ package metrics
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"time"
 
-	"github.com/go-phorce/pkg/certutil"
 	"github.com/go-phorce/pkg/metrics/tags"
 )
 
@@ -15,7 +15,7 @@ func PublishCertExpirationInDays(c *x509.Certificate, typ string) float32 {
 		tags.Separator,
 		"CN", c.Subject.CommonName,
 		"Serial", c.SerialNumber.String(),
-		"SKI", certutil.GetSubjectKeyID(c),
+		"SKI", hex.EncodeToString(c.SubjectKeyId),
 		"type", typ,
 	}
 	expiresIn := c.NotAfter.Sub(time.Now().UTC())
@@ -25,16 +25,16 @@ func PublishCertExpirationInDays(c *x509.Certificate, typ string) float32 {
 }
 
 // PublishCRLExpirationInDays publish CRL expiration time in Days
-func PublishCRLExpirationInDays(c *pkix.CertificateList, issuerID string, issuer *x509.Certificate) float32 {
+func PublishCRLExpirationInDays(c *pkix.CertificateList, issuer *x509.Certificate) float32 {
 	PublishCertExpirationInDays(issuer, "issuer")
 
 	metricKey := []string{"crl", "expiry", "days",
 		tags.Separator,
 		"CN", issuer.Subject.CommonName,
 		"Serial", issuer.SerialNumber.String(),
-		"SKI", certutil.GetSubjectKeyID(issuer),
-		"IssuerID", issuerID,
+		"SKI", hex.EncodeToString(issuer.SubjectKeyId),
 	}
+
 	expiresIn := c.TBSCertList.NextUpdate.Sub(time.Now().UTC())
 	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
 	SetGauge(metricKey, expiresInDays)
