@@ -54,10 +54,10 @@ func (l LogLevel) Char() string {
 		return "N"
 	case INFO:
 		return "I"
-	case DEBUG:
-		return "D"
 	case TRACE:
 		return "T"
+	case DEBUG:
+		return "D"
 	default:
 		panic("Unhandled loglevel")
 	}
@@ -76,10 +76,10 @@ func (l LogLevel) String() string {
 		return "NOTICE"
 	case INFO:
 		return "INFO"
-	case DEBUG:
-		return "DEBUG"
 	case TRACE:
 		return "TRACE"
+	case DEBUG:
+		return "DEBUG"
 	default:
 		panic("Unhandled loglevel")
 	}
@@ -109,10 +109,10 @@ func ParseLevel(s string) (LogLevel, error) {
 		return NOTICE, nil
 	case "INFO", "3", "I":
 		return INFO, nil
-	case "DEBUG", "4", "D":
-		return DEBUG, nil
-	case "TRACE", "5", "T":
+	case "TRACE", "4", "T":
 		return TRACE, nil
+	case "DEBUG", "5", "D":
+		return DEBUG, nil
 	}
 	return CRITICAL, errors.New("couldn't parse log level " + s)
 }
