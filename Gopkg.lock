@@ -18,6 +18,14 @@
   version = "v1.1.1"
 
 [[projects]]
+  branch = "master"
+  digest = "1:6a176a8acbcb1464d02ed446337fdfa9aa4ae3f44e9ee77b8e4f25fa24c0e31c"
+  name = "github.com/go-phorce/xlog"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2c71b0f5e4ed32d21a78b248628b1fa7f8dfad75"
+
+[[projects]]
   digest = "1:2be5a35f0c5b35162c41bb24971e5dcf6ce825403296ee435429cdcc4e1e847e"
   name = "github.com/hashicorp/go-immutable-radix"
   packages = ["."]
@@ -82,6 +90,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/armon/go-metrics",
+    "github.com/go-phorce/xlog",
     "github.com/juju/errors",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
