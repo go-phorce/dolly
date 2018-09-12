@@ -117,6 +117,66 @@ func (c *PrettyFormatter) Flush() {
 	c.w.Flush()
 }
 
+// NewColorFormatter returns an instance of ColorFormatter
+func NewColorFormatter(w io.Writer, color bool) Formatter {
+	return &ColorFormatter{
+		w:     bufio.NewWriter(w),
+		color: color,
+	}
+}
+
+// ColorFormatter provides colorful logs format
+type ColorFormatter struct {
+	w     *bufio.Writer
+	color bool
+}
+
+// color pallete map
+var (
+	ColorOff    = []byte("\033[0m")
+	colorRed    = []byte("\033[0;31m") // ERROR
+	colorGreen  = []byte("\033[0;32m") // NOTICE
+	colorOrange = []byte("\033[0;33m") // WARN
+	colorBlue   = []byte("\033[0;34m") // INFO
+	colorPurple = []byte("\033[0;35m") // DEBUG
+	colorCyan   = []byte("\033[0;36m")
+	colorGray   = []byte("\033[0;37m") // TRACE
+)
+
+// LevelColors provides colors map
+var LevelColors = map[LogLevel][]byte{
+	CRITICAL: colorRed,
+	ERROR:    colorRed,
+	WARNING:  colorOrange,
+	NOTICE:   colorGreen,
+	INFO:     colorBlue,
+	DEBUG:    colorPurple,
+	TRACE:    colorGray,
+}
+
+// Format log entry string to the stream
+func (c *ColorFormatter) Format(pkg string, l LogLevel, depth int, entries ...interface{}) {
+	now := time.Now()
+	ts := now.Format("2006-01-02 15:04:05")
+	c.w.WriteString(ts)
+	ms := now.Nanosecond() / 1000
+	c.w.WriteString(fmt.Sprintf(".%06d", ms))
+	if c.color {
+		c.w.Write(LevelColors[l])
+	}
+	c.w.WriteString(fmt.Sprint(" ", l.Char(), " | "))
+	writeEntries(c.w, pkg, l, depth, entries...)
+	if c.color {
+		c.w.Write(ColorOff)
+	}
+	c.Flush()
+}
+
+// Flush the logs
+func (c *ColorFormatter) Flush() {
+	c.w.Flush()
+}
+
 // LogFormatter emulates the form of the traditional built-in logger.
 type LogFormatter struct {
 	logger *log.Logger
