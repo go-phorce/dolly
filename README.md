@@ -1,6 +1,9 @@
-# pkg
+# go-phorce/pkg
 
 GO packages for building web apps
+
+[![Build Status](https://travis-ci.org/go-phorce/pkg.svg?branch=master)](https://travis-ci.org/go-phorce/pkg)
+[![Coverage Status](https://coveralls.io/repos/github/go-phorce/xpki/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/xpki?branch=master)
 
 ## Contribution
 
@@ -35,7 +38,3 @@ Optionally run golang race detector with test targets by setting RACE flag:
 Review coverage report:
 
     make covtest coverage
-
-### Current build status
-
-[![Build Status](https://travis-ci.org/go-phorce/pkg.svg?branch=master)](https://travis-ci.org/go-phorce/pkg)

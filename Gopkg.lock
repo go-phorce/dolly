@@ -19,11 +19,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6a176a8acbcb1464d02ed446337fdfa9aa4ae3f44e9ee77b8e4f25fa24c0e31c"
+  digest = "1:737fdfa0611bb68037c4907e58c2bed642781f1485ca025221960368adbf7a8c"
   name = "github.com/go-phorce/xlog"
   packages = ["."]
   pruneopts = "UT"
-  revision = "2c71b0f5e4ed32d21a78b248628b1fa7f8dfad75"
+  revision = "4198feceb3217099544850c4d1e5a8188f6dfdc7"
 
 [[projects]]
   digest = "1:2be5a35f0c5b35162c41bb24971e5dcf6ce825403296ee435429cdcc4e1e847e"
