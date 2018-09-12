@@ -34,7 +34,7 @@ SHELL=/bin/bash
 #	show_dep_updates {folder}
 #		Show dependencies updates in {folder}
 #
-#	gitclone {org} {repo} {destination_dir}
+#	httpsclone {org} {repo} {destination_dir}
 #
 #	go_test_cover
 #
@@ -127,14 +127,26 @@ define show_dep_updates
 	find $(1) -name .git -exec sh -c 'cd {}/.. && [ $$(git log --oneline HEAD...origin/master | wc -l) -gt 0 ] && echo "\n" && pwd && git --no-pager log --pretty=oneline --abbrev=0 --graph HEAD...origin/master' \;
 endef
 
+# httpsclone is a function that will do a clone, or a fetch / checkout [if we'd previous done a clone]
+# usage, $(call httpsclone,github.com,ekspand/foo,/some/directory,some_sha)
+# it builds a repo url from the first 2 params, the 3rd param is the directory to place the repo
+# and the final param is the commit to checkout [a sha or branch or tag]
+define httpsclone
+	@echo "Checking/Updating dependency https://$(1)/$(2)"
+	@if [ -d $(3) ]; then cd $(3) && git fetch origin; fi			# update from remote if we've already cloned it
+	@if [ ! -d $(3) ]; then git clone -q -n https://$(1)/$(2) $(3); fi  # clone a new copy
+	@cd $(3) && git checkout -q $(4)								# checkout out specific commit
+	@sleep ${CLONE_DELAY}
+endef
+
 # gitclone is a function that will do a clone, or a fetch / checkout [if we'd previous done a clone]
 # usage, $(call gitclone,github.com,ekspand/foo,/some/directory,some_sha)
 # it builds a repo url from the first 2 params, the 3rd param is the directory to place the repo
 # and the final param is the commit to checkout [a sha or branch or tag]
 define gitclone
-	@echo "Checking/Updating dependency https://$(1)/$(2)"
+	@echo "Checking/Updating dependency git://$(1):$(2).git"
 	@if [ -d $(3) ]; then cd $(3) && git fetch origin; fi			# update from remote if we've already cloned it
-	@if [ ! -d $(3) ]; then git clone -q -n https://$(1)/$(2) $(3); fi  # clone a new copy
+	@if [ ! -d $(3) ]; then git clone -q -n git://$(1):$(2).git $(3); fi  # clone a new copy
 	@cd $(3) && git checkout -q $(4)								# checkout out specific commit
 	@sleep ${CLONE_DELAY}
 endef
@@ -296,6 +308,10 @@ testshort:
 	echo "Running testshort"
 	cd ${TEST_DIR} && go test ${TEST_RACEFLAG} ./... --test.short
 
+# you can run a subset of tests with make sometests testname=<testnameRegex>
+sometests:
+	cd ${TEST_DIR} && go test ${TEST_RACEFLAG} ./... --test.short -run $(testname)
+
 covtest: fmt vet lint
 	echo "Running covtest"
 	$(call go_test_cover,${TEST_DIR},${TEST_GOPATH},${TEST_RACEFLAG},${TEST_GORACEOPTIONS},.,${COVERAGE_EXCLUSIONS})
@@ -352,17 +368,17 @@ help:
 	echo "make devtools - install dev tools"
 
 getdevtools:
-	$(call gitclone,${GITHUB_HOST},golang/tools,           ${GOPATH}/src/golang.org/x/tools,                  release-branch.go1.10)
-	$(call gitclone,${GITHUB_HOST},derekparker/delve,      ${GOPATH}/src/github.com/derekparker/delve,        master)
-	$(call gitclone,${GITHUB_HOST},uudashr/gopkgs,         ${GOPATH}/src/github.com/uudashr/gopkgs,           master)
-	$(call gitclone,${GITHUB_HOST},nsf/gocode,             ${GOPATH}/src/github.com/nsf/gocode,               master)
-	$(call gitclone,${GITHUB_HOST},rogpeppe/godef,         ${GOPATH}/src/github.com/rogpeppe/godef,           master)
-	$(call gitclone,${GITHUB_HOST},acroca/go-symbols,      ${GOPATH}/src/github.com/acroca/go-symbols,        master)
-	$(call gitclone,${GITHUB_HOST},ramya-rao-a/go-outline, ${GOPATH}/src/github.com/ramya-rao-a/go-outline,   master)
-	$(call gitclone,${GITHUB_HOST},ddollar/foreman,        ${GOPATH}/src/github.com/ddollar/foreman,          master)
-	$(call gitclone,${GITHUB_HOST},sqs/goreturns,          ${GOPATH}/src/github.com/sqs/goreturns,            master)
-	$(call gitclone,${GITHUB_HOST},karrick/godirwalk,      ${GOPATH}/src/github.com/karrick/godirwalk,        master)
-	$(call gitclone,${GITHUB_HOST},pkg/errors,             ${GOPATH}/src/github.com/pkg/errors,               master)
+	$(call httpsclone,${GITHUB_HOST},golang/tools,           ${GOPATH}/src/golang.org/x/tools,                  release-branch.go1.10)
+	$(call httpsclone,${GITHUB_HOST},derekparker/delve,      ${GOPATH}/src/github.com/derekparker/delve,        master)
+	$(call httpsclone,${GITHUB_HOST},uudashr/gopkgs,         ${GOPATH}/src/github.com/uudashr/gopkgs,           master)
+	$(call httpsclone,${GITHUB_HOST},nsf/gocode,             ${GOPATH}/src/github.com/nsf/gocode,               master)
+	$(call httpsclone,${GITHUB_HOST},rogpeppe/godef,         ${GOPATH}/src/github.com/rogpeppe/godef,           master)
+	$(call httpsclone,${GITHUB_HOST},acroca/go-symbols,      ${GOPATH}/src/github.com/acroca/go-symbols,        master)
+	$(call httpsclone,${GITHUB_HOST},ramya-rao-a/go-outline, ${GOPATH}/src/github.com/ramya-rao-a/go-outline,   master)
+	$(call httpsclone,${GITHUB_HOST},ddollar/foreman,        ${GOPATH}/src/github.com/ddollar/foreman,          master)
+	$(call httpsclone,${GITHUB_HOST},sqs/goreturns,          ${GOPATH}/src/github.com/sqs/goreturns,            master)
+	$(call httpsclone,${GITHUB_HOST},karrick/godirwalk,      ${GOPATH}/src/github.com/karrick/godirwalk,        master)
+	$(call httpsclone,${GITHUB_HOST},pkg/errors,             ${GOPATH}/src/github.com/pkg/errors,               master)
 
 devtools: getdevtools
 	go install golang.org/x/tools/go/buildutil
