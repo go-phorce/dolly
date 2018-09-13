@@ -21,6 +21,9 @@ SHELL=/bin/bash
 #	PROJ_GOFILES
 #		List of all .go files in the project, exluding vendor and tools
 #
+#	REL_PATH_TO_GOPATH
+#		Relative path from repo to GOPATH
+#
 # Test flags:
 #
 #	TEST_RACEFLAG
@@ -44,10 +47,11 @@ SHELL=/bin/bash
 PROJ_ROOT := $(shell pwd)
 
 ## Project variables
-ORG_NAME=$(shell .project/config_var.sh project_org)
-PROJ_NAME=$(shell .project/config_var.sh project_name)
-REPO_NAME=${ORG_NAME}/${PROJ_NAME}
+ORG_NAME := $(shell .project/config_var.sh project_org)
+PROJ_NAME := $(shell .project/config_var.sh project_name)
+REPO_NAME := ${ORG_NAME}/${PROJ_NAME}
 PROJ_PACKAGE := ${REPO_NAME}
+REL_PATH_TO_GOPATH := $(shell .project/rel_gopath.sh)
 
 ## Common variables
 HOSTNAME := $(shell echo $$HOSTNAME)
@@ -144,9 +148,9 @@ endef
 # it builds a repo url from the first 2 params, the 3rd param is the directory to place the repo
 # and the final param is the commit to checkout [a sha or branch or tag]
 define gitclone
-	@echo "Checking/Updating dependency git://$(1):$(2).git"
+	@echo "Checking/Updating dependency git@$(1):$(2).git"
 	@if [ -d $(3) ]; then cd $(3) && git fetch origin; fi			# update from remote if we've already cloned it
-	@if [ ! -d $(3) ]; then git clone -q -n git://$(1):$(2).git $(3); fi  # clone a new copy
+	@if [ ! -d $(3) ]; then git clone -q -n git@$(1):$(2).git $(3); fi  # clone a new copy
 	@cd $(3) && git checkout -q $(4)								# checkout out specific commit
 	@sleep ${CLONE_DELAY}
 endef
@@ -216,8 +220,10 @@ list:
 vars:
 	[ -d "${PROJ_REPO_TARGET}" ] && echo "Repo target exists: ${PROJ_REPO_TARGET}" || echo "Symbolic link does not exist: ${PROJ_REPO_TARGET}"
 	echo "PROJ_DIR=$(PROJ_DIR)"
+	echo "PROJ_REPO_TARGET=$(PROJ_REPO_TARGET)"
 	echo "GOROOT=$(GOROOT)"
 	echo "GOPATH=$(GOPATH)"
+	echo "PROJ_REPO_TARGET=$(PROJ_REPO_TARGET)"
 	echo "PROJ_PACKAGE=$(PROJ_PACKAGE)"
 	echo "PROJ_GOPATH=$(PROJ_GOPATH)"
 	echo "TOOLS_PATH=$(TOOLS_PATH)"
@@ -250,9 +256,9 @@ gopath:
 	@[ ! -d $(PROJ_REPO_TARGET) ] && \
 		rm -f "${PROJ_REPO_TARGET}" && \
 		mkdir -p "${PROJ_GOPATH_DIR}/src/${ORG_NAME}" && \
-		ln -s ../../../.. "${PROJ_REPO_TARGET}" && \
-		echo "Created symbolic link: ${PROJ_REPO_TARGET}" || \
-	echo "Repo target exists: ${PROJ_REPO_TARGET}"
+		ln -s ${REL_PATH_TO_GOPATH} "${PROJ_REPO_TARGET}" && \
+		echo "Created symbolic link: ${PROJ_REPO_TARGET} => ${REL_PATH_TO_GOPATH}" || \
+	echo "Repo target exists: ${PROJ_REPO_TARGET} => ${REL_PATH_TO_GOPATH}"
 
 #
 # show updates in Tools and vendor folder.

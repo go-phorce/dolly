@@ -3,7 +3,7 @@
 GO packages for building web apps
 
 [![Build Status](https://travis-ci.org/go-phorce/pkg.svg?branch=master)](https://travis-ci.org/go-phorce/pkg)
-[![Coverage Status](https://coveralls.io/repos/github/go-phorce/xpki/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/xpki?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/go-phorce/pkg/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/pkg?branch=master)
 
 ## Contribution
 
