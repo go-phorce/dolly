@@ -67,7 +67,7 @@ export PROJ_GOPATH_DIR="../$PROJ_GOPATH_DIR"
 export PROJ_GOPATH=$PROJ_GOPATH
 export GOPATH=$PROJ_GOPATH
 export GOROOT=$GOROOT
-export PATH=$PATH:$PROJ_GOPATH/bin:$PROJ_GOPATH/.tools/bin:$GOROOT/bin
+export PATH=$PATH:$PROJ_GOPATH/bin:$PROJ_DIR/.tools/bin:$GOROOT/bin
 env | grep GO
 popd
 
