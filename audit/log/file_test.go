@@ -1,6 +1,7 @@
 package log
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -8,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-phorce/pkg/audit"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -80,10 +80,10 @@ func (f *FileTestSuite) TearDownTest() {
 func (f *FileTestSuite) Test_Event() {
 	fa, err := New(auditLogFilename, f.cfg.Directory, f.cfg.MaxAgeDays, f.cfg.MaxSizeMb)
 	f.Require().NoError(err)
-	fa.Event(audit.New("rt/bob1-1", "Builder-wf-123", srcBar, evtFoo, 55556, "%s:%s", "KernelModule", "HASH:123"))
+	fa.Audit(srcBar.String(), evtFoo.String(), "rt/bob1-1", "1234-2345-3456", 55556, fmt.Sprintf("%s:%s", "KernelModule", "HASH:123"))
 	fa.Close()
 	log, err := ioutil.ReadFile(filepath.Join(f.cfg.Directory, auditLogFilename))
 	f.Require().NoError(err)
 	s := string(log)
-	f.True(strings.Contains(s, "rt/bob1-1:src1:type1:Builder-wf-123:55556:KernelModule:HASH:123"), "Didn't find expected log entry, log is\n%s", s)
+	f.True(strings.Contains(s, "src1:type1:rt/bob1-1:1234-2345-3456:55556:KernelModule:HASH:123"), "Didn't find expected log entry, log is\n%s", s)
 }

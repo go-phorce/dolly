@@ -6,7 +6,6 @@ import (
 
 	"sync"
 
-	"github.com/go-phorce/pkg/audit"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,26 +40,26 @@ func (i testEventType) String() string {
 }
 
 var (
-	foo  = audit.New("bob/bob1-1", "1234", srcBar, evtFoo, 12345, "%s:%s", "HASH", "FOO")
-	foo2 = audit.New("bob2/bob2-2", "12345", srcBar, evtFoo, 12346, "%s:%s", "HASH", "FOO2")
+	foo  = &event{"bob/bob1-1", "1234-2345", srcBar.String(), evtFoo.String(), 12345, "message1"}
+	foo2 = &event{"bob2/bob2-2", "2345-3456", srcBar.String(), evtFoo.String(), 12346, "message2"}
 )
 
 func TestAuditor_Last(t *testing.T) {
-	a := Auditor{}
+	a := auditor{}
 	assert.Equal(t, 0, a.Len())
 	a.Event(foo)
 	e := a.Last(t)
-	assert.Equal(t, "bob/bob1-1", e.Identity())
-	assert.Equal(t, "1234", e.ContextID())
-	assert.Equal(t, srcBar, e.Source())
-	assert.Equal(t, evtFoo, e.EventType())
-	assert.Equal(t, uint64(12345), e.RaftIndex())
-	assert.Equal(t, "HASH:FOO", e.Message())
+	assert.Equal(t, "bob/bob1-1", e.identity)
+	assert.Equal(t, "1234-2345", e.contextID)
+	assert.Equal(t, srcBar.String(), e.source)
+	assert.Equal(t, evtFoo.String(), e.eventType)
+	assert.Equal(t, uint64(12345), e.raftIndex)
+	assert.Equal(t, "message1", e.message)
 	assert.Equal(t, 1, a.Len())
 }
 
 func TestAuditor_Close(t *testing.T) {
-	a := Auditor{}
+	a := auditor{}
 	assert.False(t, a.closed)
 	a.Close()
 	assert.True(t, a.closed)
@@ -70,14 +69,14 @@ func TestAuditor_Close(t *testing.T) {
 
 func TestAuditor_Reset(t *testing.T) {
 	// Normal reset
-	a := Auditor{}
+	a := auditor{}
 	assert.Equal(t, 0, a.Len())
 	a.Event(foo)
 	assert.Equal(t, 1, a.Len())
 	a.Reset()
 	assert.Equal(t, 0, a.Len())
 	// reset after close
-	a = Auditor{}
+	a = auditor{}
 	assert.Equal(t, 0, a.Len())
 	a.Event(foo)
 	assert.Equal(t, 1, a.Len())
@@ -90,38 +89,38 @@ func TestAuditor_Reset(t *testing.T) {
 }
 
 func TestAuditor_MultipleEvents(t *testing.T) {
-	a := Auditor{}
+	a := auditor{}
 	assert.Equal(t, 0, len(a.events))
 	assert.Equal(t, 0, a.Len())
 	a.Event(foo)
 	a.Event(foo2)
 	assert.Equal(t, 2, len(a.events))
 	assert.Equal(t, 2, a.Len())
-	assert.Equal(t, "12345", a.Last(t).ContextID())
+	assert.Equal(t, "2345-3456", a.Last(t).contextID)
 	assert.Equal(t, a.Last(t), a.events[1])
-	assert.Equal(t, "1234", a.events[0].ContextID())
+	assert.Equal(t, "1234-2345", a.events[0].contextID)
 	a.Reset()
 	assert.Equal(t, 0, len(a.events))
 	assert.Equal(t, 0, a.Len())
 }
 
 func TestAuditor_MostRecent(t *testing.T) {
-	a := Auditor{}
+	a := auditor{}
 	assert.Equal(t, 0, a.Len())
-	a.Event(audit.New("bob/bob1-1", "1234", srcFoo, evtBar, 12345, "%s:%s", "HASH", "FOO"))
+	a.Event(foo)
 	a.Event(foo2)
-	e := a.MostRecent(t, evtBar)
-	assert.Equal(t, "bob/bob1-1", e.Identity())
-	assert.Equal(t, "1234", e.ContextID())
-	assert.Equal(t, srcFoo, e.Source())
-	assert.Equal(t, evtBar, e.EventType())
-	assert.Equal(t, uint64(12345), e.RaftIndex())
-	assert.Equal(t, "HASH:FOO", e.Message())
+	e := a.MostRecent(t, foo2.eventType)
+	assert.Equal(t, foo2.identity, e.identity)
+	assert.Equal(t, foo2.contextID, e.contextID)
+	assert.Equal(t, foo2.source, e.source)
+	assert.Equal(t, foo2.eventType, e.eventType)
+	assert.Equal(t, foo2.raftIndex, e.raftIndex)
+	assert.Equal(t, foo2.message, e.message)
 	assert.Equal(t, 2, a.Len())
 }
 
 func TestAuditor_ConcurrentSliceAppend(t *testing.T) {
-	a := Auditor{}
+	a := auditor{}
 	assert.Equal(t, 0, a.Len())
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -148,15 +147,15 @@ func TestAuditor_ConcurrentSliceAppend(t *testing.T) {
 }
 
 func TestAuditor_GetAll(t *testing.T) {
-	a := Auditor{}
+	a := auditor{}
 	assert.Equal(t, 0, a.Len())
 	a.events = append(a.events, foo)
 	a.events = append(a.events, foo2)
 	assert.Equal(t, 2, a.Len())
 	var wg sync.WaitGroup
 	wg.Add(2)
-	actual1 := make([]audit.Event, 0)
-	actual2 := make([]audit.Event, 0)
+	actual1 := make([]*event, 0)
+	actual2 := make([]*event, 0)
 	// concurrently read the audit events
 	go func() {
 		for _, e := range a.GetAll() {

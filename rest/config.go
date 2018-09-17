@@ -37,8 +37,6 @@ type HTTPServerConfig interface {
 	GetVIPName() string
 	// BindAddr is the address that the HTTPS service should be exposed on
 	GetBindAddr() string
-	// ServerTLS provides TLS config for server
-	GetServerTLSCfg() TLSInfoConfig
 	// PackageLogger if set, specifies name of the package logger
 	GetPackageLogger() string
 	// AllowProfiling if set, will allow for per request CPU/Memory profiling triggered by the URI QueryString
@@ -47,8 +45,6 @@ type HTTPServerConfig interface {
 	GetProfilerDir() string
 	// Services is a list of services to enable for this HTTP Service
 	GetServices() []string
-	// GetAuthzCfg contains configuration for the API authorization layer
-	GetAuthzCfg() AuthzConfig
 	// HeartbeatSecs specifies heartbeat GetHeartbeatSecserval in seconds [30 secs is a minimum]
 	GetHeartbeatSecs() int
 }

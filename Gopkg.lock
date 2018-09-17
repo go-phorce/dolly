@@ -7,7 +7,7 @@
   name = "github.com/armon/go-metrics"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3c58d8115a78a6879e5df75ae900846768d36895"
+  revision = "f0300d1749da6fa982027e449ec0c7a145510c3c"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -32,14 +32,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "ac5e7cd87013ec6f7e896b4b5363651f92fdd3bd"
-
-[[projects]]
-  branch = "master"
-  digest = "1:fe5187cfee30a233fb9d1cc88b20a200ceaddde13919169be9dc1ffabec7a07a"
-  name = "github.com/go-phorce/xpki"
-  packages = ["certutil"]
-  pruneopts = "UT"
-  revision = "c9a1fb0b3e43465b1882adfd070cdcf6e70c261c"
 
 [[projects]]
   digest = "1:2be5a35f0c5b35162c41bb24971e5dcf6ce825403296ee435429cdcc4e1e847e"
@@ -124,7 +116,6 @@
     "github.com/armon/go-metrics",
     "github.com/fsnotify/fsnotify",
     "github.com/go-phorce/xlog",
-    "github.com/go-phorce/xpki/certutil",
     "github.com/juju/errors",
     "github.com/julienschmidt/httprouter",
     "github.com/stretchr/testify/assert",

@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/go-phorce/pkg/algorithms/slices"
-	"github.com/go-phorce/pkg/audit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +19,7 @@ import (
 // valid columns that can be used to compare in the CSV match the Event interface function names
 // if assertAllMatched is true, then this will log a failure if there are audit events left
 // captured after matching all the ones in the csv file.
-func (a *Auditor) CompareTo(t *testing.T, csvFile string, assertAllMatched bool) {
+func (a *auditor) CompareTo(t *testing.T, csvFile string, assertAllMatched bool) {
 	f, err := os.Open(csvFile)
 	require.NoError(t, err)
 	defer f.Close()
@@ -47,7 +46,7 @@ func (a *Auditor) CompareTo(t *testing.T, csvFile string, assertAllMatched bool)
 	}
 }
 
-func compareOne(t *testing.T, rowIdx int, columnNames []string, expectedValues []string, actual audit.Event) {
+func compareOne(t *testing.T, rowIdx int, columnNames []string, expectedValues []string, actual *event) {
 	a := reflect.ValueOf(actual)
 	for idx := range columnNames {
 		m := a.MethodByName(columnNames[idx])
@@ -62,7 +61,7 @@ func compareOne(t *testing.T, rowIdx int, columnNames []string, expectedValues [
 }
 
 func eventMethodNames() []string {
-	var ae *audit.Event
+	var ae *event
 	t := reflect.TypeOf(ae).Elem()
 	res := make([]string, t.NumMethod())
 	for i := 0; i < t.NumMethod(); i++ {
