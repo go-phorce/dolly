@@ -155,7 +155,7 @@ func (c *serverConfig) GetHeartbeatSecs() int {
 
 func Test_NewServer(t *testing.T) {
 
-	server, err := New("test", nil, &serverConfig{}, nil, "v1.0-123")
+	server, err := New("test", nil, &serverConfig{}, &authzConfig{}, &tlsConfig{}, nil, "v1.0-123")
 	require.NoError(t, err)
 	require.NotNil(t, server)
 	assert.NotNil(t, server.NodeName)

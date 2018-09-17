@@ -3,12 +3,13 @@ package rest
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
-	"github.com/go-phorce/pkg/audit"
 	"github.com/go-phorce/pkg/metrics"
 	"github.com/go-phorce/pkg/netutil"
 	"github.com/go-phorce/pkg/rest/ready"
@@ -27,6 +28,12 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "rest")
 
 // MaxRequestSize specifies max size of regular HTTP Post requests in bytes, 64 Mb
 const MaxRequestSize = 64 * 1024 * 1024
+
+const (
+	srcStatus         = "status"
+	evtServiceStarted = "service started"
+	evtServiceStopped = "service stopped"
+)
 
 // ClusterMember provides information about cluster member
 type ClusterMember struct {
@@ -68,7 +75,20 @@ type Server interface {
 	// IsReady indicates that all subservices are ready to serve
 	IsReady() bool
 
-	Audit(audit.Event)
+	// Call Event to record a new Auditable event
+	// Audit event
+	// source indicates the area that the event was triggered by
+	// eventType indicates the specific event that occured
+	// identity specifies the identity of the user that triggered this event, typically this is <role>/<cn>
+	// contextID specifies the request ContextID that the event was triggered in [this can be used for cross service correlation of logs]
+	// raftIndex indicates the index# of the raft log in RAFT that the event occured in [if applicable]
+	// message contains any additional information about this event that is eventType specific
+	Audit(source string,
+		eventType string,
+		identity string,
+		contextID string,
+		raftIndex uint64,
+		message string)
 
 	AddService(s Service)
 	StartHTTP() error
@@ -83,10 +103,12 @@ type server struct {
 	Server
 
 	context        context.Context
-	auditor        audit.Auditor
+	auditor        Auditor
 	authz          *authz.Config
 	cluster        ClusterInfo
-	config         HTTPServerConfig
+	httpConfig     HTTPServerConfig
+	authzConfig    AuthzConfig
+	tlsConfig      TLSInfoConfig
 	tlsloader      *tlsconfig.KeypairReloader
 	rolename       string
 	hostname       string
@@ -103,8 +125,10 @@ type server struct {
 // New creates a new instance of the server
 func New(
 	rolename string,
-	auditor audit.Auditor,
-	config HTTPServerConfig,
+	auditor Auditor,
+	httpConfig HTTPServerConfig,
+	authzConfig AuthzConfig,
+	tlsConfig TLSInfoConfig,
 	cluster ClusterInfo,
 	version string,
 ) (Server, error) {
@@ -115,26 +139,27 @@ func New(
 		logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use='%s', err=[%v]", ipaddr, errors.ErrorStack(err))
 	}
 
-	authzCfg := config.GetAuthzCfg()
-	authz, err := authz.New(authzCfg.GetAllow(), authzCfg.GetAllowAny(), authzCfg.GetAllowAnyRole())
+	authz, err := authz.New(authzConfig.GetAllow(), authzConfig.GetAllowAny(), authzConfig.GetAllowAnyRole())
 	if err != nil {
 		logger.Panicf("api=rest.New, reason='failed to initialize Authz', err=[%v]", errors.ErrorStack(err))
 	}
 
 	return &server{
-		auditor:   auditor,
-		authz:     authz,
-		context:   context.NewForRole(rolename),
-		services:  map[string]Service{},
-		scheduler: tasks.NewScheduler(),
-		cluster:   cluster,
-		config:    config,
-		rolename:  rolename,
-		startedAt: time.Now().UTC(),
-		version:   version,
-		hostname:  GetHostName(config.GetBindAddr()),
-		port:      GetPort(config.GetBindAddr()),
-		ipaddr:    ipaddr,
+		auditor:     auditor,
+		authz:       authz,
+		context:     context.NewForRole(rolename),
+		services:    map[string]Service{},
+		scheduler:   tasks.NewScheduler(),
+		cluster:     cluster,
+		httpConfig:  httpConfig,
+		authzConfig: authzConfig,
+		tlsConfig:   tlsConfig,
+		rolename:    rolename,
+		startedAt:   time.Now().UTC(),
+		version:     version,
+		hostname:    GetHostName(httpConfig.GetBindAddr()),
+		port:        GetPort(httpConfig.GetBindAddr()),
+		ipaddr:      ipaddr,
 	}, nil
 }
 
@@ -207,7 +232,7 @@ func (server *server) Version() string {
 
 // Name returns the server name
 func (server *server) Name() string {
-	return server.config.GetServiceName()
+	return server.httpConfig.GetServiceName()
 }
 
 func (server *server) NodeID() string {
@@ -243,17 +268,24 @@ func (server *server) IsReady() bool {
 }
 
 // Audit create an audit event
-func (server *server) Audit(e audit.Event) {
+func (server *server) Audit(source string,
+	eventType string,
+	identity string,
+	contextID string,
+	raftIndex uint64,
+	message string) {
 	if server.auditor != nil {
-		server.auditor.Event(e)
+		server.auditor.Audit(source, eventType, identity, contextID, raftIndex, message)
 	} else {
-		logger.Infof("audit:%s:%s:%s:%s:%d:%s", e.Identity(), e.Source(), e.EventType(), e.ContextID(), e.RaftIndex(), e.Message())
+		// {contextID}:{identity}:{raftIndex}:{source}:{type}:{message}
+		logger.Infof("audit:%s:%s:%s:%s:%d:%s\n",
+			source, eventType, identity, contextID, raftIndex, message)
 	}
 }
 
 // StartHTTP will verify all the TLS related files are present and start the actual HTTPS listener for the server
 func (server *server) StartHTTP() error {
-	bindAddr := server.config.GetBindAddr()
+	bindAddr := server.httpConfig.GetBindAddr()
 	var err error
 
 	// Main server
@@ -267,13 +299,12 @@ func (server *server) StartHTTP() error {
 	}
 
 	var httpsListener net.Listener
-	serverTLS := server.config.GetServerTLSCfg()
-	certFile := serverTLS.GetCertFile()
-	keyFile := serverTLS.GetKeyFile()
-	withClientAuth := serverTLS.GetClientCertAuth()
+	certFile := server.tlsConfig.GetCertFile()
+	keyFile := server.tlsConfig.GetKeyFile()
+	withClientAuth := server.tlsConfig.GetClientCertAuth()
 	if certFile != "" && keyFile != "" {
 		server.withClientAuth = withClientAuth != nil && *withClientAuth
-		tlsConfig, err := tlsconfig.BuildFromFiles(certFile, keyFile, serverTLS.GetTrustedCAFile(), server.withClientAuth)
+		tlsConfig, err := tlsconfig.BuildFromFiles(certFile, keyFile, server.tlsConfig.GetTrustedCAFile(), server.withClientAuth)
 		if err != nil {
 			return errors.Annotatef(err, "api=StartHTTP, reason=BuildFromFiles, cert='%s', key='%s'",
 				certFile, keyFile)
@@ -302,9 +333,9 @@ func (server *server) StartHTTP() error {
 
 	readyHandler := ready.NewServiceStatusVerifier(server, server.NewMux())
 	metricsmux := xhttp.NewRequestMetrics(readyHandler)
-	allowProfiling := server.config.GetAllowProfiling()
+	allowProfiling := server.httpConfig.GetAllowProfiling()
 	if allowProfiling != nil && *allowProfiling {
-		if metricsmux, err = xhttp.NewRequestProfiler(metricsmux, server.config.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
+		if metricsmux, err = xhttp.NewRequestProfiler(metricsmux, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
 			return err
 		}
 	}
@@ -337,36 +368,31 @@ func (server *server) StartHTTP() error {
 		}()
 	}
 
-	if server.config.GetHeartbeatSecs() > 0 {
-		task := tasks.NewTaskAtIntervals(uint64(server.config.GetHeartbeatSecs()), tasks.Seconds).Do("server", uptimeTask, server)
+	if server.httpConfig.GetHeartbeatSecs() > 0 {
+		task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).Do("server", uptimeTask, server)
 		server.Scheduler().Add(task)
 	}
 
 	server.scheduler.Start()
-	/*
-		server.Audit(
-			audit.New(server.context.Identity().String(),
-				server.context.RequestID(),
-				audit.Health,
-				audit.ServiceStarted,
-				0,
-				"node='%s', address='%s'",
-				server.NodeName(),
-				strings.TrimPrefix(bindAddr, ":"),
-			),
-		)
-	*/
+	server.Audit(
+		srcStatus,
+		evtServiceStarted,
+		server.context.Identity().String(),
+		server.context.RequestID(),
+		0,
+		fmt.Sprintf("node='%s', address='%s'", server.NodeName(), strings.TrimPrefix(bindAddr, ":")),
+	)
+
 	return nil
 }
 
 func uptimeTask(server *server) {
-	metrics.PublishHeartbeat(server.config.GetServiceName(), server.Uptime())
+	metrics.PublishHeartbeat(server.httpConfig.GetServiceName(), server.Uptime())
 }
 
 func certExpirationPublisherTask(server *server) {
-	serverTLS := server.config.GetServerTLSCfg()
-	certFile := serverTLS.GetCertFile()
-	keyFile := serverTLS.GetKeyFile()
+	certFile := server.tlsConfig.GetCertFile()
+	keyFile := server.tlsConfig.GetKeyFile()
 
 	logger.Tracef("api=certExpirationPublisherTask, server=%s, cert='%s', key='%s'", server.Name(),
 		certFile, keyFile)
@@ -411,18 +437,16 @@ func (server *server) StopHTTP() {
 		logger.Tracef("api=StopHTTP, service='%s'", f.Name())
 		f.Close()
 	}
-	/*
-		ut := server.Uptime() / time.Second * time.Second
-		server.Audit(
-			audit.New(server.context.Identity().String(),
-				server.context.RequestID(),
-				audit.Health,
-				audit.ServiceStopped,
-				0,
-				"node=%s, uptime=%s",
-				server.NodeName(), ut),
-		)
-	*/
+
+	ut := server.Uptime() / time.Second * time.Second
+	server.Audit(
+		srcStatus,
+		evtServiceStopped,
+		server.context.Identity().String(),
+		server.context.RequestID(),
+		0,
+		fmt.Sprintf("node=%s, uptime=%s", server.NodeName(), ut),
+	)
 }
 
 // NewMux creates a new http handler for the http server, typically you only
@@ -452,7 +476,7 @@ func (server *server) NewMux() http.Handler {
 	}
 
 	// logging wrapper
-	httpHandler = xhttp.NewRequestLogger(httpHandler, server.rolename, serverExtraLogger, time.Millisecond, server.config.GetPackageLogger())
+	httpHandler = xhttp.NewRequestLogger(httpHandler, server.rolename, serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
 
 	// role/contextID wrapper
 	ctxHandler := context.NewContextHandler(httpHandler)

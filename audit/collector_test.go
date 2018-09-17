@@ -37,88 +37,84 @@ func (i testEventType) String() string {
 	return "type" + strconv.Itoa(int(i))
 }
 
+type auditor struct {
+	source    string
+	eventType string
+	identity  string
+	contextID string
+	raftIndex uint64
+	message   string
+}
+
+func (a *auditor) Audit(
+	source string,
+	eventType string,
+	identity string,
+	contextID string,
+	raftIndex uint64,
+	message string) {
+	a.source = source
+	a.eventType = eventType
+	a.identity = identity
+	a.contextID = contextID
+	a.raftIndex = raftIndex
+	a.message = message
+}
+
+func (a *auditor) Close() error {
+	return nil
+}
+
 func Test_CollectorSubmit(t *testing.T) {
 	dest := auditor{}
 	c := Collector{Destination: &dest}
-	assert.Nil(t, dest.event)
+	assert.Empty(t, dest.source)
+	assert.Empty(t, dest.eventType)
 
-	c.Event(New("alice/alice1-1", "Context-1", srcBar, evtFoo, 0, "%s.%d", "HASH", 123))
-	assert.Nil(t, dest.event)
+	c.Audit(srcBar.String(), evtFoo.String(), "alice/alice1-1", "Context-1", 0, "message1")
+	assert.Empty(t, dest.source)
+	assert.Empty(t, dest.eventType)
 
 	// providing a raft index should update the event submitted to this raft index
 	c.Submit(123)
-	assert.NotNil(t, dest.event)
-	assert.Equal(t, "alice/alice1-1", dest.event.Identity())
-	assert.Equal(t, "Context-1", dest.event.ContextID())
-	assert.Equal(t, srcBar, dest.event.Source())
-	assert.Equal(t, evtFoo, dest.event.EventType())
-	assert.EqualValues(t, 123, dest.event.RaftIndex())
-	assert.Equal(t, "HASH.123", dest.event.Message())
+	assert.Equal(t, "alice/alice1-1", dest.identity)
+	assert.Equal(t, "Context-1", dest.contextID)
+	assert.Equal(t, srcBar.String(), dest.source)
+	assert.Equal(t, evtFoo.String(), dest.eventType)
+	assert.EqualValues(t, 123, dest.raftIndex)
+	assert.Equal(t, "message1", dest.message)
 
 	// calling submit again shouldn't submit anything from the previous submit
-	dest.event = nil
+	dest.source = ""
+	dest.eventType = ""
 	c.Submit(123)
-	assert.Nil(t, dest.event)
+	assert.Empty(t, dest.source)
+	assert.Empty(t, dest.eventType)
 
 	// Submit with 0 should preseve the raftIndex in the original events
-	c.Event(New("eve/eve1-1", "Context-2", srcBar, evtFoo, 124, "%s.%d", "HASH", 121))
+	c.Audit(srcBar.String(), evtFoo.String(), "eve/eve1-1", "Context-2", 123, "message2")
 	c.Submit(0)
-	assert.NotNil(t, dest.event)
-	assert.Equal(t, "eve/eve1-1", dest.event.Identity())
-	assert.Equal(t, "Context-2", dest.event.ContextID())
-	assert.Equal(t, srcBar, dest.event.Source())
-	assert.Equal(t, evtFoo, dest.event.EventType())
-	assert.EqualValues(t, 124, dest.event.RaftIndex())
-	assert.Equal(t, "HASH.121", dest.event.Message())
+	assert.Equal(t, "eve/eve1-1", dest.identity)
+	assert.Equal(t, "Context-2", dest.contextID)
+	assert.Equal(t, srcBar.String(), dest.source)
+	assert.Equal(t, evtFoo.String(), dest.eventType)
+	assert.EqualValues(t, uint64(123), dest.raftIndex)
+	assert.Equal(t, "message2", dest.message)
 }
 
 func Test_CollectorClose(t *testing.T) {
 	// Closing the collector doesn't submit the events
 	dest := auditor{}
 	c := Collector{Destination: &dest}
-	assert.Nil(t, dest.event)
-	c.Event(New("alice/alice1-1", "Context-1", srcBar, evtFoo, 424242, "%s.%d", "HASH", 123))
-	assert.Nil(t, dest.event)
+	assert.Empty(t, dest.source)
+	assert.Empty(t, dest.eventType)
+
+	c.Audit(srcBar.String(), evtFoo.String(), "alice/alice1-1", "Context-1", 0, "message1")
+	assert.Empty(t, dest.source)
+	assert.Empty(t, dest.eventType)
+
 	c.Close()
-	assert.Nil(t, dest.event)
-}
+	assert.Empty(t, dest.source)
+	assert.Empty(t, dest.eventType)
 
-func Test_CollectorNoRaftIndexer(t *testing.T) {
-	e := new(eventInfoNoSet)
-	w := withRaftIndex(e, 1234)
-	assert.Equal(t, e.Identity(), w.Identity())
-	assert.Equal(t, e.ContextID(), w.ContextID())
-	assert.Equal(t, e.Source(), w.Source())
-	assert.Equal(t, e.EventType(), w.EventType())
-	assert.Equal(t, e.Message(), w.Message())
-	assert.Equal(t, uint64(1234), w.RaftIndex())
-}
-
-func Test_CollectorRaftIndex(t *testing.T) {
-	e := New("alice/alice1-1", "Context-1", srcBar, evtFoo, 0, "hello")
-	w := withRaftIndex(e, 1234)
-	assert.Exactly(t, e, w)
-	assert.Equal(t, uint64(1234), w.RaftIndex())
-}
-
-type eventInfoNoSet struct {
-}
-
-func (e *eventInfoNoSet) Identity() string {
-	return "bob/bob1-1"
-}
-func (e *eventInfoNoSet) ContextID() string {
-	return "1"
-}
-func (e *eventInfoNoSet) Source() Source {
-	return srcBar
-}
-func (e *eventInfoNoSet) EventType() EventType {
-	return evtFoo
-}
-func (e *eventInfoNoSet) RaftIndex() uint64 {
-	return 10
-}
-func (e *eventInfoNoSet) Message() string {
-	return "hello"
 }

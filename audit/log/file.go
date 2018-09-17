@@ -36,6 +36,15 @@ func (f *fileAuditor) Close() error {
 	return f.fileWriter.Close()
 }
 
-func (f *fileAuditor) Event(e audit.Event) {
-	f.logger.Printf("%s:%v:%v:%s:%d:%s\n", e.Identity(), e.Source(), e.EventType(), e.ContextID(), e.RaftIndex(), e.Message())
+// Event logs event in the following format:
+// {source}:{type}:{identity}:{contextID}:{raftIndex}:{message}
+func (f *fileAuditor) Audit(
+	source string,
+	eventType string,
+	identity string,
+	contextID string,
+	raftIndex uint64,
+	message string) {
+	f.logger.Printf("%s:%s:%s:%s:%d:%s\n",
+		source, eventType, identity, contextID, raftIndex, message)
 }

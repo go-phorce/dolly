@@ -6,16 +6,25 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/go-phorce/pkg/audit"
 	"github.com/stretchr/testify/assert"
 )
 
-// Auditor is a audit.Auditor implemention that tracks in memory
+// event provides a default impl of event
+type event struct {
+	identity  string
+	contextID string
+	source    string
+	eventType string
+	raftIndex uint64
+	message   string
+}
+
+// auditor is a audit.auditor implemention that tracks in memory
 // the audit event raised, allowing tests to easily verify that audit
 // events were triggered
-// Auditor can be safely shared across goroutines
-type Auditor struct {
-	events []audit.Event
+// auditor can be safely shared across goroutines
+type auditor struct {
+	events []*event
 	sync.Mutex
 	closed bool
 }
@@ -24,7 +33,7 @@ type Auditor struct {
 // Ordering in audit events may not work as expected
 // when multiple go-routines are appending events
 // Use this method with caution
-func (a *Auditor) Get(idx int) audit.Event {
+func (a *auditor) Get(idx int) *event {
 	a.Lock()
 	defer a.Unlock()
 	return a.events[idx]
@@ -34,22 +43,22 @@ func (a *Auditor) Get(idx int) audit.Event {
 // Ordering in audit events may not work as expected
 // when multiple go-routines are appending events
 // Use this method with caution
-func (a *Auditor) GetAll() []audit.Event {
+func (a *auditor) GetAll() []*event {
 	a.Lock()
 	defer a.Unlock()
-	result := make([]audit.Event, len(a.events))
+	result := make([]*event, len(a.events))
 	copy(result, a.events)
 	return result
 }
 
 // Event records a new audit event
-func (a *Auditor) Event(e audit.Event) {
+func (a *auditor) Event(e *event) {
 	a.Lock()
 	defer a.Unlock()
 	if !a.closed {
 		isNil := a.events == nil
 		if isNil {
-			a.events = make([]audit.Event, 0, 10)
+			a.events = make([]*event, 0, 10)
 		}
 		a.events = append(a.events, e)
 	}
@@ -58,7 +67,7 @@ func (a *Auditor) Event(e audit.Event) {
 // Close closes the auditor
 // After this, auditor cannot track new audit events
 // However, the events audited before calling Close() can still be queried
-func (a *Auditor) Close() error {
+func (a *auditor) Close() error {
 	a.Lock()
 	defer a.Unlock()
 	a.closed = true
@@ -66,7 +75,7 @@ func (a *Auditor) Close() error {
 }
 
 // Len returns the number of captured audit events
-func (a *Auditor) Len() int {
+func (a *auditor) Len() int {
 	a.Lock()
 	defer a.Unlock()
 	return len(a.events)
@@ -75,7 +84,7 @@ func (a *Auditor) Len() int {
 // Last returns the most recently recorded event, if no events
 // have been recorded, this'll be flagged as an error on the
 // supplied testing.T and nil returned
-func (a *Auditor) Last(t *testing.T) audit.Event {
+func (a *auditor) Last(t *testing.T) *event {
 	a.Lock()
 	defer a.Unlock()
 	length := len(a.events)
@@ -87,27 +96,27 @@ func (a *Auditor) Last(t *testing.T) audit.Event {
 
 // MostRecent returns the newest audit event of the indicated event type
 // or if it can't find one, will flag an error on the test.
-func (a *Auditor) MostRecent(t *testing.T, eventType audit.EventType) audit.Event {
+func (a *auditor) MostRecent(t *testing.T, eventType string) *event {
 	a.Lock()
 	defer a.Unlock()
 	length := len(a.events)
 	for i := length - 1; i >= 0; i-- {
-		if a.events[i].EventType() == eventType {
+		if a.events[i].eventType == eventType {
 			return a.events[i]
 		}
 	}
-	assert.Fail(t, "Unable to find an audit event of type %v in captured items", eventType)
+	assert.Failf(t, "Unable to find an audit event of type '%s' in captured items", eventType)
 	return nil
 }
 
 // LastEvents returns all events matching indicated event type in order of most recent to least recent
-func (a *Auditor) LastEvents(t *testing.T, eventType audit.EventType) []audit.Event {
+func (a *auditor) LastEvents(t *testing.T, eventType string) []*event {
 	a.Lock()
 	defer a.Unlock()
-	var matches []audit.Event
+	var matches []*event
 	length := len(a.events)
 	for i := length - 1; i >= 0; i-- {
-		if a.events[i].EventType() == eventType {
+		if a.events[i].eventType == eventType {
 			matches = append(matches, a.events[i])
 		}
 	}
@@ -116,9 +125,9 @@ func (a *Auditor) LastEvents(t *testing.T, eventType audit.EventType) []audit.Ev
 
 // Reset will clear out any previous captured audit events
 // and also opens the auditor if its closed
-func (a *Auditor) Reset() {
+func (a *auditor) Reset() {
 	a.Lock()
 	defer a.Unlock()
-	a.events = make([]audit.Event, 0, 10)
+	a.events = make([]*event, 0, 10)
 	a.closed = false
 }
