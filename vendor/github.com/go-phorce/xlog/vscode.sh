@@ -12,14 +12,23 @@ create_variables ./config.yml
 ORG_NAME=$project_org
 PROJ_NAME=$project_name
 REPO_NAME=$ORG_NAME/$PROJ_NAME
+REL_PATH_TO_GOPATH=../../../..
 
 echo "Repo: $REPO_NAME"
+
+if [ -z "${ORG_NAME##*/*}" ] ;then
+    #echo "'$ORG_NAME' contains: '/'."
+    REL_PATH_TO_GOPATH=../../../..
+else
+    #echo "'$ORG_NAME' does not contain: '/'."
+    REL_PATH_TO_GOPATH=../../..
+fi
 
 if [[ "$PWD" = *src/$REPO_NAME ]]; then
 #
 # Already in GOPATH format
 #
-pushd ../../../..
+pushd $REL_PATH_TO_GOPATH
 CWD=`pwd`
 PROJ_GOPATH_DIR=$CWD
 PROJ_PACKAGE=$REPO_NAME
@@ -31,7 +40,7 @@ export PROJ_GOPATH_DIR="$PROJ_GOPATH_DIR"
 export PROJ_GOPATH=$PROJ_GOPATH
 export GOPATH=$PROJ_GOPATH
 export GOROOT=$GOROOT
-export PATH=$PATH:$PROJ_GOPATH/bin:$GOROOT/bin
+export PATH=$PATH:$PROJ_GOPATH/bin:$PROJ_GOPATH/.tools/bin:$GOROOT/bin
 env | grep GO
 popd
 
@@ -51,7 +60,7 @@ echo "PROJ_GOPATH=$PROJ_GOPATH"
 
 [ -d "$PROJ_GOPATH_DIR/src/$REPO_NAME" ] && rm -f "$PROJ_GOPATH_DIR/src/$REPO_NAME"
 mkdir -p "$PROJ_GOPATH_DIR/src/$ORG_NAME"
-ln -s ../../../../$PROJ_NAME "$PROJ_GOPATH_DIR/src/$REPO_NAME"
+ln -s $REL_PATH_TO_GOPATH/$PROJ_NAME "$PROJ_GOPATH_DIR/src/$REPO_NAME"
 
 export PROJ_DIR=$ROOT
 export PROJ_GOPATH_DIR="../$PROJ_GOPATH_DIR"

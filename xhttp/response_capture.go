@@ -1,7 +1,7 @@
 package xhttp
 
 import (
-	h "net/http"
+	"net/http"
 )
 
 // ResponseCapture is a net/http.ResponseWriter that delegates everything
@@ -9,12 +9,12 @@ import (
 type ResponseCapture struct {
 	statusCode int
 	bodySize   uint64
-	delegate   h.ResponseWriter
+	delegate   http.ResponseWriter
 }
 
 // NewResponseCapture returns a new ResponseCapture instance that delegates writes to the supplied ResponseWriter
-func NewResponseCapture(w h.ResponseWriter) *ResponseCapture {
-	return &ResponseCapture{h.StatusOK, 0, w}
+func NewResponseCapture(w http.ResponseWriter) *ResponseCapture {
+	return &ResponseCapture{http.StatusOK, 0, w}
 }
 
 // StatusCode returns the http status set by the handler.
@@ -32,7 +32,7 @@ func (r *ResponseCapture) BodySize() uint64 {
 //
 
 // Header returns the underlying writers Header instance
-func (r *ResponseCapture) Header() h.Header {
+func (r *ResponseCapture) Header() http.Header {
 	return r.delegate.Header()
 }
 

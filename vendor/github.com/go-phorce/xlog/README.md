@@ -1,11 +1,14 @@
 # xlog logging package
 
+[![Build Status](https://travis-ci.org/go-phorce/xlog.svg?branch=master)](https://travis-ci.org/go-phorce/xlog)
+[![Coverage Status](https://coveralls.io/repos/github/go-phorce/xlog/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/xlog?branch=master)
+
 Cloned from https://github.com/coreos/pkg/tree/master/capnslog
 This clone has slight modifications on the original code,
 adding ability to specify log lever per package,
 and exposing Logger interface, not an implementation structure.
 
-In this implementation the `DEBUG` level is above `TRACE` as trace 
+In this implementation the `DEBUG` level is above `TRACE` as trace
 is used to trace important functions calls and maybe enable on the cloud more friequently than `DEBUG`
 
 ## Design Principles
@@ -41,7 +44,3 @@ An object knows best how to print itself. Log objects can collect more interesti
 * `INFO`: Normal, working log information, everything is fine, but helpful notices for auditing or common operations.
 * `TRACE`: Anything goes, from logging every function call as part of a common operation, to tracing execution of a query.
 * `DEBUG`: Print debug data.
-
-### Current build status
-
-[![Build Status](https://travis-ci.org/go-phorce/xlog.svg?branch=master)](https://travis-ci.org/go-phorce/xlog)

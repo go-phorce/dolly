@@ -91,7 +91,6 @@ func (l *LogLevel) Set(s string) error {
 	if err != nil {
 		return err
 	}
-
 	*l = value
 	return nil
 }
@@ -114,7 +113,7 @@ func ParseLevel(s string) (LogLevel, error) {
 	case "DEBUG", "5", "D":
 		return DEBUG, nil
 	}
-	return CRITICAL, errors.New("couldn't parse log level " + s)
+	return CRITICAL, errors.New("unable to parse log level: " + s)
 }
 
 // RepoLogger specifies a map of repo => PackageLogger
@@ -215,6 +214,13 @@ func SetFormatter(f Formatter) {
 	logger.Lock()
 	defer logger.Unlock()
 	logger.formatter = f
+}
+
+// GetFormatter returns current formatter
+func GetFormatter() Formatter {
+	logger.Lock()
+	defer logger.Unlock()
+	return logger.formatter
 }
 
 // NewPackageLogger creates a package logger object.
