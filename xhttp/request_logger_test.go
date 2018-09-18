@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xlog"
 )
 
 const (

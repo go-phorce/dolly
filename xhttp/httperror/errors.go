@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/go-phorce/pkg/xhttp/header"
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/ugorji/go/codec"
 )
 

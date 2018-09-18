@@ -1,7 +1,7 @@
 package xhttp
 
 import (
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xlog"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "xhttp")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "xhttp")

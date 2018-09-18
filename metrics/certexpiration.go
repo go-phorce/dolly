@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"time"
 
-	"github.com/go-phorce/pkg/metrics/tags"
+	"github.com/go-phorce/dolly/metrics/tags"
 )
 
 // PublishCertExpirationInDays publish cert expiration time in Days

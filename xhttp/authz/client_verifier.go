@@ -3,9 +3,9 @@ package authz
 import (
 	"net/http"
 
-	"github.com/go-phorce/pkg/algorithms/slices"
-	"github.com/go-phorce/pkg/xhttp/httperror"
-	"github.com/go-phorce/pkg/xhttp/marshal"
+	"github.com/go-phorce/dolly/algorithms/slices"
+	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xhttp/marshal"
 )
 
 var (

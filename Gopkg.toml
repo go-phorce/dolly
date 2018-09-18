@@ -27,7 +27,19 @@
 
 [[constraint]]
   branch = "master"
+  name = "github.com/armon/go-metrics"
+
+[[constraint]]
+  name = "github.com/fsnotify/fsnotify"
+  version = "1.4.7"
+
+[[constraint]]
+  branch = "master"
   name = "github.com/juju/errors"
+
+[[constraint]]
+  name = "github.com/julienschmidt/httprouter"
+  version = "1.1.0"
 
 [[constraint]]
   name = "github.com/stretchr/testify"

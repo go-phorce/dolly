@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-phorce/pkg/xhttp/context"
-	"github.com/go-phorce/pkg/xhttp/header"
-	"github.com/go-phorce/pkg/xhttp/httperror"
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xhttp/context"
+	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xlog"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "xhttp")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "xhttp")
 
 // WriteHTTPResponse is for types to implement this interface to get full control
 // over how they are written out as a http response

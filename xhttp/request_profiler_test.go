@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/stretchr/testify/assert"
 )
 

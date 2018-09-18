@@ -65,7 +65,7 @@ GIT_HASH := $(shell git rev-parse --short HEAD)
 COMMITS_COUNT := $(shell git rev-list --count ${GIT_HASH})
 #
 PROD_VERSION := $(shell cat .VERSION)
-GIT_VERSION := $(shell printf %s-%d%s ${PROD_VERSION} ${COMMITS_COUNT} ${GIT_DIRTY})
+GIT_VERSION := $(shell printf %s.%d%s ${PROD_VERSION} ${COMMITS_COUNT} ${GIT_DIRTY})
 COVPATH=.coverage
 
 # List of all .go files in the project, excluding vendor and .tools
@@ -230,6 +230,7 @@ vars:
 	echo "TEST_GOPATH=$(TEST_GOPATH)"
 	echo "TEST_DIR=$(TEST_DIR)"
 	echo "GIT_VERSION=$(GIT_VERSION)"
+	go version
 
 #
 # clean produced files
@@ -374,30 +375,34 @@ help:
 	echo "make devtools - install dev tools"
 
 getdevtools:
-	$(call httpsclone,${GITHUB_HOST},golang/tools,           ${GOPATH}/src/golang.org/x/tools,                  release-branch.go1.10)
-	$(call httpsclone,${GITHUB_HOST},derekparker/delve,      ${GOPATH}/src/github.com/derekparker/delve,        master)
-	$(call httpsclone,${GITHUB_HOST},uudashr/gopkgs,         ${GOPATH}/src/github.com/uudashr/gopkgs,           master)
-	$(call httpsclone,${GITHUB_HOST},nsf/gocode,             ${GOPATH}/src/github.com/nsf/gocode,               master)
-	$(call httpsclone,${GITHUB_HOST},rogpeppe/godef,         ${GOPATH}/src/github.com/rogpeppe/godef,           master)
-	$(call httpsclone,${GITHUB_HOST},acroca/go-symbols,      ${GOPATH}/src/github.com/acroca/go-symbols,        master)
-	$(call httpsclone,${GITHUB_HOST},ramya-rao-a/go-outline, ${GOPATH}/src/github.com/ramya-rao-a/go-outline,   master)
-	$(call httpsclone,${GITHUB_HOST},ddollar/foreman,        ${GOPATH}/src/github.com/ddollar/foreman,          master)
-	$(call httpsclone,${GITHUB_HOST},sqs/goreturns,          ${GOPATH}/src/github.com/sqs/goreturns,            master)
-	$(call httpsclone,${GITHUB_HOST},karrick/godirwalk,      ${GOPATH}/src/github.com/karrick/godirwalk,        master)
-	$(call httpsclone,${GITHUB_HOST},pkg/errors,             ${GOPATH}/src/github.com/pkg/errors,               master)
+	$(call httpsclone,${GITHUB_HOST},golang/tools,           ${TOOLS_PATH}/src/golang.org/x/tools,                  release-branch.go1.11)
+	$(call httpsclone,${GITHUB_HOST},golang/dep,             ${TOOLS_PATH}/src/github.com/golang/dep,               master)
+	$(call httpsclone,${GITHUB_HOST},derekparker/delve,      ${TOOLS_PATH}/src/github.com/derekparker/delve,        master)
+	$(call httpsclone,${GITHUB_HOST},uudashr/gopkgs,         ${TOOLS_PATH}/src/github.com/uudashr/gopkgs,           master)
+	$(call httpsclone,${GITHUB_HOST},nsf/gocode,             ${TOOLS_PATH}/src/github.com/nsf/gocode,               master)
+	$(call httpsclone,${GITHUB_HOST},rogpeppe/godef,         ${TOOLS_PATH}/src/github.com/rogpeppe/godef,           master)
+	$(call httpsclone,${GITHUB_HOST},acroca/go-symbols,      ${TOOLS_PATH}/src/github.com/acroca/go-symbols,        master)
+	$(call httpsclone,${GITHUB_HOST},ramya-rao-a/go-outline, ${TOOLS_PATH}/src/github.com/ramya-rao-a/go-outline,   master)
+	$(call httpsclone,${GITHUB_HOST},ddollar/foreman,        ${TOOLS_PATH}/src/github.com/ddollar/foreman,          master)
+	$(call httpsclone,${GITHUB_HOST},sqs/goreturns,          ${TOOLS_PATH}/src/github.com/sqs/goreturns,            master)
+	$(call httpsclone,${GITHUB_HOST},karrick/godirwalk,      ${TOOLS_PATH}/src/github.com/karrick/godirwalk,        master)
+	$(call httpsclone,${GITHUB_HOST},pkg/errors,             ${TOOLS_PATH}/src/github.com/pkg/errors,               master)
 
 devtools: getdevtools
-	go install golang.org/x/tools/go/buildutil
-	go install golang.org/x/tools/cmd/fiximports
-	go install golang.org/x/tools/cmd/goimports
-	go install github.com/derekparker/delve/cmd/dlv
-	go install github.com/uudashr/gopkgs/cmd/gopkgs
-	go install github.com/nsf/gocode
-	go install github.com/rogpeppe/godef
-	go install github.com/acroca/go-symbols
-	go install github.com/ramya-rao-a/go-outline
-	go install github.com/sqs/goreturns
+	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/go/buildutil
+	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/fiximports
+	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/goimports
+	GOPATH=${TOOLS_PATH} go install github.com/golang/dep/cmd/dep
+	GOPATH=${TOOLS_PATH} go install github.com/derekparker/delve/cmd/dlv
+	GOPATH=${TOOLS_PATH} go install github.com/uudashr/gopkgs/cmd/gopkgs
+	GOPATH=${TOOLS_PATH} go install github.com/nsf/gocode
+	GOPATH=${TOOLS_PATH} go install github.com/rogpeppe/godef
+	GOPATH=${TOOLS_PATH} go install github.com/acroca/go-symbols
+	GOPATH=${TOOLS_PATH} go install github.com/ramya-rao-a/go-outline
+	GOPATH=${TOOLS_PATH} go install github.com/sqs/goreturns
 
 upgrade-project.mk:
 	wget -O vscode.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/vscode.sh
 	wget -O .project/go-project.mk https://raw.githubusercontent.com/go-phorce/go-makefile/master/.project/go-project.mk
+	wget -O .project/rel_gopath.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/.project/rel_gopath.sh
+	wget -O .project/config-softhsm.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/.project/config-softhsm.sh

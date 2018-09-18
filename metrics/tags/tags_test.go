@@ -3,7 +3,7 @@ package tags_test
 import (
 	"testing"
 
-	"github.com/go-phorce/pkg/metrics/tags"
+	"github.com/go-phorce/dolly/metrics/tags"
 	"github.com/stretchr/testify/assert"
 )
 

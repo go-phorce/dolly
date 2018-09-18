@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-phorce/pkg/xhttp/header"
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/stretchr/testify/assert"
 )
 

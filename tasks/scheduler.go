@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "tasks")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "tasks")
 
 // Time location, default set by the time.Local (*time.Location)
 var loc = time.Local

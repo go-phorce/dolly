@@ -26,14 +26,6 @@
   version = "v1.4.7"
 
 [[projects]]
-  branch = "master"
-  digest = "1:4946f7c3fd85b7e24116ab24911a55c524a28faebcd0abb0eb9eb2532f1beb3e"
-  name = "github.com/go-phorce/xlog"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "ac5e7cd87013ec6f7e896b4b5363651f92fdd3bd"
-
-[[projects]]
   digest = "1:2be5a35f0c5b35162c41bb24971e5dcf6ce825403296ee435429cdcc4e1e847e"
   name = "github.com/hashicorp/go-immutable-radix"
   packages = ["."]
@@ -95,11 +87,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:6eb2645d74b43d9c87b51947df39f7c668a4f422cd512053f7f6f75bfaad0197"
+  digest = "1:824ea4aea5f0f50d4e4e139e4a3d7528f70b388dd9162c8ce310eb04581a7d84"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "d0be0721c37eeb5299f245a996a483160fc36940"
+  revision = "ee1b12c67af419cf5a9be3bdbeea7fc1c5f32f11"
 
 [[projects]]
   digest = "1:c805e517269b0ba4c21ded5836019ed7d16953d4026cb7d00041d039c7906be9"
@@ -115,7 +107,6 @@
   input-imports = [
     "github.com/armon/go-metrics",
     "github.com/fsnotify/fsnotify",
-    "github.com/go-phorce/xlog",
     "github.com/juju/errors",
     "github.com/julienschmidt/httprouter",
     "github.com/stretchr/testify/assert",

@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-phorce/pkg/algorithms/slices"
+	"github.com/go-phorce/dolly/algorithms/slices"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
