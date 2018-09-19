@@ -23,21 +23,28 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "48ea1b39c25fc1bab3506fbc712ecbaa842c4d2d"
-  version = "v1.3.1-coreos.6"
+  source = "https://github.com/coreos/bbolt"
 
 [[projects]]
-  digest = "1:00e21bfc65505fbab44eaa81d7874c208b2cf7004b379965f49d68b327b9854e"
+  digest = "1:fd0b1bea137b8586c20eb9164c18267285903690acf707dedaaf620d4fde8397"
   name = "github.com/coreos/etcd"
   packages = [
+    ".",
     "alarm",
     "auth",
     "auth/authpb",
     "client",
     "clientv3",
     "clientv3/concurrency",
+    "clientv3/leasing",
+    "clientv3/namespace",
+    "clientv3/naming",
+    "clientv3/ordering",
     "compactor",
     "discovery",
+    "embed",
     "error",
+    "etcdmain",
     "etcdserver",
     "etcdserver/api",
     "etcdserver/api/etcdhttp",
@@ -71,11 +78,13 @@
     "pkg/crc",
     "pkg/debugutil",
     "pkg/fileutil",
+    "pkg/flags",
     "pkg/httputil",
     "pkg/idutil",
     "pkg/ioutil",
     "pkg/logutil",
     "pkg/netutil",
+    "pkg/osutil",
     "pkg/pathutil",
     "pkg/pbutil",
     "pkg/runtime",
@@ -85,7 +94,11 @@
     "pkg/transport",
     "pkg/types",
     "pkg/wait",
+    "proxy/grpcproxy",
     "proxy/grpcproxy/adapter",
+    "proxy/grpcproxy/cache",
+    "proxy/httpproxy",
+    "proxy/tcpproxy",
     "raft",
     "raft/raftpb",
     "rafthttp",
@@ -109,20 +122,27 @@
   version = "v0.2.0"
 
 [[projects]]
-  digest = "1:e3b55611cb86797357cc1cd2b3d38faf07ae3c4079f04b32e84d497422ab0d60"
+  digest = "1:caf7d199019565155810a525f332ad40d691095560e4bdf8acd02fffb0608f7e"
   name = "github.com/coreos/go-systemd"
-  packages = ["journal"]
+  packages = [
+    "daemon",
+    "journal",
+    "util",
+  ]
   pruneopts = "UT"
   revision = "39ca1b05acc7ad1220e09f133283b8859a8b71ab"
   version = "v17"
 
 [[projects]]
-  digest = "1:d7a9399d485073895541c93b33489851bb05ab942fbb85baf703bb49de7c6f70"
+  digest = "1:129a158ba1ebf652f53b189d61dcf9fbfca8ac70b36bcb48a501200a21fb6086"
   name = "github.com/coreos/pkg"
-  packages = ["capnslog"]
+  packages = [
+    "capnslog",
+    "dlopen",
+  ]
   pruneopts = "UT"
-  revision = "3ac0863d7acf3bc44daf49afef8919af12f704ef"
-  version = "v3"
+  revision = "97fdf19511ea361ae1c100dd393cc47f8dcfa1e1"
+  version = "v4"
 
 [[projects]]
   digest = "1:ffe9824d294da03b391f44e1ae8281281b4afc1bdaa9588c9097785e3af10cec"
@@ -133,12 +153,12 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:d912bf9afc98bbb6539ea99c9ac3e83119853310dd1a3aec1583d76f340ece27"
+  digest = "1:76dc72490af7174349349838f2fe118996381b31ea83243812a97e5a0fd5ed55"
   name = "github.com/dgrijalva/jwt-go"
   packages = ["."]
   pruneopts = "UT"
-  revision = "d2709f9f1f31ebcda9651b03077758c1f3a0018c"
-  version = "v3.0.0"
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
 
 [[projects]]
   digest = "1:89970e9412bfce58d718102bbefdc840be6bb9851585a3ebd5c44adf2d5fc9d4"
@@ -165,7 +185,7 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:3d3a3d38b5ba4934a07e047b3d7397841d8bb69eafdf482260db415290796b19"
+  digest = "1:bfc758d5a03d57d97226fac6934551c01bd76612adb119c177395b057a0a46db"
   name = "github.com/gogo/protobuf"
   packages = [
     "gogoproto",
@@ -173,8 +193,16 @@
     "protoc-gen-gogo/descriptor",
   ]
   pruneopts = "UT"
-  revision = "342cbe0a04158f6dcb03ca0079991a51a4248c02"
-  version = "v0.5"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:3fb07f8e222402962fa190eb060608b34eddfb64562a18e2167df2de0ece85d8"
+  name = "github.com/golang/groupcache"
+  packages = ["lru"]
+  pruneopts = "UT"
+  revision = "24b0969c4cb722950103eed87108c8d291a8df00"
 
 [[projects]]
   digest = "1:9d6dc4d6de69b330d0de86494d6db90c09848c003d5db748f40c925f865c8534"
@@ -193,11 +221,12 @@
   version = "v1.2.0"
 
 [[projects]]
-  digest = "1:6a35e12c3f4c9446739ac94679b33a8953f352fe0aaeeb170905c976c1c4b01c"
+  branch = "master"
+  digest = "1:0bfbe13936953a98ae3cfe8ed6670d396ad81edf069a806d2f6515d7bb6950df"
   name = "github.com/google/btree"
   packages = ["."]
   pruneopts = "UT"
-  revision = "925471ac9e2131377a91e1595defec898166fe49"
+  revision = "4030bb1f1f0c35b30ca7009e9ebd06849dd45306"
 
 [[projects]]
   digest = "1:7b5c6e2eeaa9ae5907c391a91c132abfd5c9e8a784a341b5625e750c67e6825d"
@@ -208,14 +237,15 @@
   version = "v1.4.0"
 
 [[projects]]
-  digest = "1:2648d06d4516850f231f65b8ec290e1fb2577c4d3e061d3b00a181a59cbafc4b"
+  digest = "1:9b7a07ac7577787a8ecc1334cb9f34df1c76ed82a917d556c5713d3ab84fbc43"
   name = "github.com/grpc-ecosystem/go-grpc-prometheus"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0dafe0d496ea71181bf2dd039e7e3f44b6bd11a7"
+  revision = "c225b8c3b01faf2899099b768856a9e916e5087b"
+  version = "v1.2.0"
 
 [[projects]]
-  digest = "1:81e4a1fb1a9bbcdc5916537b084b6d8410f737ff7f375693d0d6d1942b580e43"
+  digest = "1:ee73ed01fc93b8aa38a7f25543afed400df661992eeb7d3b250100b8b8f989b9"
   name = "github.com/grpc-ecosystem/grpc-gateway"
   packages = [
     "runtime",
@@ -223,8 +253,8 @@
     "utilities",
   ]
   pruneopts = "UT"
-  revision = "8cc3a55af3bcf171a1c23a90c4df9cf591706104"
-  version = "v1.3.0"
+  revision = "8558711daa6c2853489043207b563dceacbc19cf"
+  version = "v1.5.0"
 
 [[projects]]
   digest = "1:2be5a35f0c5b35162c41bb24971e5dcf6ce825403296ee435429cdcc4e1e847e"
@@ -241,6 +271,14 @@
   pruneopts = "UT"
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
   version = "v0.5.0"
+
+[[projects]]
+  digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
+  name = "github.com/inconshreveable/mousetrap"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75"
+  version = "v1.0"
 
 [[projects]]
   digest = "1:75ab90ae3f5d876167e60f493beadfe66f0ed861a710f283fb06c86437a09538"
@@ -343,12 +381,28 @@
   version = "v1.0.6"
 
 [[projects]]
-  digest = "1:588973b21bdc46f8b9f94479026e3d6ea3836d48476fab8e6ed43b0204dc71f3"
+  digest = "1:30e06e6d62a1d694e3cdbff29d8a9a96022e05a487d0c6eaf0ef898965ef28fb"
   name = "github.com/soheilhy/cmux"
   packages = ["."]
   pruneopts = "UT"
-  revision = "bb79a83465015a27a175925ebd155e660f55e9f1"
-  version = "v0.1.3"
+  revision = "e09e9389d85d8492d313d73d1469c029e710623f"
+  version = "v0.1.4"
+
+[[projects]]
+  digest = "1:645cabccbb4fa8aab25a956cbcbdf6a6845ca736b2c64e197ca7cbb9d210b939"
+  name = "github.com/spf13/cobra"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ef82de70bb3f60c65fb8eebacbb2d122ef517385"
+  version = "v0.0.3"
+
+[[projects]]
+  digest = "1:dab83a1bbc7ad3d7a6ba1a1cc1760f25ac38cdf7d96a5cdd55cd915a4f5ceaf9"
+  name = "github.com/spf13/pflag"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9a97c102cda95a86cec2345a6f09f55a939babf5"
+  version = "v1.0.2"
 
 [[projects]]
   digest = "1:5110e3d4f130772fd39e6ce8208ad1955b242ccfcc8ad9d158857250579c82f4"
@@ -363,11 +417,12 @@
   version = "v1.2.2"
 
 [[projects]]
-  digest = "1:28aee88434fcefe93f513c55f793bc36362b88c0ae40e63033899fb78ddfd402"
+  branch = "master"
+  digest = "1:9fbba9f266710aae2dfe8bcdb24703b25ada0512623cabc96efb99bc7d579aef"
   name = "github.com/tmc/grpc-websocket-proxy"
   packages = ["wsproxy"]
   pruneopts = "UT"
-  revision = "89b8d40f7ca833297db804fcb3be53a76d01c238"
+  revision = "830351dc03c6f07d625727d5f993a463babb20e1"
 
 [[projects]]
   digest = "1:03aa6e485e528acb119fb32901cf99582c380225fc7d5a02758e08b180cb56c3"
@@ -398,19 +453,20 @@
   revision = "0e37d006457bf46f9e6692014ba72ef82c33022c"
 
 [[projects]]
-  digest = "1:b8a8f8eb0e7855e11cc3ba2b7aa2c05ac379eb1634c02f838738465a517ac0c7"
+  branch = "master"
+  digest = "1:deafe4ab271911fec7de5b693d7faae3f38796d9eb8622e2b9e7df42bb3dfea9"
   name = "golang.org/x/net"
   packages = [
     "context",
+    "http/httpguts",
     "http2",
     "http2/hpack",
     "idna",
     "internal/timeseries",
-    "lex/httplex",
     "trace",
   ]
   pruneopts = "UT"
-  revision = "66aacef3dd8a676686c7ae3716979581e8b03c47"
+  revision = "26e67e76b6c3f6ce91f7c52def5af501b4e0f3a2"
 
 [[projects]]
   branch = "master"
@@ -447,11 +503,12 @@
   version = "v0.3.0"
 
 [[projects]]
-  digest = "1:3be237ec173914816bf33cc4c25a285ac17e726dd0a35a9a41c295be730f43ef"
+  branch = "master"
+  digest = "1:c9e7a4b4d47c0ed205d257648b0e5b0440880cb728506e318f8ac7cd36270bc4"
   name = "golang.org/x/time"
   packages = ["rate"]
   pruneopts = "UT"
-  revision = "c06e80d9300e4443158a03817b8a8cb37d230320"
+  revision = "fbb02b2291d28baffd63558aa44b4b56f178d650"
 
 [[projects]]
   branch = "master"
@@ -519,6 +576,8 @@
   analyzer-version = 1
   input-imports = [
     "github.com/armon/go-metrics",
+    "github.com/coreos/etcd",
+    "github.com/coreos/pkg/capnslog",
     "github.com/etcd-io/etcd/embed",
     "github.com/fsnotify/fsnotify",
     "github.com/juju/errors",
