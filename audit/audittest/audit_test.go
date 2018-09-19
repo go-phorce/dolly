@@ -2,9 +2,8 @@ package audittest
 
 import (
 	"strconv"
-	"testing"
-
 	"sync"
+	"testing"
 
 	"github.com/stretchr/testify/assert"
 )

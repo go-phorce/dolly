@@ -1,15 +1,15 @@
-package embededetcd_test
+package embeddedetcd_test
 
 import (
 	"os"
 	"testing"
 
-	"github.com/go-phorce/dolly/testify/embededetcd"
+	"github.com/go-phorce/dolly/testify/embeddedetcd"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_StartEtcd(t *testing.T) {
-	path, s, err := embededetcd.Start("test-integration-etcd", true)
+	path, s, err := embeddedetcd.Start("test-integration-etcd", true)
 	require.NoError(t, err)
 
 	s.Close()
