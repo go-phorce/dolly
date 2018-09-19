@@ -30,6 +30,10 @@
   name = "github.com/armon/go-metrics"
 
 [[constraint]]
+  name = "github.com/etcd-io/etcd"
+  version = "3.3.9"
+
+[[constraint]]
   name = "github.com/fsnotify/fsnotify"
   version = "1.4.7"
 

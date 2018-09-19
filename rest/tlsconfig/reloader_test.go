@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/rest/tlsconfig"
+	"github.com/go-phorce/dolly/testify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,14 +22,15 @@ func Test_KeypairReloader(t *testing.T) {
 
 func keypairReloader(t *testing.T) {
 	now := time.Now().UTC()
-	pemCert, pemKey := mkCert(t, 1)
+	pemCert, pemKey, err := testify.MakeSelfCertRSAPem(1)
+	require.NoError(t, err)
 	require.NotNil(t, pemCert)
 	require.NotNil(t, pemKey)
 
 	pemFile := filepath.Join(os.TempDir(), "test-BuildTLSConfig.pem")
 	keyFile := filepath.Join(os.TempDir(), "test-BuildTLSConfig-key.pem")
 
-	err := ioutil.WriteFile(pemFile, pemCert, os.ModePerm)
+	err = ioutil.WriteFile(pemFile, pemCert, os.ModePerm)
 	require.NoError(t, err)
 	err = ioutil.WriteFile(keyFile, pemKey, os.ModePerm)
 	require.NoError(t, err)
