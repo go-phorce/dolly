@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/go-phorce/pkg/rest"
+	"github.com/go-phorce/dolly/rest"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -10,21 +10,21 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-phorce/pkg/metrics"
-	"github.com/go-phorce/pkg/netutil"
-	"github.com/go-phorce/pkg/rest/ready"
-	"github.com/go-phorce/pkg/rest/tlsconfig"
-	"github.com/go-phorce/pkg/tasks"
-	"github.com/go-phorce/pkg/xhttp"
-	"github.com/go-phorce/pkg/xhttp/authz"
-	"github.com/go-phorce/pkg/xhttp/context"
-	"github.com/go-phorce/pkg/xhttp/httperror"
-	"github.com/go-phorce/pkg/xhttp/marshal"
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/metrics"
+	"github.com/go-phorce/dolly/netutil"
+	"github.com/go-phorce/dolly/rest/ready"
+	"github.com/go-phorce/dolly/rest/tlsconfig"
+	"github.com/go-phorce/dolly/tasks"
+	"github.com/go-phorce/dolly/xhttp"
+	"github.com/go-phorce/dolly/xhttp/authz"
+	"github.com/go-phorce/dolly/xhttp/context"
+	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xhttp/marshal"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "rest")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
 
 // MaxRequestSize specifies max size of regular HTTP Post requests in bytes, 64 Mb
 const MaxRequestSize = 64 * 1024 * 1024

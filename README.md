@@ -1,9 +1,9 @@
-# go-phorce/pkg
+# go-phorce/dolly
 
-GO packages for building web apps
+GO packages for building web apps in go-phorce
 
-[![Build Status](https://travis-ci.org/go-phorce/pkg.svg?branch=master)](https://travis-ci.org/go-phorce/pkg)
-[![Coverage Status](https://coveralls.io/repos/github/go-phorce/pkg/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/pkg?branch=master)
+[![Build Status](https://travis-ci.org/go-phorce/dolly.svg?branch=master)](https://travis-ci.org/go-phorce/dolly)
+[![Coverage Status](https://coveralls.io/repos/github/go-phorce/dolly/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/dolly?branch=master)
 
 ## Contribution
 

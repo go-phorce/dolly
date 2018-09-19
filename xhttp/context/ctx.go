@@ -8,15 +8,15 @@ import (
 	"crypto/x509/pkix"
 	"net/http"
 
-	"github.com/go-phorce/pkg/algorithms/guid"
-	"github.com/go-phorce/pkg/netutil"
-	"github.com/go-phorce/pkg/xhttp"
-	"github.com/go-phorce/pkg/xhttp/header"
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/algorithms/guid"
+	"github.com/go-phorce/dolly/netutil"
+	"github.com/go-phorce/dolly/xhttp"
+	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "xhttp/context")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "xhttp/context")
 
 // ExtractRoleName will parse out from the supplied Name the clients roleName
 type ExtractRoleName func(*pkix.Name) string

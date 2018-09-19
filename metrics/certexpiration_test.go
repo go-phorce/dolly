@@ -3,7 +3,7 @@ package metrics
 import (
 	"testing"
 
-	"github.com/go-phorce/pkg/testify"
+	"github.com/go-phorce/dolly/testify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

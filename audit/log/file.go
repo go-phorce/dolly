@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-phorce/pkg/audit"
+	"github.com/go-phorce/dolly/audit"
 	"github.com/juju/errors"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )

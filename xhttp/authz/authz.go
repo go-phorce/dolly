@@ -36,13 +36,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/go-phorce/pkg/algorithms/math"
-	"github.com/go-phorce/pkg/xhttp/header"
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/algorithms/math"
+	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "authz")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "authz")
 
 var (
 	// ErrNoRoleMapperSpecified can't call NewHandler before you've set the RoleMapper function

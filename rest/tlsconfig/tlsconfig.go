@@ -5,11 +5,11 @@ import (
 	"crypto/x509"
 	"io/ioutil"
 
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "rest/tls")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest/tls")
 
 // BuildFromFiles will build a tls.Config from the supplied certificate, key
 // and optional trust roots files, these files are all expected to be PEM encoded.

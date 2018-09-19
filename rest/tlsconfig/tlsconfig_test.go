@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-phorce/pkg/rest/tlsconfig"
+	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

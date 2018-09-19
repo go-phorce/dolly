@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xlog"
 )
 
 var errNoHandler = errors.New("NewRequestLogger was supplied a nil handler to delegate to")

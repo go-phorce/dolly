@@ -3,7 +3,7 @@ package metrics
 import (
 	"time"
 
-	"github.com/go-phorce/pkg/metrics/tags"
+	"github.com/go-phorce/dolly/metrics/tags"
 )
 
 // PublishHeartbeat publishes heartbeat and uptime of the service

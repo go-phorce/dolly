@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/go-phorce/pkg/algorithms/throttle"
+	"github.com/go-phorce/dolly/algorithms/throttle"
 	"github.com/juju/errors"
 )
 

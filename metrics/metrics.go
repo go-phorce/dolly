@@ -4,10 +4,10 @@ import (
 	"time"
 
 	metrics "github.com/armon/go-metrics"
-	"github.com/go-phorce/xlog"
+	"github.com/go-phorce/dolly/xlog"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/pkg", "metrics")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "metrics")
 
 var prov Metrics
 

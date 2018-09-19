@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/go-phorce/pkg/algorithms/throttle"
+	"github.com/go-phorce/dolly/algorithms/throttle"
 )
 
 const (

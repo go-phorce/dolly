@@ -8,7 +8,7 @@ import (
 	"time"
 
 	gm "github.com/armon/go-metrics"
-	"github.com/go-phorce/pkg/metrics"
+	"github.com/go-phorce/dolly/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

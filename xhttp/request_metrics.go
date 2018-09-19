@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-phorce/pkg/metrics"
-	"github.com/go-phorce/pkg/metrics/tags"
+	"github.com/go-phorce/dolly/metrics"
+	"github.com/go-phorce/dolly/metrics/tags"
 )
 
 // a http.Handler that records execution metrics of the wrapper handler
