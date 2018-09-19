@@ -45,8 +45,8 @@ func MakeSelfCertRSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) {
 	return crt, key, nil
 }
 
-// MakeSelfCertPem creates self-signed cert in PEM format
-func MakeSelfCertPem(hours int) (pemCert, pemKey []byte, err error) {
+// MakeSelfCertRSAPem creates self-signed cert in PEM format
+func MakeSelfCertRSAPem(hours int) (pemCert, pemKey []byte, err error) {
 	crt, key, err := MakeSelfCertRSA(hours)
 	if err != nil {
 		return nil, nil, errors.Trace(err)
