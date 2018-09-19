@@ -1,4 +1,4 @@
-package embededetcd
+package embeddedetcd
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/etcd-io/etcd/embed"
+	"github.com/coreos/etcd/embed"
 	"github.com/juju/errors"
 )
 
