@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/marshal"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xlog/logrotate"
-	"github.com/go-phorce/xlog"
 	"github.com/juju/errors"
 	kp "gopkg.in/alecthomas/kingpin.v2"
 )
