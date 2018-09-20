@@ -8,13 +8,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xlog/logrotate"
 	"github.com/juju/errors"
-	kp "gopkg.in/alecthomas/kingpin.v2"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "ctl")
@@ -36,7 +36,7 @@ type ControlAction func(c Control, flags interface{}) error
 
 // Control is an interface for CLI
 type Control interface {
-	App() *kp.Application
+	App() Application
 	Writer() io.Writer
 	Verbose() bool
 	ServerURL() string
@@ -49,7 +49,6 @@ type Control interface {
 	Fail(msg string, err error) error
 
 	Parse(args []string) string
-	PopulateControl(c *kp.ParseContext) error
 	ReturnCode() ReturnCode
 
 	// Client returns application specific HTTP Client
@@ -102,18 +101,18 @@ func NewControl(d *ControlDefinition) *Ctl {
 }
 
 // RegisterAction create new Control action
-func (ctl *Ctl) RegisterAction(f ControlAction, params interface{}) kp.Action {
-	return func(c *kp.ParseContext) error {
+func (ctl *Ctl) RegisterAction(f ControlAction, params interface{}) Action {
+	return func() error {
 		err := f(ctl, params)
 		if err != nil {
-			return ctl.Fail(c.SelectedCommand.FullCommand(), err)
+			return ctl.Fail("action failed", err)
 		}
 		return nil
 	}
 }
 
 // App returns current control App
-func (ctl *Ctl) App() *kp.Application {
+func (ctl *Ctl) App() Application {
 	return ctl.params.App
 }
 
@@ -133,8 +132,8 @@ func (ctl *Ctl) ServerURL() string {
 }
 
 // Retries returns retries settings
-func (ctl *Ctl) Retries() (int, int) {
-	return *ctl.flags.retries, *ctl.flags.retryWait
+func (ctl *Ctl) Retries() (int, time.Duration) {
+	return *ctl.flags.retries, time.Duration(*ctl.flags.retryWait)
 }
 
 // ContentType is content-type for the server commands
@@ -195,7 +194,7 @@ func (ctl *Ctl) Reset(w io.Writer) {
 
 // ControlDefinition contains the default settings for control application
 type ControlDefinition struct {
-	App *kp.Application
+	App Application
 	// Output is the destination for all output from the command, typically set to os.Stdout
 	Output io.Writer
 
@@ -249,7 +248,7 @@ func (ctl *Ctl) Parse(args []string) string {
 
 // PopulateControl is a pre-action for kingpin library to populate the
 // control object after all the flags are parsed
-func (ctl *Ctl) PopulateControl(c *kp.ParseContext) error {
+func (ctl *Ctl) PopulateControl() error {
 	var err error
 
 	isDebug := *ctl.flags.debug
