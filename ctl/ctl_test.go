@@ -11,7 +11,6 @@ import (
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	kp "gopkg.in/alecthomas/kingpin.v2"
 )
 
 type fooActionParams struct {
@@ -23,7 +22,7 @@ type barActionParams struct {
 }
 
 func Test_ParseCore(t *testing.T) {
-	app := kp.New("test", "A test command-line tool").Terminate(nil)
+	app := ctl.NewApplication("test", "A test command-line tool").Terminate(nil)
 	//app.UsageWriter(os.Stderr)
 
 	cli := ctl.NewControl(&ctl.ControlDefinition{
@@ -71,7 +70,7 @@ func Test_ParseCore(t *testing.T) {
 }
 
 func Test_ParseCoreWithServer(t *testing.T) {
-	app := kp.New("test", "A test command-line tool with Server").Terminate(nil)
+	app := ctl.NewApplication("test", "A test command-line tool with Server").Terminate(nil)
 	//app.UsageWriter(os.Stderr)
 	cli := ctl.NewControl(&ctl.ControlDefinition{
 		App:        app,
@@ -124,11 +123,11 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	assert.Equal(t, "https://foo:9999", cli.ServerURL())
 	assert.Equal(t, "test", *foobarflag)
 
-	cmd, _ = parse(cli, []string{"test", "-s", "raphty", "foo"})
+	cmd, _ = parse(cli, []string{"test", "-s", "ekspander", "foo"})
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foo", cmd)
-	assert.Equal(t, "https://raphty", cli.ServerURL())
+	assert.Equal(t, "https://ekspander", cli.ServerURL())
 
 	cmd, out := parse(cli, []string{"test", "--bogus", "foo"})
 	require.Equal(t, ctl.RCUsage, cli.ReturnCode())
@@ -146,7 +145,7 @@ func Test_ParseCoreWithServer(t *testing.T) {
 }
 
 func Test_Action(t *testing.T) {
-	app := kp.New("test", "A test command-line tool").Terminate(nil)
+	app := ctl.NewApplication("test", "A test command-line tool").Terminate(nil)
 	//app.UsageWriter(os.Stderr)
 
 	cli := ctl.NewControl(&ctl.ControlDefinition{

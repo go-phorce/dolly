@@ -232,7 +232,7 @@ func (c *Client) GetResponse(ctx Context, hosts []string, path string, body io.W
 // tried in order until one succeeds, or we run out]
 // each host should include all the protocol/host/port preamble, e.g. http://foo.bar:3444
 // path should be an absolute URI path, i.e. /foo/bar/baz
-// if set, the callers identity will be passed to Raphty via the X-Raphty-Identity header
+// if set, the callers identity will be passed to the server via the X-Identity header
 func (c *Client) PostBody(ctx Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodPost, hosts, path, reqBody, 0)
 	if err != nil {
@@ -261,18 +261,18 @@ func (c *Client) executeRequest(ctx Context, httpMethod string, hosts []string, 
 
 		return resp, errors.Trace(err)
 	}
+	/*
+		if fn, ok := c.RetryPolicy.Retries[0]; ok {
+			if shouldRetry, sleepDuration, reason := fn(resp, err, retriesOnError); shouldRetry {
+				logger.Tracef("api=executeRequest, httpMethod=%s, hosts=[%s], path='%s', retriesOnError=%d, sleepDuration=[%v], reason='%s'",
+					httpMethod, strings.Join(hosts, ","), path, retriesOnError, sleepDuration.Round(1*time.Millisecond), reason)
 
-	if fn, ok := c.RetryPolicy.Retries[0]; ok {
-		if shouldRetry, sleepDuration, reason := fn(resp, err, retriesOnError); shouldRetry {
-			logger.Tracef("api=executeRequest, httpMethod=%s, hosts=[%s], path='%s', retriesOnError=%d, sleepDuration=[%v], reason='%s'",
-				httpMethod, strings.Join(hosts, ","), path, retriesOnError, sleepDuration.Round(1*time.Millisecond), reason)
+				time.Sleep(sleepDuration)
 
-			time.Sleep(sleepDuration)
-
-			return c.executeRequest(ctx, httpMethod, hosts, path, reqBody, retriesOnError+1)
+				return c.executeRequest(ctx, httpMethod, hosts, path, reqBody, retriesOnError+1)
+			}
 		}
-	}
-
+	*/
 	if err != nil {
 		return nil, errors.Annotatef(err, "api=executeRequest, status=failed, hosts=[%s], retriesOnError=%d", strings.Join(hosts, ","), retriesOnError)
 	}

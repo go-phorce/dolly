@@ -72,7 +72,7 @@ func TestHttp_RequestLoggerNullHandler(t *testing.T) {
 			t.Errorf("Unexpected panic value of %v, expecting %v", err, errNoHandler)
 		}
 	}()
-	NewRequestLogger(nil, "BOB", nil, time.Millisecond, "git.soma.salesforce.com/raphty/pkg/xhttp-test")
+	NewRequestLogger(nil, "BOB", nil, time.Millisecond, "github.com/go-phorce/dolly/xhttp-test")
 }
 
 func TestHttp_RequestLogger(t *testing.T) {
@@ -91,7 +91,7 @@ func TestHttp_RequestLogger(t *testing.T) {
 	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, false))
 
 	testLogPrefix := "BOB"
-	logHandler := NewRequestLogger(handler, testLogPrefix, nil, time.Millisecond, "git.soma.salesforce.com/raphty/pkg/xhttp")
+	logHandler := NewRequestLogger(handler, testLogPrefix, nil, time.Millisecond, "github.com/go-phorce/dolly/xhttp")
 	logHandler.ServeHTTP(w, r)
 	if w.Code != http.StatusBadRequest {
 		t.Errorf("Status code set by ultimate handler wasn't returned by the logging wrapper")
