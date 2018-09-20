@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
@@ -20,6 +19,11 @@ import (
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xhttp", "retry")
+
+// Context represents interface for the HTTP request context
+type Context interface {
+	SetHeaders(r *http.Request)
+}
 
 // lenReader is an interface implemented by many in-memory io.Reader's. Used
 // for automatically sending the right Content-Length header when possible.
@@ -180,7 +184,7 @@ func NewDefaultPolicy() *Policy {
 // into an go error.
 // If configured, this call will wait & retry on rate limit and leader election errors
 // path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) Get(ctx context.Context, hosts []string, path string, body interface{}) (int, error) {
+func (c *Client) Get(ctx Context, hosts []string, path string, body interface{}) (int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil, 0)
 	if err != nil {
 		return 0, errors.Trace(err)
@@ -198,7 +202,7 @@ func (c *Client) Get(ctx context.Context, hosts []string, path string, body inte
 // into an go error.
 // If configured, this call will wait & retry on rate limit and leader election errors
 // path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) Delete(ctx context.Context, hosts []string, path string, body interface{}) (int, error) {
+func (c *Client) Delete(ctx Context, hosts []string, path string, body interface{}) (int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodDelete, hosts, path, nil, 0)
 
 	if err != nil {
@@ -214,7 +218,7 @@ func (c *Client) Delete(ctx context.Context, hosts []string, path string, body i
 // Path should be an absolute URI path, i.e. /foo/bar/baz
 // the resulting HTTP body will be returned into the supplied body parameter, and the
 // http status code returned.
-func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, body io.Writer) (int, error) {
+func (c *Client) GetResponse(ctx Context, hosts []string, path string, body io.Writer) (int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil, 0)
 	if err != nil {
 		return 0, errors.Trace(err)
@@ -229,7 +233,7 @@ func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, b
 // each host should include all the protocol/host/port preamble, e.g. http://foo.bar:3444
 // path should be an absolute URI path, i.e. /foo/bar/baz
 // if set, the callers identity will be passed to Raphty via the X-Raphty-Identity header
-func (c *Client) PostBody(ctx context.Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
+func (c *Client) PostBody(ctx Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodPost, hosts, path, reqBody, 0)
 	if err != nil {
 		return 0, errors.Trace(err)
@@ -239,7 +243,7 @@ func (c *Client) PostBody(ctx context.Context, hosts []string, path string, reqB
 	return c.DecodeResponse(resp, body)
 }
 
-func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []string, path string, reqBody []byte, retriesOnError int) (*http.Response, error) {
+func (c *Client) executeRequest(ctx Context, httpMethod string, hosts []string, path string, reqBody []byte, retriesOnError int) (*http.Response, error) {
 	var err error
 	var resp *http.Response
 	for _, host := range hosts {
@@ -276,7 +280,7 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 }
 
 // doHTTP wraps calling an HTTP method with retries.
-func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, path string, reqBody []byte) (*http.Response, error) {
+func (c *Client) doHTTP(ctx Context, httpMethod string, host string, path string, reqBody []byte) (*http.Response, error) {
 	if ctx == nil {
 		return nil, errors.Errorf("invalid parameter: ctx")
 	}
@@ -405,7 +409,7 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 // extractResponse will look at the http response, and map it back to either
 // the body parameters, or to an error
 // [retrying rate limit errors should be done before this]
-func (c *Client) extractResponse(ctx context.Context, resp *http.Response, body io.Writer) (int, error) {
+func (c *Client) extractResponse(ctx Context, resp *http.Response, body io.Writer) (int, error) {
 	if resp.StatusCode >= http.StatusMultipleChoices { // 300
 		e := new(httperror.Error)
 		e.HTTPStatus = resp.StatusCode
