@@ -90,7 +90,7 @@ endif
 export TOOLS_PATH := ${PROJ_DIR}/.tools
 export TOOLS_SRC := ${TOOLS_PATH}/src
 export TOOLS_BIN := ${TOOLS_PATH}/bin
-export PATH := ${PATH}:${TOOLS_BIN}
+export PATH := ${PATH}:${PROJ_BIN}:${TOOLS_BIN}
 
 PROJ_REPO_TARGET := "${PROJ_GOPATH_DIR}/src/${REPO_NAME}"
 

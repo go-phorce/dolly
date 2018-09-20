@@ -125,12 +125,10 @@ fi
 if [[ -z "$HSM_PIN" && -f $HSM_PINFILE ]]; then
     HSM_PIN_VAL=`cat $HSM_PINFILE`
     HSM_PIN="file:${HSM_PINFILE}"
-fi
-
-if [[ -z "$HSM_PIN" && "$GENERATE_PIN" == "YES" ]]; then
+elif [[ -z "$HSM_PIN" && "$GENERATE_PIN" == "YES" ]]; then
     if [[ ! -z "$HSM_PINFILE" ]]; then
         HSM_PIN_VAL=`echo $RANDOM$RANDOM$RANDOM`
-        echo $HSM_PIN_VAL > $HSM_PINFILE
+        echo -n $HSM_PIN_VAL > $HSM_PINFILE
         HSM_PIN="file:${HSM_PINFILE}"
     else
         HSM_PIN_VAL=`echo $RANDOM$RANDOM$RANDOM`
@@ -146,9 +144,12 @@ echo HSM_MODULE  = "${HSM_MODULE}"
 echo PKCS11_TOOL = "${PKCS11_TOOL}"
 echo SOFTHSM_TOOL= "${SOFTHSM_TOOL}"
 echo TOKEN_DIR   = "${TOKEN_DIR}"
+echo CONFIG_FILE = "${CONFIG_FILE}"
+echo FORCE       = "${FORCE}"
 
 if [[ "$FORCE" == "YES" ]]; then
     rm -rf ~/.config/softhsm2
+    rm -rf ${TOKEN_DIR}
 fi
 
 if [[ ! -f ~/.config/softhsm2/softhsm2.conf ]]; then
@@ -166,7 +167,7 @@ fi
 # create slot if it does not exist
 softhsm2-util --show-slots | grep -q "${HSM_SLOT}" || softhsm2-util --init-token --free --label "${HSM_SLOT}" --force --pin ${HSM_PIN_VAL} --so-pin so${HSM_PIN_VAL}
 
-[[ ! -z "$CONFIG_FILE" ]] && echo { \"Manufacturer\" : \"SoftHSM\", \"Path\": \"$HSM_MODULE\", \"TokenLabel\": \"$HSM_SLOT\", \"Pin\": \"$HSM_PIN\" } > $CONFIG_FILE
+[[ ! -z "$CONFIG_FILE" ]] && echo -n { \"Manufacturer\" : \"SoftHSM\", \"Path\": \"$HSM_MODULE\", \"TokenLabel\": \"$HSM_SLOT\", \"Pin\": \"$HSM_PIN\" } > $CONFIG_FILE
 
 echo "HSM_PIN_VAL=${HSM_PIN_VAL}"
 cat $CONFIG_FILE
