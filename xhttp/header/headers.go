@@ -5,6 +5,8 @@ const (
 	Accept = "Accept"
 	// ContentType is HTTP header for "Content-Type"
 	ContentType = "Content-Type"
+	// ContentLength is HTTP header for "Content-Length"
+	ContentLength = "Content-Length"
 	// ContentDisposition is HTTP header for "Content-Disposition"
 	ContentDisposition = "Content-Disposition"
 

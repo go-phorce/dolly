@@ -22,6 +22,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
+	"go.uber.org/dig"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
@@ -101,7 +102,7 @@ type Server interface {
 // as a single HTTP server
 type server struct {
 	Server
-
+	container      *dig.Container
 	context        context.Context
 	auditor        Auditor
 	authz          *authz.Config

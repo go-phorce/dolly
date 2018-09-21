@@ -387,11 +387,15 @@ getdevtools:
 	$(call httpsclone,${GITHUB_HOST},sqs/goreturns,          ${TOOLS_PATH}/src/github.com/sqs/goreturns,            master)
 	$(call httpsclone,${GITHUB_HOST},karrick/godirwalk,      ${TOOLS_PATH}/src/github.com/karrick/godirwalk,        master)
 	$(call httpsclone,${GITHUB_HOST},pkg/errors,             ${TOOLS_PATH}/src/github.com/pkg/errors,               master)
+	$(call httpsclone,${GITHUB_HOST},jteeuwen/go-bindata,    ${TOOLS_PATH}/src/github.com/jteeuwen/go-bindata,      master)
 
 devtools: getdevtools
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/go/buildutil
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/fiximports
 	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/goimports
+	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/godoc
+	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/guru
+	GOPATH=${TOOLS_PATH} go install golang.org/x/tools/cmd/gorename
 	GOPATH=${TOOLS_PATH} go install github.com/golang/dep/cmd/dep
 	GOPATH=${TOOLS_PATH} go install github.com/derekparker/delve/cmd/dlv
 	GOPATH=${TOOLS_PATH} go install github.com/uudashr/gopkgs/cmd/gopkgs
@@ -400,6 +404,7 @@ devtools: getdevtools
 	GOPATH=${TOOLS_PATH} go install github.com/acroca/go-symbols
 	GOPATH=${TOOLS_PATH} go install github.com/ramya-rao-a/go-outline
 	GOPATH=${TOOLS_PATH} go install github.com/sqs/goreturns
+	GOPATH=${TOOLS_PATH} go install github.com/jteeuwen/go-bindata/...
 
 upgrade-project.mk:
 	wget -O vscode.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/vscode.sh
