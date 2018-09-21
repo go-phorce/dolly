@@ -37,13 +37,13 @@ notifications:
 # ...and adding this to your Gopkg.toml file.
 #   required = ["github.com/golangci/golangci-lint/cmd/golangci-lint"]
 before_script:
-  - make vars generate
+  - make vars generate hsmconfig
 
 # script always runs to completion (set +e). If we have linter issues AND a
 # failing test, we want to see both. Configure golangci-lint with a
 # .golangci.yml file at the top level of your repo.
 script:
-  - make vars covtest # Run all the tests with coverage report
+  - make vars build covtest # Run all the tests with coverage report
 
 after_success:
   - make coveralls

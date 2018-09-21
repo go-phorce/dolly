@@ -1,0 +1,10 @@
+Copyright 2016, 2017 Thales e-Security, Inc
+Copyright 2018 Denis Issoupov
+
+This package is cloned from https://github.com/ThalesIgnite/crypto11
+It's been modified and tested in production with
+- softhsm2
+- Thales
+- Safenet Luna PCI
+- Safenet Net HSM
+

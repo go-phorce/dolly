@@ -325,6 +325,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:c9011453d3f0433da7cfbf8f69783fd6566ad5e90207b2c4024f1011f0f4bb0f"
+  name = "github.com/miekg/pkcs11"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "df0db7a16a9e283fd5b61572edbf5baf73c4bcd7"
+
+[[projects]]
+  branch = "master"
   digest = "1:3bf17a6e6eaa6ad24152148a631d18662f7212e21637c2699bff3369b7f00fa2"
   name = "github.com/petar/GoLLRB"
   packages = ["llrb"]
@@ -601,6 +609,7 @@
     "github.com/fsnotify/fsnotify",
     "github.com/juju/errors",
     "github.com/julienschmidt/httprouter",
+    "github.com/miekg/pkcs11",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
