@@ -16,6 +16,7 @@ import (
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
+	"github.com/go-phorce/dolly/xhttp/authz"
 	"github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
@@ -98,6 +99,16 @@ type Server interface {
 	StopHTTP()
 
 	Scheduler() tasks.Scheduler
+
+	// Invoke runs the given function after instantiating its dependencies.
+	//
+	// Any arguments that the function has are treated as its dependencies. The
+	// dependencies are instantiated in an unspecified order along with any
+	// dependencies that they might have.
+	//
+	// The function may return an error to indicate failure. The error will be
+	// returned to the caller as-is.
+	Invoke(function interface{}) error
 }
 
 // server is responsible for exposing the collection of the services
@@ -127,12 +138,8 @@ type server struct {
 // New creates a new instance of the server
 func New(
 	rolename string,
-	auditor Auditor,
-	authz Authz,
-	httpConfig HTTPServerConfig,
-	tlsConfig TLSInfoConfig,
-	cluster ClusterInfo,
 	version string,
+	container *dig.Container,
 ) (Server, error) {
 	var err error
 	ipaddr, err := netutil.GetLocalIP()
@@ -141,22 +148,59 @@ func New(
 		logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use='%s', err=[%v]", ipaddr, errors.ErrorStack(err))
 	}
 
-	return &server{
-		auditor:    auditor,
-		authz:      authz,
-		context:    context.NewForRole(rolename),
-		services:   map[string]Service{},
-		scheduler:  tasks.NewScheduler(),
-		cluster:    cluster,
-		httpConfig: httpConfig,
-		tlsConfig:  tlsConfig,
-		rolename:   rolename,
-		startedAt:  time.Now().UTC(),
-		version:    version,
-		hostname:   GetHostName(httpConfig.GetBindAddr()),
-		port:       GetPort(httpConfig.GetBindAddr()),
-		ipaddr:     ipaddr,
-	}, nil
+	s := &server{
+		context:   context.NewForRole(rolename),
+		services:  map[string]Service{},
+		scheduler: tasks.NewScheduler(),
+		rolename:  rolename,
+		startedAt: time.Now().UTC(),
+		version:   version,
+		ipaddr:    ipaddr,
+	}
+
+	err = container.Invoke(func(authzConfig AuthzConfig) error {
+		s.authz, err = authz.New(authzConfig.GetAllow(), authzConfig.GetAllowAny(), authzConfig.GetAllowAnyRole())
+		if err != nil {
+			return errors.Trace(err)
+		}
+		return nil
+	})
+	if err != nil {
+		logger.Panicf("api=rest.New, reason='failed to initialize Authz', err=[%v]", errors.ErrorStack(err))
+	}
+
+	err = container.Invoke(func(cluster ClusterInfo) {
+		s.cluster = cluster
+	})
+	if err != nil {
+		logger.Errorf("api=rest.New, reason='ClusterInfo not provided', err=[%v]", errors.ErrorStack(err))
+	}
+
+	err = container.Invoke(func(auditor Auditor) {
+		s.auditor = auditor
+	})
+	if err != nil {
+		logger.Errorf("api=rest.New, reason='Auditor not provided', err=[%v]", errors.ErrorStack(err))
+	}
+
+	err = container.Invoke(func(tlsConfig TLSInfoConfig) {
+		s.tlsConfig = tlsConfig
+	})
+	if err != nil {
+		logger.Errorf("api=rest.New, reason='TLSInfoConfig not provided', err=[%v]", errors.ErrorStack(err))
+	}
+
+	err = container.Invoke(func(httpConfig HTTPServerConfig) {
+		s.httpConfig = httpConfig
+		baddr := httpConfig.GetBindAddr()
+		s.hostname = GetHostName(baddr)
+		s.port = GetPort(baddr)
+	})
+	if err != nil {
+		logger.Panicf("api=rest.New, reason='HTTPServerConfig not provided', err=[%v]", errors.ErrorStack(err))
+	}
+
+	return s, nil
 }
 
 // LocalCtx specifies local context for the server
