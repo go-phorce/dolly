@@ -187,8 +187,7 @@ func Test_NewServer(t *testing.T) {
 		BindAddr: ":8080",
 	}
 
-	audit := auditor.NewInMemory()
-	server, err := New("test", audit, nil, cfg, nil, nil, "v1.0.123")
+	server, err := New("test", nil, &serverConfig{}, &authzConfig{}, &tlsConfig{}, nil, "v1.0.123")
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
