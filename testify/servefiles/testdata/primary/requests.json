@@ -1,0 +1,9 @@
+{
+    "/def" :                        { "file" : "def" },
+    "/withCode" :                   { "file" : "error", "statusCode": 400 },
+    "/withSeq" :                    { "file" : "seq" },
+    "/withSeqAndCode" :             { "file" : "seq", "statusCode": 201 },
+    "/services/oauth2/token" :      { "file": "token" },
+    "/services/not_oauth/token" :   { "file": "token" },
+    "/statusCodes":                 { "file": "error", "statusCodes":[400,404,200]}
+}

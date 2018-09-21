@@ -25,7 +25,7 @@ const (
 	// UnexpectedError is returned when something went wrong.
 	UnexpectedError = "Unexpected"
 
-	// Forbidden is returned when the client is not authorized to access the resource indicated. [e.g. the client cert doesn't have a Salesforce.com Organization].
+	// Forbidden is returned when the client is not authorized to access the resource indicated.
 	Forbidden = "Forbidden"
 
 	// NotReady is returned when the service is not ready to serve
