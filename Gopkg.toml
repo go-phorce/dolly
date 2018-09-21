@@ -24,7 +24,7 @@
 #   go-tests = true
 #   unused-packages = true
 
-required = ["github.com/coreos/etcd", "github.com/coreos/pkg/capnslog"]
+required = ["github.com/coreos/pkg/capnslog", "go.uber.org/dig/internal/digreflect"]
 
 [[constraint]]
   branch = "master"
@@ -54,15 +54,6 @@ required = ["github.com/coreos/etcd", "github.com/coreos/pkg/capnslog"]
   name = "gopkg.in/natefinch/lumberjack.v2"
   version = "2.1.0"
 
-[[override]]
-  name = "github.com/coreos/etcd"
-  version = "3.3.9"
-
-[[override]]
-  name = "github.com/coreos/bbolt"
-  source = "https://github.com/coreos/bbolt"
-  revision = "48ea1b39c25fc1bab3506fbc712ecbaa842c4d2d"
-
 [prune]
   go-tests = true
   unused-packages = true
@@ -70,3 +61,7 @@ required = ["github.com/coreos/etcd", "github.com/coreos/pkg/capnslog"]
 [[constraint]]
   name = "github.com/coreos/pkg"
   version = "4.0.0"
+
+[[constraint]]
+  version = "v1.5.0"
+  name = "go.uber.org/dig"
