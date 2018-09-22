@@ -38,6 +38,18 @@ func (a *InMemory) Get(idx int) *Event {
 	return a.events[idx]
 }
 
+// Find returns first event satisfying the filter
+func (a *InMemory) Find(source, eventType string) *Event {
+	a.Lock()
+	defer a.Unlock()
+	for _, e := range a.events {
+		if e.Source == source && e.EventType == eventType {
+			return e
+		}
+	}
+	return nil
+}
+
 // GetAll returns a cloned copy of all the events
 // Ordering in audit events may not work as expected
 // when multiple go-routines are appending events

@@ -1,35 +1,17 @@
 package rest
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
+	"time"
 
+	"github.com/go-phorce/dolly/testify/auditor"
+	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-type authzConfig struct {
-	// Allow will allow the specified roles access to this path and its children, in format: ${path}:${role},${role}
-	Allow []string
-	// AllowAny will allow any authenticated request access to this path and its children
-	AllowAny []string
-	// AllowAnyRole will allow any authenticated request that include a non empty role
-	AllowAnyRole []string
-}
-
-// GetAllow will allow the specified roles access to this path and its children, in format: ${path}:${role},${role}
-func (c *authzConfig) GetAllow() []string {
-	return c.Allow
-}
-
-// GetAllowAny will allow any authenticated request access to this path and its children
-func (c *authzConfig) GetAllowAny() []string {
-	return c.AllowAny
-}
-
-// GetAllowAnyRole will allow any authenticated request that include a non empty role
-func (c *authzConfig) GetAllowAnyRole() []string {
-	return c.AllowAnyRole
-}
 
 type tlsConfig struct {
 	// CertFile specifies location of the cert
@@ -44,21 +26,33 @@ type tlsConfig struct {
 
 // GetCertFile specifies location of the cert
 func (c *tlsConfig) GetCertFile() string {
+	if c == nil {
+		return ""
+	}
 	return c.CertFile
 }
 
 // GetKeyFile specifies location of the key
 func (c *tlsConfig) GetKeyFile() string {
+	if c == nil {
+		return ""
+	}
 	return c.KeyFile
 }
 
 // GetTrustedCAFile specifies location of the CA file
 func (c *tlsConfig) GetTrustedCAFile() string {
+	if c == nil {
+		return ""
+	}
 	return c.TrustedCAFile
 }
 
 // GetClientCertAuth controls client auth
 func (c *tlsConfig) GetClientCertAuth() *bool {
+	if c == nil {
+		return nil
+	}
 	return c.ClientCertAuth
 }
 
@@ -90,9 +84,6 @@ type serverConfig struct {
 
 	// Services is a list of services to enable for this HTTP Service
 	Services []string
-
-	// Authz contains configuration for the API authorization layer
-	Authz authzConfig
 
 	// HeartbeatSecs specifies heartbeat interval in seconds [30 secs is a minimum]
 	HeartbeatSecs int
@@ -143,21 +134,64 @@ func (c *serverConfig) GetServices() []string {
 	return c.Services
 }
 
-// GetAuthzCfg contains configuration for the API authorization layer
-func (c *serverConfig) GetAuthzCfg() AuthzConfig {
-	return &c.Authz
-}
-
 // GetHeartbeatSecs specifies heartbeat interval in seconds [30 secs is a minimum]
 func (c *serverConfig) GetHeartbeatSecs() int {
 	return c.HeartbeatSecs
 }
 
-func Test_NewServer(t *testing.T) {
+func ExampleServer() {
+	sigs := make(chan os.Signal, 2)
 
-	server, err := New("test", nil, &serverConfig{}, &authzConfig{}, &tlsConfig{}, nil, "v1.0-123")
+	cfg := &serverConfig{
+		BindAddr: ":8080",
+	}
+
+	audit := auditor.NewInMemory()
+	server, err := New("test", audit, nil, cfg, nil, nil, "v1.0.123")
+	if err != nil {
+		logger.Panicf("unable to create the server: %v", errors.ErrorStack(err))
+	}
+
+	err = server.StartHTTP()
+	if err != nil {
+		logger.Panicf("unable to start the server: %v", errors.ErrorStack(err))
+	}
+
+	go func() {
+		// Send STOP signal after 3 seconds,
+		time.Sleep(3 * time.Second)
+		sigs <- syscall.SIGTERM
+	}()
+
+	// register for signals, and wait to be shutdown
+	signal.Notify(sigs, os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGUSR2, syscall.SIGABRT)
+	// Block until a signal is received.
+	sig := <-sigs
+
+	server.StopHTTP()
+
+	// SIGUSR2 is triggered by the upstart pre-stop script, we don't want
+	// to actually exit the process in that case until upstart sends SIGTERM
+	if sig == syscall.SIGUSR2 {
+		select {
+		case <-time.After(time.Second * 5):
+			logger.Info("api=startService, status='service shutdown from SIGUSR2 complete, waiting for SIGTERM to exit'")
+		case sig = <-sigs:
+			logger.Infof("api=startService, status=exiting, reason=received_signal, sig=%v", sig)
+		}
+	}
+}
+
+func Test_NewServer(t *testing.T) {
+	cfg := &serverConfig{
+		BindAddr: ":8080",
+	}
+
+	audit := auditor.NewInMemory()
+	server, err := New("test", audit, nil, cfg, nil, nil, "v1.0.123")
 	require.NoError(t, err)
 	require.NotNil(t, server)
+
 	assert.NotNil(t, server.NodeName)
 	assert.NotNil(t, server.LeaderID)
 	assert.NotNil(t, server.NodeID)
@@ -176,4 +210,29 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.StartHTTP)
 	assert.NotNil(t, server.StopHTTP)
 	assert.NotNil(t, server.Scheduler)
+
+	assert.NotEmpty(t, server.NodeName())
+	assert.Empty(t, server.LeaderID())
+	assert.Empty(t, server.NodeID())
+	assert.NotEmpty(t, server.Version())
+	assert.NotEmpty(t, server.RoleName())
+	assert.NotEmpty(t, server.HostName())
+	assert.NotEmpty(t, server.LocalIP())
+	assert.NotEmpty(t, server.Port())
+	assert.NotNil(t, server.StartedAt())
+	assert.NotNil(t, server.LocalCtx())
+	assert.Nil(t, server.Service("abc"))
+	assert.True(t, server.IsReady())
+	assert.NotNil(t, server.Scheduler())
+
+	//	assert.NotNil(t, server.AddService())
+	err = server.StartHTTP()
+	require.NoError(t, err)
+	e := audit.Find(EvtSourceStatus, EvtServiceStarted)
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "ClientAuth=false")
+
+	server.StopHTTP()
+	e = audit.Find(EvtSourceStatus, EvtServiceStopped)
+	require.NotNil(t, e)
 }

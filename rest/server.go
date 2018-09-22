@@ -16,7 +16,6 @@ import (
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
-	"github.com/go-phorce/dolly/xhttp/authz"
 	"github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
@@ -31,9 +30,12 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
 const MaxRequestSize = 64 * 1024 * 1024
 
 const (
-	srcStatus         = "status"
-	evtServiceStarted = "service started"
-	evtServiceStopped = "service stopped"
+	// EvtSourceStatus specifies source for service Status
+	EvtSourceStatus = "status"
+	// EvtServiceStarted specifies Service Started event
+	EvtServiceStarted = "service started"
+	// EvtServiceStopped specifies Service Stopped event
+	EvtServiceStopped = "service stopped"
 )
 
 // ClusterMember provides information about cluster member
@@ -105,10 +107,9 @@ type server struct {
 	container      *dig.Container
 	context        context.Context
 	auditor        Auditor
-	authz          *authz.Config
+	authz          Authz
 	cluster        ClusterInfo
 	httpConfig     HTTPServerConfig
-	authzConfig    AuthzConfig
 	tlsConfig      TLSInfoConfig
 	tlsloader      *tlsconfig.KeypairReloader
 	rolename       string
@@ -127,8 +128,8 @@ type server struct {
 func New(
 	rolename string,
 	auditor Auditor,
+	authz Authz,
 	httpConfig HTTPServerConfig,
-	authzConfig AuthzConfig,
 	tlsConfig TLSInfoConfig,
 	cluster ClusterInfo,
 	version string,
@@ -140,27 +141,21 @@ func New(
 		logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use='%s', err=[%v]", ipaddr, errors.ErrorStack(err))
 	}
 
-	authz, err := authz.New(authzConfig.GetAllow(), authzConfig.GetAllowAny(), authzConfig.GetAllowAnyRole())
-	if err != nil {
-		logger.Panicf("api=rest.New, reason='failed to initialize Authz', err=[%v]", errors.ErrorStack(err))
-	}
-
 	return &server{
-		auditor:     auditor,
-		authz:       authz,
-		context:     context.NewForRole(rolename),
-		services:    map[string]Service{},
-		scheduler:   tasks.NewScheduler(),
-		cluster:     cluster,
-		httpConfig:  httpConfig,
-		authzConfig: authzConfig,
-		tlsConfig:   tlsConfig,
-		rolename:    rolename,
-		startedAt:   time.Now().UTC(),
-		version:     version,
-		hostname:    GetHostName(httpConfig.GetBindAddr()),
-		port:        GetPort(httpConfig.GetBindAddr()),
-		ipaddr:      ipaddr,
+		auditor:    auditor,
+		authz:      authz,
+		context:    context.NewForRole(rolename),
+		services:   map[string]Service{},
+		scheduler:  tasks.NewScheduler(),
+		cluster:    cluster,
+		httpConfig: httpConfig,
+		tlsConfig:  tlsConfig,
+		rolename:   rolename,
+		startedAt:  time.Now().UTC(),
+		version:    version,
+		hostname:   GetHostName(httpConfig.GetBindAddr()),
+		port:       GetPort(httpConfig.GetBindAddr()),
+		ipaddr:     ipaddr,
 	}, nil
 }
 
@@ -300,10 +295,11 @@ func (server *server) StartHTTP() error {
 	}
 
 	var httpsListener net.Listener
-	certFile := server.tlsConfig.GetCertFile()
-	keyFile := server.tlsConfig.GetKeyFile()
-	withClientAuth := server.tlsConfig.GetClientCertAuth()
-	if certFile != "" && keyFile != "" {
+
+	if server.tlsConfig != nil && server.tlsConfig.GetKeyFile() != "" {
+		withClientAuth := server.tlsConfig.GetClientCertAuth()
+		certFile := server.tlsConfig.GetCertFile()
+		keyFile := server.tlsConfig.GetKeyFile()
 		server.withClientAuth = withClientAuth != nil && *withClientAuth
 		tlsConfig, err := tlsconfig.BuildFromFiles(certFile, keyFile, server.tlsConfig.GetTrustedCAFile(), server.withClientAuth)
 		if err != nil {
@@ -376,12 +372,13 @@ func (server *server) StartHTTP() error {
 
 	server.scheduler.Start()
 	server.Audit(
-		srcStatus,
-		evtServiceStarted,
+		EvtSourceStatus,
+		EvtServiceStarted,
 		server.context.Identity().String(),
 		server.context.RequestID(),
 		0,
-		fmt.Sprintf("node='%s', address='%s'", server.NodeName(), strings.TrimPrefix(bindAddr, ":")),
+		fmt.Sprintf("node='%s', address='%s', ClientAuth=%t",
+			server.NodeName(), strings.TrimPrefix(bindAddr, ":"), server.withClientAuth),
 	)
 
 	return nil
@@ -441,8 +438,8 @@ func (server *server) StopHTTP() {
 
 	ut := server.Uptime() / time.Second * time.Second
 	server.Audit(
-		srcStatus,
-		evtServiceStopped,
+		EvtSourceStatus,
+		EvtServiceStopped,
 		server.context.Identity().String(),
 		server.context.RequestID(),
 		0,
@@ -465,7 +462,7 @@ func (server *server) NewMux() http.Handler {
 
 	logger.Infof("api=NewMux, service=%s, withClientAuth=%t", server.Name(), server.withClientAuth)
 
-	if server.withClientAuth {
+	if server.withClientAuth && server.authz != nil {
 		// authz wrapper
 		server.authz.SetRoleMapper(context.RoleFromRequest)
 		httpHandler, err = server.authz.NewHandler(httpHandler)

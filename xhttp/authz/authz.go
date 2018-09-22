@@ -22,7 +22,7 @@
 // is equivilent to
 // Allow("/foo", "bob", "barry")
 //
-// Once you've built your Config you can call NewHandler to get a http.Handler
+// Once you've built your Provider you can call NewHandler to get a http.Handler
 // that implements those rules.
 //
 package authz
@@ -46,9 +46,9 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "authz")
 
 var (
 	// ErrNoRoleMapperSpecified can't call NewHandler before you've set the RoleMapper function
-	ErrNoRoleMapperSpecified = errors.New("Config has no RoleMapper func specified, you must have a RoleMapper set to be able to create a http.Handler")
+	ErrNoRoleMapperSpecified = errors.New("Provider has no RoleMapper func specified, you must have a RoleMapper set to be able to create a http.Handler")
 	// ErrNoPathsConfigured is returned by NewHandler if you call NewHandler, but haven't configured any paths to be accessible
-	ErrNoPathsConfigured = errors.New("Config has no paths authorizated, you must authorization at least one path before being able to create a http.Handler")
+	ErrNoPathsConfigured = errors.New("Provider has no paths authorizated, you must authorization at least one path before being able to create a http.Handler")
 )
 
 // RoleMapper abstracts how a role is extracted from an HTTP request
@@ -56,12 +56,12 @@ var (
 // be careful if it manages any state.
 type RoleMapper func(r *http.Request) string
 
-// Config represents an Authorization Configuration,
+// Provider represents an Authorization provider,
 // You can call Allow or AllowAny to specify which roles are allowed
 // access to which path segments.
 // once configured you can create a http.Handler that enforces that
 // configuration for you by calling NewHandler
-type Config struct {
+type Provider struct {
 	roleMapper RoleMapper
 	pathRoot   *pathNode
 }
@@ -90,9 +90,9 @@ type pathNode struct {
 	allow        allowTypes
 }
 
-// New returns new Authz configuration
-func New(allow, allowAny, allowAnyRole []string) (*Config, error) {
-	az := new(Config)
+// New returns new Authz provider
+func New(allow, allowAny, allowAnyRole []string) (*Provider, error) {
+	az := new(Provider)
 
 	if len(allowAny) > 0 {
 		for _, s := range allowAny {
@@ -128,7 +128,7 @@ func New(allow, allowAny, allowAnyRole []string) (*Config, error) {
 
 // treeAtText will return a string of the current configured tree in
 // human readable text format.
-func (c *Config) treeAsText() string {
+func (c *Provider) treeAsText() string {
 	o := bytes.NewBuffer(make([]byte, 0, 256))
 	io.WriteString(o, "\n")
 	roles := func(o io.Writer, n *pathNode) {
@@ -220,36 +220,36 @@ func (n *pathNode) allowRole(r string) bool {
 	return ((n.allow & allowAnyRole) != 0) || n.allowedRoles[r]
 }
 
-// Clone returns a deep copy of this Config
-func (c *Config) Clone() *Config {
-	return &Config{
+// Clone returns a deep copy of this Provider
+func (c *Provider) Clone() *Provider {
+	return &Provider{
 		roleMapper: c.roleMapper,
 		pathRoot:   c.pathRoot.clone(),
 	}
 }
 
 // SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
-func (c *Config) SetRoleMapper(m RoleMapper) {
+func (c *Provider) SetRoleMapper(m RoleMapper) {
 	c.roleMapper = m
 }
 
 // AllowAny will allow any authenticated request access to this path and its children
 // [unless a specific Allow/AllowAny is called for a child path]
-func (c *Config) AllowAny(path string) {
+func (c *Provider) AllowAny(path string) {
 	c.walkPath(path, true).allow = allowAny
 }
 
 // AllowAnyRole will allow any authenticated request that include a non empty role
 // access to this path and its children
 // [unless a specific Allow/AllowAny is called for a child path]
-func (c *Config) AllowAnyRole(path string) {
+func (c *Provider) AllowAnyRole(path string) {
 	c.walkPath(path, true).allow |= allowAnyRole
 }
 
 // Allow will allow the specified roles access to this path and its children
 // [unless a specific Allow/AllowAny is called for a child path]
 // multiple calls to Allow for the same path are cumulative
-func (c *Config) Allow(path string, roles ...string) {
+func (c *Provider) Allow(path string, roles ...string) {
 	node := c.walkPath(path, true)
 	for _, role := range roles {
 		node.allowedRoles[role] = true
@@ -263,7 +263,7 @@ func (c *Config) Allow(path string, roles ...string) {
 //
 // walkPath is safe for concurrent use only if create is false, and it has previously
 // been called with create=true
-func (c *Config) walkPath(path string, create bool) *pathNode {
+func (c *Provider) walkPath(path string, create bool) *pathNode {
 	if len(path) == 0 || path[0] != '/' {
 		panic(fmt.Sprintf("Invalid path supplied to walkPath %v", path))
 	}
@@ -294,7 +294,7 @@ func (c *Config) walkPath(path string, create bool) *pathNode {
 }
 
 // isAllowed returns true if access to 'path' is allowed for the specified role.
-func (c *Config) isAllowed(path, role string) bool {
+func (c *Provider) isAllowed(path, role string) bool {
 	node := c.walkPath(path, false)
 	allowAny := node.allowAny()
 	allowRole := false
@@ -317,17 +317,17 @@ func (c *Config) isAllowed(path, role string) bool {
 }
 
 // isRequestAllowed returns true if access to the supplied http.request is allowed
-func (c *Config) isRequestAllowed(r *http.Request) bool {
+func (c *Provider) isRequestAllowed(r *http.Request) bool {
 	return c.isAllowed(r.URL.Path, c.roleMapper(r))
 }
 
 // NewHandler returns a http.Handler that enforces the current authorization configuration
-// The handler has its own copy of the configuration changes to the Config after calling
+// The handler has its own copy of the configuration changes to the Provider after calling
 // NewHandler won't affect previously created Handlers.
 // The returned handler will extract the role and verify that the role has access to the
 // URI being request, and either return an error, or pass the request on to the supplied
 // delegate handler
-func (c *Config) NewHandler(delegate http.Handler) (http.Handler, error) {
+func (c *Provider) NewHandler(delegate http.Handler) (http.Handler, error) {
 	if c.roleMapper == nil {
 		return nil, errors.Trace(ErrNoRoleMapperSpecified)
 	}
@@ -350,7 +350,7 @@ func (c *Config) NewHandler(delegate http.Handler) (http.Handler, error) {
 
 type authHandler struct {
 	delegate  http.Handler
-	config    *Config
+	config    *Provider
 	errorBody []byte
 }
 
