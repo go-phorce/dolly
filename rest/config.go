@@ -1,18 +1,31 @@
 package rest
 
 import (
+	"net/http"
 	"os"
 	"strings"
 )
 
-// AuthzConfig contains configuration for the authorization module
-type AuthzConfig interface {
-	// Allow will allow the specified roles access to this path and its children, in format: ${path}:${role},${role}
-	GetAllow() []string
-	// AllowAny will allow any authenticated request access to this path and its children
-	GetAllowAny() []string
-	// AllowAnyRole will allow any authenticated request that include a non empty role
-	GetAllowAnyRole() []string
+// RoleMapper abstracts how a role is extracted from an HTTP request
+// Your role mapper can be called concurrently by multiple go-routines so should
+// be careful if it manages any state.
+type RoleMapper func(r *http.Request) string
+
+// Authz represents an Authorization provider interface,
+// You can call Allow or AllowAny to specify which roles are allowed
+// access to which path segments.
+// once configured you can create a http.Handler that enforces that
+// configuration for you by calling NewHandler
+type Authz interface {
+	// SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
+	SetRoleMapper(m RoleMapper)
+	// NewHandler returns a http.Handler that enforces the current authorization configuration
+	// The handler has its own copy of the configuration changes to the Provider after calling
+	// NewHandler won't affect previously created Handlers.
+	// The returned handler will extract the role and verify that the role has access to the
+	// URI being request, and either return an error, or pass the request on to the supplied
+	// delegate handler
+	NewHandler(delegate http.Handler) (http.Handler, error)
 }
 
 // TLSInfoConfig contains configuration info for the TLS

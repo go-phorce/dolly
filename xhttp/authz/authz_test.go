@@ -101,7 +101,7 @@ func TestConfig_WalkTree(t *testing.T) {
 	assert.Equal(t, n1, alice, "walkPath(/foo/bar/alice) shoud return node for /foo/bar")
 }
 
-func checkAllowed(t *testing.T, c *Config, path, role string, expectedAllowed bool) {
+func checkAllowed(t *testing.T, c *Provider, path, role string, expectedAllowed bool) {
 	actual := c.isAllowed(path, role)
 	assert.Equal(t, expectedAllowed, actual, "isAllowed(%v, %v) returned unexpected results", path, role)
 }
