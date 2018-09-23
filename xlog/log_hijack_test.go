@@ -5,9 +5,8 @@ import (
 	"log"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/go-phorce/dolly/xlog"
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_Hijack(t *testing.T) {
