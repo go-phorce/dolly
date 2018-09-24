@@ -3,22 +3,17 @@ package rest_test
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/testify/auditor"
-	"github.com/go-phorce/dolly/testify/testca"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/go-phorce/dolly/xpki/certutil"
 	"github.com/juju/errors"
 	"go.uber.org/dig"
 )
@@ -28,12 +23,15 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest_test")
 func ExampleServer() {
 	sigs := make(chan os.Signal, 2)
 
-	tlsCfg, err := newTLSConfig(true)
-	if err != nil {
-		panic("unable to create TLS config")
+	tlsCfg := &tlsConfig{
+		CertFile:       "testdata/test-server.pem",
+		KeyFile:        "testdata/test-server-key.pem",
+		CABundleFile:   "testdata/cabundle.pem",
+		TrustedCAFile:  "testdata/test-rootca.pem",
+		WithClientAuth: false,
 	}
 
-	tlsInfo, tlsloader, err := createTLSInfo(tlsCfg)
+	tlsInfo, tlsloader, err := createServerTLSInfo(tlsCfg)
 	if err != nil {
 		panic("unable to create TLS config")
 	}
@@ -114,92 +112,4 @@ func certExpirationPublisherTask(tlsloader *tlsconfig.KeypairReloader) {
 	} else {
 		logger.Warningf("api=certExpirationPublisherTask, reason=Keypair, cert='%s', key='%s'", certFile, keyFile)
 	}
-}
-
-var trueVal = true
-
-func newTLSConfig(withClientAuth bool) (*tlsConfig, error) {
-	var (
-		ca = testca.NewEntity(
-			testca.Authority,
-			testca.Subject(pkix.Name{
-				CommonName: "[TEST] Root CA",
-			}),
-			testca.KeyUsage(x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature),
-		)
-		inter = ca.Issue(
-			testca.Authority,
-			testca.Subject(pkix.Name{
-				CommonName: "[TEST] Issuing CA Level 1",
-			}),
-			testca.KeyUsage(x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature),
-		)
-		leaf = inter.Issue(
-			testca.Subject(pkix.Name{
-				CommonName: "localhost",
-			}),
-			testca.ExtKeyUsage(x509.ExtKeyUsageServerAuth),
-			testca.ExtKeyUsage(x509.ExtKeyUsageClientAuth),
-		)
-	)
-
-	tmpDir := filepath.Join(os.TempDir(), "tests", "rest", guid.MustCreate())
-	err := os.MkdirAll(tmpDir, os.ModePerm)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	tlsConfig := &tlsConfig{
-		CertFile:      filepath.Join(tmpDir, "test-server.pem"),
-		KeyFile:       filepath.Join(tmpDir, "test-server-key.pem"),
-		TrustedCAFile: filepath.Join(tmpDir, "test-rootca.pem"),
-	}
-
-	if withClientAuth {
-		tlsConfig.ClientCertAuth = &trueVal
-	}
-
-	fkey, err := os.Create(tlsConfig.KeyFile)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	defer fkey.Close()
-	fkey.Write(testca.PrivKeyToPEM(leaf.PrivateKey))
-
-	fcert, err := os.Create(tlsConfig.CertFile)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	defer fcert.Close()
-	certutil.EncodeAllToPEM(fcert, append([]*x509.Certificate{}, leaf.Certificate, inter.Certificate), true)
-
-	froot, err := os.Create(tlsConfig.TrustedCAFile)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	defer fcert.Close()
-	certutil.EncodeToPEM(froot, ca.Certificate, true)
-
-	return tlsConfig, nil
-}
-
-func createTLSInfo(cfg *tlsConfig) (*tls.Config, *tlsconfig.KeypairReloader, error) {
-	withClientAuth := cfg.GetClientCertAuth()
-	certFile := cfg.GetCertFile()
-	keyFile := cfg.GetKeyFile()
-
-	tls, err := tlsconfig.BuildFromFiles(certFile, keyFile, cfg.GetTrustedCAFile(), withClientAuth != nil && *withClientAuth)
-	if err != nil {
-		return nil, nil, errors.Annotatef(err, "api=createTLSInfo, reason=BuildFromFiles, cert='%s', key='%s'",
-			certFile, keyFile)
-	}
-
-	tlsloader, err := tlsconfig.NewKeypairReloader(certFile, keyFile, 5*time.Second)
-	if err != nil {
-		return nil, nil, errors.Annotatef(err, "api=createTLSInfo, reason=NewKeypairReloader, cert='%s', key='%s'",
-			certFile, keyFile)
-	}
-	tls.GetCertificate = tlsloader.GetKeypairFunc()
-
-	return tls, tlsloader, nil
 }
