@@ -74,10 +74,10 @@ func VerifyBundleFromPEM(certPEM, intCAPEM, rootPEM []byte) (bundle *Bundle, sta
 	}
 
 	var pemCert, pemRoot, pemCA string
-	pemCert, _ = EncodeToPEMString(c.Cert, true)
-	pemRoot, _ = EncodeToPEMString(c.Root, true)
+	pemCert, _ = EncodeToPEMString(true, c.Cert)
+	pemRoot, _ = EncodeToPEMString(true, c.Root)
 	if len(c.Chain) > 1 {
-		pemCA, _ = EncodeAllToPEMString(c.Chain[1:], true)
+		pemCA, _ = EncodeToPEMString(true, c.Chain[1:]...)
 	}
 
 	bundle = &Bundle{
@@ -124,9 +124,10 @@ func FindIssuer(crt *x509.Certificate, chain []*x509.Certificate, root *x509.Cer
 		return root
 	}
 	for _, c := range chain {
-		if bytes.Equal(crt.RawIssuer, c.RawSubject) {
+		if c != nil && bytes.Equal(crt.RawIssuer, c.RawSubject) {
 			return c
 		}
+
 	}
 	return nil
 }

@@ -1,7 +1,6 @@
 package certutil_test
 
 import (
-	"crypto/x509"
 	"strings"
 	"testing"
 
@@ -14,33 +13,18 @@ func Test_EncodeToPEMString(t *testing.T) {
 	orig := strings.TrimSpace(selfSignedCert)
 	crt, err := certutil.ParseFromPEM([]byte(orig))
 	require.NoError(t, err)
-
-	pem, err := certutil.EncodeToPEMString(crt, true)
+	pem, err := certutil.EncodeToPEMString(true, crt)
 	require.NoError(t, err)
 	assert.Equal(t, orig, pem)
 
-	pem, err = certutil.EncodeToPEMString(nil, false)
-	require.NoError(t, err)
-	assert.Equal(t, "", pem)
-}
-
-func Test_EncodeAllToPEMString(t *testing.T) {
 	crt1, err := certutil.ParseFromPEM([]byte(issuer1))
 	require.NoError(t, err)
 	crt2, err := certutil.ParseFromPEM([]byte(issuer2))
 	require.NoError(t, err)
 
-	pem, err := certutil.EncodeAllToPEMString([]*x509.Certificate{crt1, crt2}, true)
+	pem, err = certutil.EncodeToPEMString(true, crt1, crt2)
 	require.NoError(t, err)
 	assert.Equal(t, strings.TrimSpace(issuers), pem)
-
-	pem, err = certutil.EncodeAllToPEMString(nil, false)
-	require.NoError(t, err)
-	assert.Equal(t, "", pem)
-
-	pem, err = certutil.EncodeAllToPEMString([]*x509.Certificate{}, false)
-	require.NoError(t, err)
-	assert.Equal(t, "", pem)
 }
 
 func Test_ParseChainFromPEM(t *testing.T) {

@@ -43,6 +43,16 @@ func ContainsString(items []string, item string) bool {
 	return false
 }
 
+// StringContainsOneOf returns true if one of items slice is a substring of specified value.
+func StringContainsOneOf(item string, items []string) bool {
+	for _, x := range items {
+		if strings.Contains(item, x) {
+			return true
+		}
+	}
+	return false
+}
+
 // ContainsStringEqualFold returns true if the items slice contains a value equal to item
 // ignoring case [i.e. using EqualFold]
 // Note that this can end up traversing the entire slice, and so is only really

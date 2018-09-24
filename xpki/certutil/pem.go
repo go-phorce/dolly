@@ -60,10 +60,10 @@ func ParseChainFromPEM(certificateChainPem []byte) ([]*x509.Certificate, error) 
 	return list, nil
 }
 
-// EncodeToPEM converts certificate to PEM format, with optional comments
-func EncodeToPEM(out io.Writer, crt *x509.Certificate, withComments bool) error {
+// encodeToPEM converts certificate to PEM format, with optional comments
+func encodeToPEM(out io.Writer, withComments bool, crt *x509.Certificate) error {
 	if withComments {
-		fmt.Fprintf(out, "\n#   Issuer: %s", NameToString(&crt.Issuer))
+		fmt.Fprintf(out, "#   Issuer: %s", NameToString(&crt.Issuer))
 		fmt.Fprintf(out, "\n#   Subject: %s", NameToString(&crt.Subject))
 		fmt.Fprint(out, "\n#   Validity")
 		fmt.Fprintf(out, "\n#       Not Before: %s", crt.NotBefore.UTC().Format(certTimeFormat))
@@ -79,24 +79,26 @@ func EncodeToPEM(out io.Writer, crt *x509.Certificate, withComments bool) error 
 	return nil
 }
 
-// EncodeAllToPEM converts certificate bundle to PEM format, with optional comments
-func EncodeAllToPEM(out io.Writer, certs []*x509.Certificate, withComments bool) error {
+// EncodeToPEM converts certificates to PEM format, with optional comments
+func EncodeToPEM(out io.Writer, withComments bool, certs ...*x509.Certificate) error {
 	for _, crt := range certs {
-		err := EncodeToPEM(out, crt, withComments)
-		if err != nil {
-			return errors.Trace(err)
+		if crt != nil {
+			err := encodeToPEM(out, withComments, crt)
+			if err != nil {
+				return errors.Trace(err)
+			}
 		}
 	}
 	return nil
 }
 
-// EncodeToPEMString converts certificate to PEM format, with optional comments
-func EncodeToPEMString(crt *x509.Certificate, withComments bool) (string, error) {
+// encodeToPEMString converts certificate to PEM format, with optional comments
+func encodeToPEMString(withComments bool, crt *x509.Certificate) (string, error) {
 	if crt == nil {
 		return "", nil
 	}
 	b := bytes.NewBuffer([]byte{})
-	err := EncodeToPEM(b, crt, withComments)
+	err := EncodeToPEM(b, withComments, crt)
 	if err != nil {
 		return "", errors.Trace(err)
 	}
@@ -106,14 +108,14 @@ func EncodeToPEMString(crt *x509.Certificate, withComments bool) (string, error)
 	return pem, nil
 }
 
-// EncodeAllToPEMString converts certificate bundle to PEM format, with optional comments
-func EncodeAllToPEMString(certs []*x509.Certificate, withComments bool) (string, error) {
-	if len(certs) == 0 {
+// EncodeToPEMString converts certificates to PEM format, with optional comments
+func EncodeToPEMString(withComments bool, certs ...*x509.Certificate) (string, error) {
+	if len(certs) == 0 || certs[0] == nil {
 		return "", nil
 	}
 
 	b := bytes.NewBuffer([]byte{})
-	err := EncodeAllToPEM(b, certs, withComments)
+	err := EncodeToPEM(b, withComments, certs...)
 	if err != nil {
 		return "", errors.Trace(err)
 	}
@@ -121,4 +123,19 @@ func EncodeAllToPEMString(certs []*x509.Certificate, withComments bool) (string,
 	pem = strings.TrimSpace(pem)
 	pem = strings.Replace(pem, "\n\n", "\n", -1)
 	return pem, nil
+}
+
+// CreatePoolFromPEM returns CertPool from PEM encoded certs
+func CreatePoolFromPEM(pemBytes []byte) (*x509.CertPool, error) {
+	certs, err := ParseChainFromPEM(pemBytes)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	pool := x509.NewCertPool()
+	for _, cert := range certs {
+		pool.AddCert(cert)
+	}
+
+	return pool, nil
 }

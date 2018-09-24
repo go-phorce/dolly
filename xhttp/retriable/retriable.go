@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-phorce/dolly/algorithms/slices"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
@@ -72,7 +73,7 @@ func NewRequest(method, url string, rawBody io.ReadSeeker) (*Request, error) {
 	}
 	httpReq.ContentLength = contentLength
 
-	return &Request{body, httpReq}, nil
+	return &Request{body: body, Request: httpReq}, nil
 }
 
 // convertRequest wraps http.Request into retry.Request
@@ -128,7 +129,7 @@ type Policy struct {
 type Client struct {
 	lock        sync.RWMutex
 	name        string       // Name of the client.
-	HTTP        *http.Client // Internal HTTP client.
+	httpClient  *http.Client // Internal HTTP client.
 	RetryPolicy *Policy      // Rery policy for http requests
 }
 
@@ -136,7 +137,7 @@ type Client struct {
 func New(name string, tlsClientConfig *tls.Config) (*Client, error) {
 	var tr *http.Transport
 	if tlsClientConfig != nil {
-		tr := &http.Transport{
+		tr = &http.Transport{
 			TLSClientConfig:     tlsClientConfig,
 			TLSHandshakeTimeout: time.Second * 3,
 			IdleConnTimeout:     time.Hour,
@@ -149,7 +150,7 @@ func New(name string, tlsClientConfig *tls.Config) (*Client, error) {
 	}
 	c := &Client{
 		name: name,
-		HTTP: &http.Client{
+		httpClient: &http.Client{
 			Transport: tr,
 			Timeout:   time.Minute,
 		},
@@ -327,7 +328,7 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 			}
 		}
 
-		resp, err = c.HTTP.Do(req.Request)
+		resp, err = c.httpClient.Do(req.Request)
 
 		// Check if we should continue with retries.
 		shouldRetry, sleepDuration, reason := c.RetryPolicy.ShouldRetry(resp, err, retries)
@@ -453,10 +454,22 @@ func shouldRetryFactory(limit int, wait time.Duration, reason string) ShouldRetr
 	}
 }
 
+var nonRetriableErrors = []string{
+	"TLS handshake error",
+	"certificate signed by unknown authority",
+}
+
+const nonretriablereason = "non-retriable error"
+
 // ShouldRetry returns if connection should be retried
 func (p *Policy) ShouldRetry(resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 	if err != nil {
-		// TODO: check for non- retriable errors: TLS handshake etc.
+		errStr := err.Error()
+		logger.Errorf("api=ShouldRetry, error_type=%T, err='%s'", err, errStr)
+
+		if slices.StringContainsOneOf(errStr, nonRetriableErrors) {
+			return false, 0, nonretriablereason
+		}
 
 		// On error, use 0 code
 		if fn, ok := p.Retries[0]; ok {
@@ -478,5 +491,5 @@ func (p *Policy) ShouldRetry(resp *http.Response, err error, retries int) (bool,
 		return fn(resp, err, retries)
 	}
 
-	return false, 0, "non-retriable error"
+	return false, 0, nonretriablereason
 }

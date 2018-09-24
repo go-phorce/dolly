@@ -30,11 +30,14 @@ type Authz interface {
 
 // TLSInfoConfig contains configuration info for the TLS
 type TLSInfoConfig interface {
-	// CertFile specifies location of the cert
+	// GetCertFile returns location of the cert
 	GetCertFile() string
-	// KeyFile specifies location of the key
+	// GetKeyFile returns location of the key
 	GetKeyFile() string
-	// TrustedCAFile specifies location of the CA file
+	// GetCABundleFile returns location of the CA bundle file.
+	// If CA bundle is provided, then intermediate CA issuers will be included TLS response.
+	GetCABundleFile() string
+	// TrustedCAFile specifies location of the Trusted CA file
 	GetTrustedCAFile() string
 	// ClientCertAuth controls client auth
 	GetClientCertAuth() *bool
