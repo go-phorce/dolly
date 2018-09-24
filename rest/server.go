@@ -15,7 +15,6 @@ import (
 	"github.com/go-phorce/dolly/rest/ready"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
-	"github.com/go-phorce/dolly/xhttp/authz"
 	xcontext "github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
@@ -159,36 +158,32 @@ func New(
 		ipaddr:    ipaddr,
 	}
 
-	err = container.Invoke(func(authzConfig AuthzConfig) error {
-		s.authz, err = authz.New(authzConfig.GetAllow(), authzConfig.GetAllowAny(), authzConfig.GetAllowAnyRole())
-		if err != nil {
-			return errors.Trace(err)
-		}
-		return nil
+	err = container.Invoke(func(authz Authz) {
+		s.authz = authz
 	})
 	if err != nil {
-		logger.Panicf("api=rest.New, reason='failed to initialize Authz', err=[%v]", errors.ErrorStack(err))
+		logger.Warningf("api=rest.New, reason='failed to initialize Authz', err='%s'", err.Error())
 	}
 
 	err = container.Invoke(func(cluster ClusterInfo) {
 		s.cluster = cluster
 	})
 	if err != nil {
-		logger.Errorf("api=rest.New, reason='ClusterInfo not provided', err=[%v]", errors.ErrorStack(err))
+		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', err='%s'", err.Error())
 	}
 
 	err = container.Invoke(func(auditor Auditor) {
 		s.auditor = auditor
 	})
 	if err != nil {
-		logger.Errorf("api=rest.New, reason='Auditor not provided', err=[%v]", errors.ErrorStack(err))
+		logger.Warningf("api=rest.New, reason='Auditor not provided', err='%s'", err.Error())
 	}
 
-	err = container.Invoke(func(tlsConfig TLSInfoConfig) {
+	err = container.Invoke(func(tlsConfig *tls.Config) {
 		s.tlsConfig = tlsConfig
 	})
 	if err != nil {
-		logger.Errorf("api=rest.New, reason='TLSInfoConfig not provided', err=[%v]", errors.ErrorStack(err))
+		logger.Warningf("api=rest.New, reason='tls.Config not provided', err='%s'", err.Error())
 	}
 
 	err = container.Invoke(func(httpConfig HTTPServerConfig) {
