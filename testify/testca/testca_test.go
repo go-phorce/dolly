@@ -100,9 +100,17 @@ func TestChain(t *testing.T) {
 		leaf  = inter.Issue()
 	)
 
-	assert.True(t, leaf.Chain()[0].Equal(leaf.Certificate))
-	assert.True(t, leaf.Chain()[1].Equal(inter.Certificate))
-	assert.True(t, leaf.Chain()[2].Equal(ca.Certificate))
+	ch := leaf.Chain()
+	require.Equal(t, 3, len(ch))
+	assert.True(t, ch[0].Equal(leaf.Certificate))
+	assert.True(t, ch[1].Equal(inter.Certificate))
+	assert.True(t, ch[2].Equal(ca.Certificate))
+
+	kc := leaf.KeyAndCertChain()
+	assert.Equal(t, leaf.Certificate.Raw, kc.Certificate.Raw)
+	assert.Equal(t, ca.Certificate.Raw, kc.Root.Raw)
+	assert.Equal(t, 1, len(kc.Chain))
+	assert.Equal(t, inter.Certificate.Raw, kc.Chain[0].Raw)
 }
 
 func TestMakeTSA(t *testing.T) {
@@ -118,14 +126,21 @@ func TestMakeTSA(t *testing.T) {
 			}),
 			KeyUsage(x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature),
 		)
-		inter = ca.Issue(
+		inter1 = ca.Issue(
 			Authority,
 			Subject(pkix.Name{
 				CommonName: "[TEST] Timestamp Issuing CA Level 1",
 			}),
 			KeyUsage(x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature),
 		)
-		leaf = inter.Issue(
+		inter2 = inter1.Issue(
+			Authority,
+			Subject(pkix.Name{
+				CommonName: "[TEST] Timestamp Issuing CA Level 2",
+			}),
+			KeyUsage(x509.KeyUsageCertSign|x509.KeyUsageCRLSign|x509.KeyUsageDigitalSignature),
+		)
+		leaf = inter2.Issue(
 			Subject(pkix.Name{
 				CommonName: "[TEST] TSA",
 			}),
@@ -139,10 +154,20 @@ func TestMakeTSA(t *testing.T) {
 			}),
 		)
 	)
-	chain := leaf.Chain()
-	assert.True(t, chain[0].Equal(leaf.Certificate))
-	assert.True(t, chain[1].Equal(inter.Certificate))
-	assert.True(t, chain[2].Equal(ca.Certificate))
+	ch := leaf.Chain()
+	require.Equal(t, 4, len(ch))
+
+	assert.True(t, ch[0].Equal(leaf.Certificate))
+	assert.True(t, ch[1].Equal(inter2.Certificate))
+	assert.True(t, ch[2].Equal(inter1.Certificate))
+	assert.True(t, ch[3].Equal(ca.Certificate))
+
+	kc := leaf.KeyAndCertChain()
+	assert.Equal(t, leaf.Certificate.Raw, kc.Certificate.Raw)
+	assert.Equal(t, ca.Certificate.Raw, kc.Root.Raw)
+	assert.Equal(t, 2, len(kc.Chain))
+	assert.Equal(t, inter2.Certificate.Raw, kc.Chain[0].Raw)
+	assert.Equal(t, inter1.Certificate.Raw, kc.Chain[1].Raw)
 }
 
 func TestChainPool(t *testing.T) {

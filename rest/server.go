@@ -1,8 +1,8 @@
 package rest
 
 import (
+	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"fmt"
 	"net"
 	"net/http"
@@ -13,11 +13,10 @@ import (
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/netutil"
 	"github.com/go-phorce/dolly/rest/ready"
-	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
 	"github.com/go-phorce/dolly/xhttp/authz"
-	"github.com/go-phorce/dolly/xhttp/context"
+	xcontext "github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
@@ -72,9 +71,10 @@ type Server interface {
 	HostName() string
 	LocalIP() string
 	Port() string
+	Protocol() string
 	StartedAt() time.Time
 	Uptime() time.Duration
-	LocalCtx() context.Context
+	LocalCtx() xcontext.Context
 	Service(name string) Service
 	// IsReady indicates that all subservices are ready to serve
 	IsReady() bool
@@ -116,18 +116,19 @@ type Server interface {
 type server struct {
 	Server
 	container      *dig.Container
-	context        context.Context
+	context        xcontext.Context
 	auditor        Auditor
 	authz          Authz
 	cluster        ClusterInfo
 	httpConfig     HTTPServerConfig
-	tlsConfig      TLSInfoConfig
-	tlsloader      *tlsconfig.KeypairReloader
+	tlsConfig      *tls.Config
+	httpServer     *http.Server
 	rolename       string
 	hostname       string
 	port           string
 	ipaddr         string
 	version        string
+	serving        bool
 	startedAt      time.Time
 	withClientAuth bool
 	scheduler      tasks.Scheduler
@@ -149,7 +150,7 @@ func New(
 	}
 
 	s := &server{
-		context:   context.NewForRole(rolename),
+		context:   xcontext.NewForRole(rolename),
 		services:  map[string]Service{},
 		scheduler: tasks.NewScheduler(),
 		rolename:  rolename,
@@ -204,7 +205,7 @@ func New(
 }
 
 // LocalCtx specifies local context for the server
-func (server *server) LocalCtx() context.Context {
+func (server *server) LocalCtx() xcontext.Context {
 	return server.context
 }
 
@@ -248,6 +249,14 @@ func (server *server) NodeName() string {
 // Port returns the port name of the server
 func (server *server) Port() string {
 	return server.port
+}
+
+// Protocol returns the protocol
+func (server *server) Protocol() string {
+	if server.tlsConfig != nil {
+		return "https"
+	}
+	return "http"
 }
 
 // LocalIP returns the IP address of the server
@@ -299,6 +308,9 @@ func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 
 // IsReady returns true when the server is ready to serve
 func (server *server) IsReady() bool {
+	if !server.serving {
+		return false
+	}
 	for _, ss := range server.services {
 		if !ss.IsReady() {
 			return false
@@ -333,43 +345,23 @@ func (server *server) StartHTTP() error {
 		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, addr='%s'", bindAddr)
 	}
 
-	srv := &http.Server{
+	server.httpServer = &http.Server{
 		IdleTimeout: time.Hour * 2,
 		ErrorLog:    xlog.Stderr,
 	}
 
 	var httpsListener net.Listener
 
-	if server.tlsConfig != nil && server.tlsConfig.GetKeyFile() != "" {
-		withClientAuth := server.tlsConfig.GetClientCertAuth()
-		certFile := server.tlsConfig.GetCertFile()
-		keyFile := server.tlsConfig.GetKeyFile()
-		server.withClientAuth = withClientAuth != nil && *withClientAuth
-		tlsConfig, err := tlsconfig.BuildFromFiles(certFile, keyFile, server.tlsConfig.GetTrustedCAFile(), server.withClientAuth)
-		if err != nil {
-			return errors.Annotatef(err, "api=StartHTTP, reason=BuildFromFiles, cert='%s', key='%s'",
-				certFile, keyFile)
-		}
-
+	if server.tlsConfig != nil {
 		// Start listening on main server over TLS
-		httpsListener, err = tls.Listen("tcp", bindAddr, tlsConfig)
+		httpsListener, err = tls.Listen("tcp", bindAddr, server.tlsConfig)
 		if err != nil {
 			return errors.Annotatef(err, "api=StartHTTP, reason=unable_listen, address='%s'", bindAddr)
 		}
 
-		srv.TLSConfig = tlsConfig
-
-		server.tlsloader, err = tlsconfig.NewKeypairReloader(certFile, keyFile, 5*time.Second)
-		if err != nil {
-			return errors.Annotatef(err, "api=StartHTTP, reason=NewKeypairReloader, cert='%s', key='%s'",
-				certFile, keyFile)
-		}
-		srv.TLSConfig.GetCertificate = server.tlsloader.GetKeypairFunc()
-
-		go certExpirationPublisherTask(server)
-		server.Scheduler().Add(tasks.NewTaskAtIntervals(1, tasks.Hours).Do("servertls", certExpirationPublisherTask, server))
+		server.httpServer.TLSConfig = server.tlsConfig
 	} else {
-		srv.Addr = bindAddr
+		server.httpServer.Addr = bindAddr
 	}
 
 	readyHandler := ready.NewServiceStatusVerifier(server, server.NewMux())
@@ -381,12 +373,16 @@ func (server *server) StartHTTP() error {
 		}
 	}
 
-	srv.Handler = metricsmux
+	server.httpServer.Handler = metricsmux
 
 	if httpsListener != nil {
 		go func() {
 			logger.Infof("api=StartHTTP, port=%v, status=starting, mode=TLS", bindAddr)
-			if err := srv.Serve(httpsListener); err != nil {
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				server.serving = true
+			}()
+			if err := server.httpServer.Serve(httpsListener); err != nil {
 				//panic, only if address is already in use, not for other errors like
 				//Serve error while stopping the server, which is a valid error
 				if netutil.IsAddrInUse(err) {
@@ -398,7 +394,11 @@ func (server *server) StartHTTP() error {
 	} else {
 		go func() {
 			logger.Infof("api=StartHTTP, port=%v, status=starting, mode=HTTP", bindAddr)
-			if err := srv.ListenAndServe(); err != nil {
+			go func() {
+				time.Sleep(100 * time.Millisecond)
+				server.serving = true
+			}()
+			if err := server.httpServer.ListenAndServe(); err != nil {
 				//panic, only if address is already in use, not for other errors like
 				//Serve error while stopping the server, which is a valid error
 				if netutil.IsAddrInUse(err) {
@@ -432,27 +432,6 @@ func uptimeTask(server *server) {
 	metrics.PublishHeartbeat(server.httpConfig.GetServiceName(), server.Uptime())
 }
 
-func certExpirationPublisherTask(server *server) {
-	certFile := server.tlsConfig.GetCertFile()
-	keyFile := server.tlsConfig.GetKeyFile()
-
-	logger.Tracef("api=certExpirationPublisherTask, server=%s, cert='%s', key='%s'", server.Name(),
-		certFile, keyFile)
-
-	server.tlsloader.Reload()
-	pair := server.tlsloader.Keypair()
-	if pair != nil {
-		cert, err := x509.ParseCertificate(pair.Certificate[0])
-		if err != nil {
-			errors.Annotatef(err, "api=certExpirationPublisherTask, reason=unable_parse_tls_cert, file='%s'", certFile)
-		} else {
-			metrics.PublishCertExpirationInDays(cert, "server")
-		}
-	} else {
-		logger.Warningf("api=certExpirationPublisherTask, reason=Keypair, server=%s", server.Name())
-	}
-}
-
 // StopHTTP will perform a graceful shutdown of the serivce by
 //		1) signally to the Load Balancer to remove this instance from the pool
 //				by changing to response to /availability
@@ -466,11 +445,6 @@ func certExpirationPublisherTask(server *server) {
 // it is expected that you don't try and use the server instance again
 // after this. [i.e. if you want to start it again, create another server instance]
 func (server *server) StopHTTP() {
-	if server.tlsloader != nil {
-		server.tlsloader.Close()
-		server.tlsloader = nil
-	}
-
 	// stop scheduled tasks
 	server.scheduler.Stop()
 
@@ -478,6 +452,13 @@ func (server *server) StopHTTP() {
 	for _, f := range server.services {
 		logger.Tracef("api=StopHTTP, service='%s'", f.Name())
 		f.Close()
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := server.httpServer.Shutdown(ctx)
+	if err != nil {
+		logger.Errorf("api=StopHTTP, reason=Shutdown, err=[%v]", errors.ErrorStack(err))
 	}
 
 	ut := server.Uptime() / time.Second * time.Second
@@ -508,7 +489,7 @@ func (server *server) NewMux() http.Handler {
 
 	if server.withClientAuth && server.authz != nil {
 		// authz wrapper
-		server.authz.SetRoleMapper(context.RoleFromRequest)
+		server.authz.SetRoleMapper(xcontext.RoleFromRequest)
 		httpHandler, err = server.authz.NewHandler(httpHandler)
 		if err != nil {
 			panic(errors.ErrorStack(err))
@@ -521,7 +502,7 @@ func (server *server) NewMux() http.Handler {
 	httpHandler = xhttp.NewRequestLogger(httpHandler, server.rolename, serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
 
 	// role/contextID wrapper
-	ctxHandler := context.NewContextHandler(httpHandler)
+	ctxHandler := xcontext.NewContextHandler(httpHandler)
 	return ctxHandler
 }
 
@@ -530,5 +511,5 @@ func (server *server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func serverExtraLogger(resp *xhttp.ResponseCapture, req *http.Request) []string {
-	return []string{context.CorrelationIDFromRequest(req)}
+	return []string{xcontext.CorrelationIDFromRequest(req)}
 }

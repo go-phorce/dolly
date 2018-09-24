@@ -1,14 +1,11 @@
-package rest
+package rest_test
 
 import (
-	"os"
-	"os/signal"
-	"syscall"
 	"testing"
 	"time"
 
+	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/testify/auditor"
-	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -110,7 +107,7 @@ func (c *serverConfig) GetBindAddr() string {
 }
 
 // GetServerTLSCfg provides TLS config for server
-func (c *serverConfig) GetServerTLSCfg() TLSInfoConfig {
+func (c *serverConfig) GetServerTLSCfg() rest.TLSInfoConfig {
 	return &c.ServerTLS
 }
 
@@ -139,55 +136,17 @@ func (c *serverConfig) GetHeartbeatSecs() int {
 	return c.HeartbeatSecs
 }
 
-func ExampleServer() {
-	sigs := make(chan os.Signal, 2)
-
-	cfg := &serverConfig{
-		BindAddr: ":8080",
-	}
-
-	audit := auditor.NewInMemory()
-	server, err := New("test", audit, nil, cfg, nil, nil, "v1.0.123")
-	if err != nil {
-		logger.Panicf("unable to create the server: %v", errors.ErrorStack(err))
-	}
-
-	err = server.StartHTTP()
-	if err != nil {
-		logger.Panicf("unable to start the server: %v", errors.ErrorStack(err))
-	}
-
-	go func() {
-		// Send STOP signal after 3 seconds,
-		time.Sleep(3 * time.Second)
-		sigs <- syscall.SIGTERM
-	}()
-
-	// register for signals, and wait to be shutdown
-	signal.Notify(sigs, os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGUSR2, syscall.SIGABRT)
-	// Block until a signal is received.
-	sig := <-sigs
-
-	server.StopHTTP()
-
-	// SIGUSR2 is triggered by the upstart pre-stop script, we don't want
-	// to actually exit the process in that case until upstart sends SIGTERM
-	if sig == syscall.SIGUSR2 {
-		select {
-		case <-time.After(time.Second * 5):
-			logger.Info("api=startService, status='service shutdown from SIGUSR2 complete, waiting for SIGTERM to exit'")
-		case sig = <-sigs:
-			logger.Infof("api=startService, status=exiting, reason=received_signal, sig=%v", sig)
-		}
-	}
-}
-
 func Test_NewServer(t *testing.T) {
 	cfg := &serverConfig{
-		BindAddr: ":8080",
+		BindAddr: ":8081",
 	}
 
+<<<<<<< HEAD
 	server, err := New("test", nil, &serverConfig{}, &authzConfig{}, &tlsConfig{}, nil, "v1.0.123")
+=======
+	audit := auditor.NewInMemory()
+	server, err := rest.New("test", audit, nil, cfg, nil, nil, "v1.0.123")
+>>>>>>> cc88ea8... Adding rest tests
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -199,6 +158,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.HostName)
 	assert.NotNil(t, server.LocalIP)
 	assert.NotNil(t, server.Port)
+	assert.NotNil(t, server.Protocol)
 	assert.NotNil(t, server.StartedAt)
 	assert.NotNil(t, server.Uptime)
 	assert.NotNil(t, server.LocalCtx)
@@ -218,20 +178,26 @@ func Test_NewServer(t *testing.T) {
 	assert.NotEmpty(t, server.HostName())
 	assert.NotEmpty(t, server.LocalIP())
 	assert.NotEmpty(t, server.Port())
+	assert.NotEmpty(t, server.Protocol())
 	assert.NotNil(t, server.StartedAt())
 	assert.NotNil(t, server.LocalCtx())
 	assert.Nil(t, server.Service("abc"))
-	assert.True(t, server.IsReady())
+	assert.False(t, server.IsReady())
 	assert.NotNil(t, server.Scheduler())
 
 	//	assert.NotNil(t, server.AddService())
 	err = server.StartHTTP()
 	require.NoError(t, err)
-	e := audit.Find(EvtSourceStatus, EvtServiceStarted)
+	e := audit.Find(rest.EvtSourceStatus, rest.EvtServiceStarted)
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "ClientAuth=false")
 
+	for i := 0; i < 10 && !server.IsReady(); i++ {
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.True(t, server.IsReady())
+
 	server.StopHTTP()
-	e = audit.Find(EvtSourceStatus, EvtServiceStopped)
+	e = audit.Find(rest.EvtSourceStatus, rest.EvtServiceStopped)
 	require.NotNil(t, e)
 }

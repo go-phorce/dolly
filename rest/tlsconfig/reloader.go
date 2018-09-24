@@ -140,6 +140,17 @@ func (k *KeypairReloader) Keypair() *tls.Certificate {
 	return k.keypair
 }
 
+// CertAndKeyFiles returns cert and key files
+func (k *KeypairReloader) CertAndKeyFiles() (string, string) {
+	if k == nil {
+		return "", ""
+	}
+	k.lock.RLock()
+	defer k.lock.RUnlock()
+
+	return k.certPath, k.keyPath
+}
+
 // LoadedAt return the last time when the pair was loaded
 func (k *KeypairReloader) LoadedAt() time.Time {
 	k.lock.RLock()

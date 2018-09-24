@@ -134,20 +134,23 @@ type Client struct {
 
 // New creates a new Client
 func New(name string, tlsClientConfig *tls.Config) (*Client, error) {
-	tr := http.Transport{
-		TLSClientConfig:     tlsClientConfig,
-		TLSHandshakeTimeout: time.Second * 3,
-		IdleConnTimeout:     time.Hour,
-		MaxIdleConnsPerHost: 2,
-	}
-	err := http2.ConfigureTransport(&tr)
-	if err != nil {
-		return nil, errors.Trace(err)
+	var tr *http.Transport
+	if tlsClientConfig != nil {
+		tr := &http.Transport{
+			TLSClientConfig:     tlsClientConfig,
+			TLSHandshakeTimeout: time.Second * 3,
+			IdleConnTimeout:     time.Hour,
+			MaxIdleConnsPerHost: 2,
+		}
+		err := http2.ConfigureTransport(tr)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
 	}
 	c := &Client{
 		name: name,
 		HTTP: &http.Client{
-			Transport: &tr,
+			Transport: tr,
 			Timeout:   time.Minute,
 		},
 		RetryPolicy: NewDefaultPolicy(),
@@ -281,10 +284,6 @@ func (c *Client) executeRequest(ctx Context, httpMethod string, hosts []string, 
 
 // doHTTP wraps calling an HTTP method with retries.
 func (c *Client) doHTTP(ctx Context, httpMethod string, host string, path string, reqBody []byte) (*http.Response, error) {
-	if ctx == nil {
-		return nil, errors.Errorf("invalid parameter: ctx")
-	}
-
 	uri := host + path
 	logger.Tracef("api=doHTTP, httpMethod='%s', host='%s', path='%s', uri='%s'", httpMethod, host, path, uri)
 
@@ -297,7 +296,9 @@ func (c *Client) doHTTP(ctx Context, httpMethod string, host string, path string
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	ctx.SetHeaders(req)
+	if ctx != nil {
+		ctx.SetHeaders(req)
+	}
 	return c.Do(req)
 }
 
