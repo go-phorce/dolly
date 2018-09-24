@@ -1,6 +1,7 @@
 package testca
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/x509"
 )
@@ -33,7 +34,7 @@ func (id *Entity) Issue(opts ...Option) *Entity {
 // PFX wraps the certificate and private key in an encrypted PKCS#12 packet. The
 // provided password must be alphanumeric.
 func (id *Entity) PFX(password string) []byte {
-	return toPFX(id.Certificate, id.PrivateKey, password)
+	return ToPFX(id.Certificate, id.PrivateKey, password)
 }
 
 // Chain builds a slice of *x509.Certificate from this CA and its issuers.
@@ -63,4 +64,37 @@ func (id *Entity) IncrementSN() int64 {
 	}()
 
 	return id.NextSN
+}
+
+// Root returns root CA for this entity.
+func (id *Entity) Root() *x509.Certificate {
+	var root *Entity
+	for root = id; root.Issuer != nil; root = root.Issuer {
+	}
+
+	return root.Certificate
+}
+
+// KeyAndCertChain provides PrivateKey and its certificates chain
+type KeyAndCertChain struct {
+	PrivateKey  crypto.Signer
+	Certificate *x509.Certificate
+	Chain       []*x509.Certificate
+	Root        *x509.Certificate
+}
+
+// KeyAndCertChain returns chain for the PrivateKey
+func (id *Entity) KeyAndCertChain() *KeyAndCertChain {
+	s := &KeyAndCertChain{
+		PrivateKey:  id.PrivateKey,
+		Certificate: id.Certificate,
+		Chain:       []*x509.Certificate{},
+		Root:        id.Root(),
+	}
+
+	for issuer := id.Issuer; issuer != nil && !bytes.Equal(issuer.Certificate.Raw, s.Root.Raw); issuer = issuer.Issuer {
+		s.Chain = append(s.Chain, issuer.Certificate)
+	}
+
+	return s
 }

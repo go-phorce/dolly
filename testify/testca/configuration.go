@@ -21,6 +21,7 @@ type configuration struct {
 	notBefore             *time.Time
 	notAfter              *time.Time
 	keyUsage              x509.KeyUsage
+	extKeyUsage           []x509.ExtKeyUsage
 	extensions            []pkix.Extension
 	crldpURL              []string
 	issuingCertificateURL []string
@@ -35,6 +36,7 @@ func (c *configuration) generate() *Entity {
 		NotAfter:              c.getNotAfter(),
 		NotBefore:             c.getNotBefore(),
 		KeyUsage:              c.keyUsage,
+		ExtKeyUsage:           c.extKeyUsage,
 		Extensions:            c.extensions,
 		IssuingCertificateURL: c.issuingCertificateURL,
 		OCSPServer:            c.ocspServer,
@@ -220,6 +222,13 @@ func NotAfter(value time.Time) Option {
 func KeyUsage(value x509.KeyUsage) Option {
 	return func(c *configuration) {
 		c.keyUsage = value
+	}
+}
+
+// ExtKeyUsage is an Option for setting the extended key usage.
+func ExtKeyUsage(value x509.ExtKeyUsage) Option {
+	return func(c *configuration) {
+		c.extKeyUsage = append(c.extKeyUsage, value)
 	}
 }
 
