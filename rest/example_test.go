@@ -20,6 +20,7 @@ import (
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/certutil"
 	"github.com/juju/errors"
+	"go.uber.org/dig"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest_test")
@@ -27,12 +28,12 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest_test")
 func ExampleServer() {
 	sigs := make(chan os.Signal, 2)
 
-	tlsCfg, err := newServerTLSConfig(true)
+	tlsCfg, err := newTLSConfig(true)
 	if err != nil {
 		panic("unable to create TLS config")
 	}
 
-	tls, tlsloader, err := createTLSInfo(tlsCfg)
+	tlsInfo, tlsloader, err := createTLSInfo(tlsCfg)
 	if err != nil {
 		panic("unable to create TLS config")
 	}
@@ -42,8 +43,17 @@ func ExampleServer() {
 		BindAddr: ":8080",
 	}
 
-	audit := auditor.NewInMemory()
-	server, err := rest.New("test", audit, nil, cfg, tls, nil, "v1.0.123")
+	ioc := dig.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+	ioc.Provide(func() rest.Auditor {
+		return auditor.NewInMemory()
+	})
+	ioc.Provide(func() *tls.Config {
+		return tlsInfo
+	})
+	server, err := rest.New("test", "v1.0.123", ioc)
 	if err != nil {
 		panic("unable to create the server")
 	}
@@ -108,7 +118,7 @@ func certExpirationPublisherTask(tlsloader *tlsconfig.KeypairReloader) {
 
 var trueVal = true
 
-func newServerTLSConfig(withClientAuth bool) (rest.TLSInfoConfig, error) {
+func newTLSConfig(withClientAuth bool) (*tlsConfig, error) {
 	var (
 		ca = testca.NewEntity(
 			testca.Authority,
@@ -173,7 +183,7 @@ func newServerTLSConfig(withClientAuth bool) (rest.TLSInfoConfig, error) {
 	return tlsConfig, nil
 }
 
-func createTLSInfo(cfg rest.TLSInfoConfig) (*tls.Config, *tlsconfig.KeypairReloader, error) {
+func createTLSInfo(cfg *tlsConfig) (*tls.Config, *tlsconfig.KeypairReloader, error) {
 	withClientAuth := cfg.GetClientCertAuth()
 	certFile := cfg.GetCertFile()
 	keyFile := cfg.GetKeyFile()

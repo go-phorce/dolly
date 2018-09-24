@@ -8,6 +8,7 @@ import (
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/dig"
 )
 
 type tlsConfig struct {
@@ -141,12 +142,17 @@ func Test_NewServer(t *testing.T) {
 		BindAddr: ":8081",
 	}
 
-<<<<<<< HEAD
-	server, err := New("test", nil, &serverConfig{}, &authzConfig{}, &tlsConfig{}, nil, "v1.0.123")
-=======
+	ioc := dig.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+
 	audit := auditor.NewInMemory()
-	server, err := rest.New("test", audit, nil, cfg, nil, nil, "v1.0.123")
->>>>>>> cc88ea8... Adding rest tests
+	ioc.Provide(func() rest.Auditor {
+		return audit
+	})
+
+	server, err := rest.New("test", "v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -178,7 +184,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotEmpty(t, server.HostName())
 	assert.NotEmpty(t, server.LocalIP())
 	assert.NotEmpty(t, server.Port())
-	assert.NotEmpty(t, server.Protocol())
+	assert.Equal(t, "http", server.Protocol())
 	assert.NotNil(t, server.StartedAt())
 	assert.NotNil(t, server.LocalCtx())
 	assert.Nil(t, server.Service("abc"))

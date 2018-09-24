@@ -1,17 +1,20 @@
 package rest_test
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"testing"
 	"time"
 
-	"git.soma.salesforce.com/raphty/raphty/pkg/httpheader"
 	"github.com/go-phorce/dolly/rest"
+	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/go-phorce/dolly/xhttp/context"
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/dig"
 )
 
 const testURL = "/v1/test"
@@ -57,7 +60,7 @@ func testHandler(s *service) rest.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ rest.Params) {
 		context.ForRequest(r)
 
-		w.Header().Set(httpheader.ContentType, httpheader.TextPlain)
+		w.Header().Set(header.ContentType, header.TextPlain)
 		fmt.Fprintf(w, "URL: %s\n", r.URL)
 		fmt.Fprintf(w, "Method: %s\n", r.Method)
 		fmt.Fprintf(w, "Agent: %s\n", r.UserAgent())
@@ -76,7 +79,12 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 		BindAddr: ":8088",
 	}
 
-	server, err := rest.New("test", nil, nil, cfg, nil, nil, "v1.0.123")
+	ioc := dig.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+
+	server, err := rest.New("test", "v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -98,10 +106,10 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 }
 
 func Test_ServerWithServicesOverHTTPS(t *testing.T) {
-	tlsCfg, err := newServerTLSConfig(true)
+	tlsCfg, err := newTLSConfig(true)
 	require.NoError(t, err)
 
-	tls, tlsloader, err := createTLSInfo(tlsCfg)
+	tlsInfo, tlsloader, err := createTLSInfo(tlsCfg)
 	require.NoError(t, err)
 
 	defer tlsloader.Close()
@@ -110,7 +118,17 @@ func Test_ServerWithServicesOverHTTPS(t *testing.T) {
 		BindAddr: ":8443",
 	}
 
-	server, err := rest.New("test", nil, nil, cfg, tls, nil, "v1.0.123")
+	ioc := dig.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+	ioc.Provide(func() rest.Auditor {
+		return auditor.NewInMemory()
+	})
+	ioc.Provide(func() *tls.Config {
+		return tlsInfo
+	})
+	server, err := rest.New("test", "v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 	assert.Equal(t, "https", server.Protocol())
