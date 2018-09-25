@@ -331,8 +331,8 @@ func testHTTPHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hello"))
 }
 
-func roleMapper(role string) RoleMapper {
-	return func(r *http.Request) string {
+func roleMapper(role string) func(*http.Request) string {
+	return func(*http.Request) string {
 		return role
 	}
 }

@@ -10,12 +10,12 @@ import (
 
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/rest"
+	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
-	"go.uber.org/dig"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest_test")
@@ -41,7 +41,7 @@ func ExampleServer() {
 		BindAddr: ":8080",
 	}
 
-	ioc := dig.New()
+	ioc := container.New()
 	ioc.Provide(func() rest.HTTPServerConfig {
 		return cfg
 	})

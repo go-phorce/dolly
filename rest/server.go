@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/netutil"
+	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/ready"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
@@ -20,7 +21,6 @@ import (
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
-	"go.uber.org/dig"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
@@ -114,7 +114,7 @@ type Server interface {
 // as a single HTTP server
 type server struct {
 	Server
-	container      *dig.Container
+	container      container.Container
 	context        xcontext.Context
 	auditor        Auditor
 	authz          Authz
@@ -139,7 +139,7 @@ type server struct {
 func New(
 	rolename string,
 	version string,
-	container *dig.Container,
+	container container.Container,
 ) (Server, error) {
 	var err error
 	ipaddr, err := netutil.GetLocalIP()
@@ -361,8 +361,7 @@ func (server *server) StartHTTP() error {
 
 	readyHandler := ready.NewServiceStatusVerifier(server, server.NewMux())
 	metricsmux := xhttp.NewRequestMetrics(readyHandler)
-	allowProfiling := server.httpConfig.GetAllowProfiling()
-	if allowProfiling != nil && *allowProfiling {
+	if server.httpConfig.GetAllowProfiling() {
 		if metricsmux, err = xhttp.NewRequestProfiler(metricsmux, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
 			return err
 		}
