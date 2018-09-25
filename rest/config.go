@@ -29,9 +29,6 @@ type TLSInfoConfig interface {
 	GetCertFile() string
 	// GetKeyFile returns location of the key
 	GetKeyFile() string
-	// GetCABundleFile returns location of the CA bundle file.
-	// If CA bundle is provided, then intermediate CA issuers will be included TLS response.
-	GetCABundleFile() string
 	// TrustedCAFile specifies location of the Trusted CA file
 	GetTrustedCAFile() string
 	// ClientCertAuth controls client auth

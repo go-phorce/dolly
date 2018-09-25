@@ -9,6 +9,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/retriable"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var testCtx = context.NewForRole("TestRole")
@@ -18,11 +19,10 @@ func Test_New(t *testing.T) {
 		TotalRetryLimit: 5,
 	}
 
-	c, err := retriable.New("test", nil)
-	assert.Nil(t, err)
+	c := retriable.New().WithName("test")
 	assert.NotNil(t, c)
 
-	c.SetRetryPolicy(p)
+	c.WithPolicy(p)
 }
 
 func TestDefaultPolicy(t *testing.T) {
@@ -60,11 +60,14 @@ func TestDefaultPolicy(t *testing.T) {
 		{false, "connection", 6, 0, errors.New("some error")},
 	}
 
+	req, err := http.NewRequest(http.MethodGet, "/test", nil)
+	require.NoError(t, err)
+
 	p := retriable.NewDefaultPolicy()
 	for _, tc := range tcases {
 		t.Run(fmt.Sprintf("%s: %d, %d, %t:", tc.reason, tc.retries, tc.statusCode, tc.expected), func(t *testing.T) {
 			res := &http.Response{StatusCode: tc.statusCode}
-			should, _, reason := p.ShouldRetry(res, tc.err, tc.retries)
+			should, _, reason := p.ShouldRetry(req, res, tc.err, tc.retries)
 			assert.Equal(t, tc.expected, should)
 			assert.Equal(t, tc.reason, reason)
 		})

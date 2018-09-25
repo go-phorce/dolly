@@ -122,7 +122,6 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 	serverTlsCfg := &tlsConfig{
 		CertFile:       s.serverCertFile,
 		KeyFile:        s.serverKeyFile,
-		CABundleFile:   s.caBundleFile,
 		TrustedCAFile:  s.rootsFile,
 		WithClientAuth: true,
 	}
@@ -171,29 +170,127 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
 	})
 
-	s.T().Run("with client cert", func(t *testing.T) {
-
-		tls, err := tlsconfig.NewClientTLSFromFiles(
+	s.T().Run("with client cert / trusted roots", func(t *testing.T) {
+		clientTls, err := tlsconfig.NewClientTLSFromFiles(
 			s.clientCertFile,
 			s.clientKeyFile,
-			s.caBundleFile,
 			s.rootsFile)
 		require.NoError(t, err)
 
-		client, err := retriable.New("test", tls)
+		client := retriable.New(retriable.WithTLS(clientTls))
+		require.NotNil(t, client)
+
+		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
+
+		w := bytes.NewBuffer([]byte{})
+		status, err := client.Get(nil, hosts, "/v1/test", w)
 		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+		res := string(w.Bytes())
+		assert.Contains(t, res, "GET")
+	})
+
+	s.T().Run("with client cert / untrusted root", func(t *testing.T) {
+		clientTls, err := tlsconfig.NewClientTLSFromFiles(
+			s.clientCertFile,
+			s.clientKeyFile,
+			s.clientRootFile)
+		require.NoError(t, err)
+
+		client := retriable.New(retriable.WithTLS(clientTls))
+		require.NotNil(t, client)
 
 		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
 
 		w := bytes.NewBuffer([]byte{})
 		_, err = client.Get(nil, hosts, "/v1/test", w)
-		// TODO: fix TLS
 		require.Error(t, err)
-		/*
-			require.NoError(t, err)
-			assert.Equal(t, http.StatusOK, status)
-			res := string(w.Bytes())
-			assert.Contains(t, res, "GET")
-		*/
+		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
+	})
+}
+
+func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
+	serverTlsCfg := &tlsConfig{
+		CertFile:       s.serverCertFile,
+		KeyFile:        s.serverKeyFile,
+		TrustedCAFile:  s.serverRootFile,
+		WithClientAuth: true,
+	}
+
+	tlsInfo, tlsloader, err := createServerTLSInfo(serverTlsCfg)
+	s.Require().NoError(err)
+	defer tlsloader.Close()
+
+	cfg := &serverConfig{
+		BindAddr: ":8443",
+	}
+
+	ioc := container.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+	ioc.Provide(func() *tls.Config {
+		return tlsInfo
+	})
+
+	server, err := rest.New("test", "v1.0.123", ioc)
+	s.Require().NoError(err)
+	s.Require().NotNil(server)
+	s.Equal("https", server.Protocol())
+
+	svc := NewService(server)
+	server.AddService(svc)
+
+	//	assert.NotNil(t, server.AddService())
+	err = server.StartHTTP()
+	s.Require().NoError(err)
+
+	defer server.StopHTTP()
+
+	for i := 0; i < 10 && !server.IsReady(); i++ {
+		time.Sleep(100 * time.Millisecond)
+	}
+	s.Require().True(server.IsReady())
+
+	s.T().Run("no client cert", func(t *testing.T) {
+		_, err = http.Get(fmt.Sprintf("%s://localhost:%s/v1/test", server.Protocol(), server.Port()))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
+	})
+
+	s.T().Run("trusted server root", func(t *testing.T) {
+		clientTls, err := tlsconfig.NewClientTLSFromFiles(
+			s.clientCertFile,
+			s.clientKeyFile,
+			s.serverRootFile)
+		require.NoError(t, err)
+
+		client := retriable.New(retriable.WithTLS(clientTls))
+		require.NotNil(t, client)
+
+		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
+
+		w := bytes.NewBuffer([]byte{})
+		_, err = client.Get(nil, hosts, "/v1/test", w)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "tls: bad certificate")
+	})
+
+	s.T().Run("untrusted server root", func(t *testing.T) {
+		clientTls, err := tlsconfig.NewClientTLSFromFiles(
+			s.clientCertFile,
+			s.clientKeyFile,
+			s.clientRootFile)
+		require.NoError(t, err)
+
+		client := retriable.New(retriable.WithTLS(clientTls))
+		require.NotNil(t, client)
+
+		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
+
+		w := bytes.NewBuffer([]byte{})
+		_, err = client.Get(nil, hosts, "/v1/test", w)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
 	})
 }

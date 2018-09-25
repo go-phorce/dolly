@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/go-phorce/dolly/xpki/certutil"
 	"github.com/juju/errors"
 )
 
@@ -18,7 +17,7 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest/tls")
 // format.
 // caBundle is optional.
 // rootsFile is optional, if not specified the standard OS CA roots will be used.
-func NewServerTLSFromFiles(certFile, keyFile, caBundle, rootsFile string, clientauthType tls.ClientAuthType) (*tls.Config, error) {
+func NewServerTLSFromFiles(certFile, keyFile, rootsFile string, clientauthType tls.ClientAuthType) (*tls.Config, error) {
 	tlscert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -34,32 +33,6 @@ func NewServerTLSFromFiles(certFile, keyFile, caBundle, rootsFile string, client
 
 		roots = x509.NewCertPool()
 		roots.AppendCertsFromPEM(rootsBytes)
-	}
-
-	if caBundle != "" {
-		caBytes, err := ioutil.ReadFile(caBundle)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-
-		cacerts, err := certutil.ParseChainFromPEM(caBytes)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-
-		crt := tlscert.Leaf
-		if crt == nil {
-			crt, _ = x509.ParseCertificate(tlscert.Certificate[0])
-		}
-		for {
-			issuer := certutil.FindIssuer(crt, cacerts, nil)
-			if issuer == nil {
-				break
-			}
-			roots.AddCert(issuer)
-			//tlscert.Certificate = append(tlscert.Certificate, issuer.Raw)
-			crt = issuer
-		}
 	}
 
 	return &tls.Config{
@@ -78,7 +51,7 @@ func NewServerTLSFromFiles(certFile, keyFile, caBundle, rootsFile string, client
 // format.
 // caBundle is optional.
 // rootsFile is optional, if not specified the standard OS CA roots will be used.
-func NewClientTLSFromFiles(certFile, keyFile, caBundle, rootsFile string) (*tls.Config, error) {
+func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, error) {
 	tlscert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -94,32 +67,6 @@ func NewClientTLSFromFiles(certFile, keyFile, caBundle, rootsFile string) (*tls.
 
 		roots = x509.NewCertPool()
 		roots.AppendCertsFromPEM(rootsBytes)
-	}
-
-	if caBundle != "" {
-		caBytes, err := ioutil.ReadFile(caBundle)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-
-		cacerts, err := certutil.ParseChainFromPEM(caBytes)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-
-		crt := tlscert.Leaf
-		if crt == nil {
-			crt, _ = x509.ParseCertificate(tlscert.Certificate[0])
-		}
-		for {
-			issuer := certutil.FindIssuer(crt, cacerts, nil)
-			if issuer == nil {
-				break
-			}
-			//tlscert.Certificate = append(tlscert.Certificate, issuer.Raw)
-			roots.AddCert(issuer)
-			crt = issuer
-		}
 	}
 
 	return &tls.Config{

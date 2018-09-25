@@ -109,7 +109,7 @@ func convertRequest(req *http.Request) (*Request, error) {
 // and returns the response to the caller. The
 // Client will close any response body when retrying, but if the retry is
 // aborted it is up to the caller to properly close any response body before returning.
-type ShouldRetry func(resp *http.Response, err error, retries int) (bool, time.Duration, string)
+type ShouldRetry func(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string)
 
 // Policy represents the retry policy
 type Policy struct {
@@ -125,39 +125,115 @@ type Policy struct {
 	TotalRetryTimeout time.Duration
 }
 
+// A ClientOption modifies the default behavior of Client.
+type ClientOption interface {
+	applyOption(*Client)
+}
+
+type optionFunc func(*Client)
+
+func (f optionFunc) applyOption(opts *Client) { f(opts) }
+
+type clientOptions struct {
+}
+
+// WithName is a ClientOption that specifies client's name for logging purposes.
+//
+//   retriable.New(retriable.WithName("tlsclient"))
+//
+// This option cannot be provided for constructors which produce result
+// objects.
+func WithName(name string) ClientOption {
+	return optionFunc(func(c *Client) {
+		c.WithName(name)
+	})
+}
+
+// WithPolicy is a ClientOption that specifies retry policy.
+//
+//   retriable.New(retriable.WithPolicy(p))
+//
+// This option cannot be provided for constructors which produce result
+// objects.
+func WithPolicy(policy *Policy) ClientOption {
+	return optionFunc(func(c *Client) {
+		c.WithPolicy(policy)
+	})
+}
+
+// WithTLS is a ClientOption that specifies TLS configuration.
+//
+//   retriable.New(retriable.WithTLS(t))
+//
+// This option cannot be provided for constructors which produce result
+// objects.
+func WithTLS(tlsConfig *tls.Config) ClientOption {
+	return optionFunc(func(c *Client) {
+		c.WithTLS(tlsConfig)
+	})
+}
+
 // Client is custom implementation of http.Client
 type Client struct {
-	lock        sync.RWMutex
-	name        string       // Name of the client.
-	httpClient  *http.Client // Internal HTTP client.
-	RetryPolicy *Policy      // Rery policy for http requests
+	lock       sync.RWMutex
+	httpClient *http.Client // Internal HTTP client.
+	Name       string
+	Policy     *Policy // Rery policy for http requests
 }
 
 // New creates a new Client
-func New(name string, tlsClientConfig *tls.Config) (*Client, error) {
-	var tr *http.Transport
-	if tlsClientConfig != nil {
-		tr = &http.Transport{
-			TLSClientConfig:     tlsClientConfig,
+func New(opts ...ClientOption) *Client {
+	c := &Client{
+		Name: "retriable",
+		httpClient: &http.Client{
+			Timeout: time.Second * 30,
+		},
+		Policy: NewDefaultPolicy(),
+	}
+
+	for _, opt := range opts {
+		opt.applyOption(c)
+	}
+	return c
+}
+
+// WithName modifies client's name for logging purposes.
+func (c *Client) WithName(name string) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	c.Name = name
+	return c
+}
+
+// WithPolicy modifies retry policy.
+func (c *Client) WithPolicy(policy *Policy) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	c.Policy = policy
+	return c
+}
+
+// WithTLS modifies TLS configuration.
+func (c *Client) WithTLS(tlsConfig *tls.Config) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	if tlsConfig != nil {
+		tr := &http.Transport{
+			TLSClientConfig:     tlsConfig,
 			TLSHandshakeTimeout: time.Second * 3,
 			IdleConnTimeout:     time.Hour,
 			MaxIdleConnsPerHost: 2,
 		}
 		err := http2.ConfigureTransport(tr)
 		if err != nil {
-			return nil, errors.Trace(err)
+			logger.Errorf("api=WithTLS, err=[%s]", errors.ErrorStack(err))
+		} else {
+			c.httpClient.Transport = tr
 		}
+	} else {
+		c.httpClient.Transport = nil
 	}
-	c := &Client{
-		name: name,
-		httpClient: &http.Client{
-			Transport: tr,
-			Timeout:   time.Minute,
-		},
-		RetryPolicy: NewDefaultPolicy(),
-	}
-
-	return c, nil
+	return c
 }
 
 // NewDefaultPolicy returns default policy
@@ -278,9 +354,9 @@ func (c *Client) executeRequest(ctx Context, httpMethod string, hosts []string, 
 		}
 	*/
 	if err != nil {
-		return nil, errors.Annotatef(err, "api=executeRequest, status=failed, hosts=[%s], retriesOnError=%d", strings.Join(hosts, ","), retriesOnError)
+		return nil, errors.Annotatef(err, "hosts=[%s], retriesOnError=%d", strings.Join(hosts, ","), retriesOnError)
 	}
-	return nil, errors.Errorf("api=executeRequest, status=failed, hosts=[%s], retriesOnError=%d", strings.Join(hosts, ","), retriesOnError)
+	return nil, errors.Errorf("request failed: hosts=[%s], retriesOnError=%d", strings.Join(hosts, ","), retriesOnError)
 }
 
 // doHTTP wraps calling an HTTP method with retries.
@@ -331,7 +407,7 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 		resp, err = c.httpClient.Do(req.Request)
 
 		// Check if we should continue with retries.
-		shouldRetry, sleepDuration, reason := c.RetryPolicy.ShouldRetry(resp, err, retries)
+		shouldRetry, sleepDuration, reason := c.Policy.ShouldRetry(req.Request, resp, err, retries)
 		if !shouldRetry {
 			break
 		}
@@ -343,7 +419,7 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 		}
 
 		logger.Infof("api=Do, name=%s, retries=%d, description='%s', reason='%s', sleepDuration=[%v]",
-			c.name, retries, desc, reason, sleepDuration.Seconds())
+			c.Name, retries, desc, reason, sleepDuration.Seconds())
 		time.Sleep(sleepDuration)
 	}
 
@@ -435,21 +511,8 @@ func (c *Client) extractResponse(ctx Context, resp *http.Response, body io.Write
 	return resp.StatusCode, nil
 }
 
-// Timeout return timeout duration for connection retries
-func (c *Client) Timeout() time.Duration {
-	return c.RetryPolicy.TotalRetryTimeout
-}
-
-// SetRetryPolicy changes the retry policy
-func (c *Client) SetRetryPolicy(r *Policy) *Client {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
-	c.RetryPolicy = r
-	return c
-}
-
 func shouldRetryFactory(limit int, wait time.Duration, reason string) ShouldRetry {
-	return func(resp *http.Response, err error, retries int) (bool, time.Duration, string) {
+	return func(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 		return (limit >= retries), wait, reason
 	}
 }
@@ -457,15 +520,29 @@ func shouldRetryFactory(limit int, wait time.Duration, reason string) ShouldRetr
 var nonRetriableErrors = []string{
 	"TLS handshake error",
 	"certificate signed by unknown authority",
+	"client didn't provide a certificate",
+	"tls: bad certificate",
 }
 
 const nonretriablereason = "non-retriable error"
 
 // ShouldRetry returns if connection should be retried
-func (p *Policy) ShouldRetry(resp *http.Response, err error, retries int) (bool, time.Duration, string) {
+func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 	if err != nil {
 		errStr := err.Error()
 		logger.Errorf("api=ShouldRetry, error_type=%T, err='%s'", err, errStr)
+
+		if r.TLS != nil {
+			logger.Errorf("api=ShouldRetry, complete=%t, mutual=%t, tls_peers=%d, tls_chains=%d",
+				resp.TLS.HandshakeComplete,
+				resp.TLS.NegotiatedProtocolIsMutual,
+				len(resp.TLS.PeerCertificates),
+				len(resp.TLS.VerifiedChains))
+			for i, c := range resp.TLS.PeerCertificates {
+				logger.Errorf("  [%d] CN: %s, Issuer: %s",
+					i, c.Subject.CommonName, c.Issuer.CommonName)
+			}
+		}
 
 		if slices.StringContainsOneOf(errStr, nonRetriableErrors) {
 			return false, 0, nonretriablereason
@@ -473,7 +550,7 @@ func (p *Policy) ShouldRetry(resp *http.Response, err error, retries int) (bool,
 
 		// On error, use 0 code
 		if fn, ok := p.Retries[0]; ok {
-			return fn(resp, err, retries)
+			return fn(r, resp, err, retries)
 		}
 		return false, 0, ""
 	}
@@ -488,7 +565,7 @@ func (p *Policy) ShouldRetry(resp *http.Response, err error, retries int) (bool,
 	}
 
 	if fn, ok := p.Retries[resp.StatusCode]; ok {
-		return fn(resp, err, retries)
+		return fn(r, resp, err, retries)
 	}
 
 	return false, 0, nonretriablereason
