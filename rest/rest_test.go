@@ -26,7 +26,6 @@ type testSuite struct {
 	clientRootFile string
 	clientCertFile string
 	clientKeyFile  string
-	caBundleFile   string
 	rootsFile      string
 }
 
@@ -93,7 +92,6 @@ func (s *testSuite) SetupTest() {
 	s.clientCertFile = filepath.Join(s.tmpDir, "test-client.pem")
 	s.clientKeyFile = filepath.Join(s.tmpDir, "test-client-key.pem")
 	s.clientRootFile = filepath.Join(s.tmpDir, "test-client-rootca.pem")
-	s.caBundleFile = filepath.Join(s.tmpDir, "test-cabundle.pem")
 	s.rootsFile = filepath.Join(s.tmpDir, "test-roots.pem")
 
 	//
@@ -115,7 +113,7 @@ func (s *testSuite) SetupTest() {
 	fcert, err := os.Create(s.serverCertFile)
 	s.Require().NoError(err)
 	defer fcert.Close()
-	certutil.EncodeToPEM(fcert, true, srv.Certificate)
+	certutil.EncodeToPEM(fcert, true, srv.Certificate, inter1.Certificate)
 
 	fcert, err = os.Create(s.serverRootFile)
 	s.Require().NoError(err)
@@ -128,7 +126,7 @@ func (s *testSuite) SetupTest() {
 	fcert, err = os.Create(s.clientCertFile)
 	s.Require().NoError(err)
 	defer fcert.Close()
-	certutil.EncodeToPEM(fcert, true, cli.Certificate)
+	certutil.EncodeToPEM(fcert, true, cli.Certificate, inter2.Certificate)
 
 	fcert, err = os.Create(s.clientRootFile)
 	s.Require().NoError(err)
@@ -138,11 +136,6 @@ func (s *testSuite) SetupTest() {
 	//
 	// save CA certs
 	//
-	fcert, err = os.Create(s.caBundleFile)
-	s.Require().NoError(err)
-	defer fcert.Close()
-	certutil.EncodeToPEM(fcert, true, inter1.Certificate, inter2.Certificate)
-
 	fcert, err = os.Create(s.rootsFile)
 	s.Require().NoError(err)
 	defer fcert.Close()
@@ -158,9 +151,6 @@ type tlsConfig struct {
 	CertFile string
 	// KeyFile specifies location of the key
 	KeyFile string
-	// CABundleFile specifies location of the CA bundle file.
-	// If CA bundle is provided, then intermediate CA issuers will be included TLS response.
-	CABundleFile string
 	// TrustedCAFile specifies location of the CA file
 	TrustedCAFile string
 	// WithClientAuth controls client auth
@@ -181,15 +171,6 @@ func (c *tlsConfig) GetKeyFile() string {
 		return ""
 	}
 	return c.KeyFile
-}
-
-// GetCABundleFile returns location of the CA bundle file.
-// If CA bundle is provided, then intermediate CA issuers will be included TLS response.
-func (c *tlsConfig) GetCABundleFile() string {
-	if c == nil {
-		return ""
-	}
-	return c.CABundleFile
 }
 
 // GetTrustedCAFile specifies location of the CA file
@@ -295,7 +276,7 @@ func createServerTLSInfo(cfg *tlsConfig) (*tls.Config, *tlsconfig.KeypairReloade
 		clientauthType = tls.RequireAndVerifyClientCert
 	}
 
-	tls, err := tlsconfig.NewServerTLSFromFiles(certFile, keyFile, cfg.GetCABundleFile(), cfg.GetTrustedCAFile(), clientauthType)
+	tls, err := tlsconfig.NewServerTLSFromFiles(certFile, keyFile, cfg.GetTrustedCAFile(), clientauthType)
 	if err != nil {
 		return nil, nil, errors.Annotatef(err, "api=createTLSInfo, reason=BuildFromFiles, cert='%s', key='%s'",
 			certFile, keyFile)

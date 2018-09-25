@@ -31,7 +31,7 @@ func Test_BuildFromFiles(t *testing.T) {
 	err = ioutil.WriteFile(keyFile, pemKey, os.ModePerm)
 	require.NoError(t, err)
 
-	cfg, err := tlsconfig.NewServerTLSFromFiles(pemFile, keyFile, "", "", tls.RequireAndVerifyClientCert)
+	cfg, err := tlsconfig.NewServerTLSFromFiles(pemFile, keyFile, "", tls.RequireAndVerifyClientCert)
 	assert.NoError(t, err)
 	require.NotNil(t, cfg)
 	assert.Equal(t, tls.RequireAndVerifyClientCert, cfg.ClientAuth)

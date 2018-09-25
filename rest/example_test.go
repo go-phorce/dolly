@@ -3,6 +3,7 @@ package rest_test
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,8 +27,7 @@ func ExampleServer() {
 	tlsCfg := &tlsConfig{
 		CertFile:       "testdata/test-server.pem",
 		KeyFile:        "testdata/test-server-key.pem",
-		CABundleFile:   "testdata/cabundle.pem",
-		TrustedCAFile:  "testdata/test-rootca.pem",
+		TrustedCAFile:  "testdata/test-server-rootca.pem",
 		WithClientAuth: false,
 	}
 
@@ -63,6 +63,7 @@ func ExampleServer() {
 	svc := NewService(server)
 	server.AddService(svc)
 
+	fmt.Println("starting server")
 	err = server.StartHTTP()
 	if err != nil {
 		panic("unable to start the server")
@@ -73,6 +74,7 @@ func ExampleServer() {
 		// in production the service should listen to
 		// os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGUSR2, syscall.SIGABRT events
 		time.Sleep(3 * time.Second)
+		fmt.Println("sending syscall.SIGTERM signal")
 		sigs <- syscall.SIGTERM
 	}()
 
@@ -82,6 +84,7 @@ func ExampleServer() {
 	sig := <-sigs
 
 	server.StopHTTP()
+	fmt.Println("stopped server")
 
 	// SIGUSR2 is triggered by the upstart pre-stop script, we don't want
 	// to actually exit the process in that case until upstart sends SIGTERM
@@ -93,6 +96,11 @@ func ExampleServer() {
 			logger.Infof("api=startService, status=exiting, reason=received_signal, sig=%v", sig)
 		}
 	}
+
+	// Output:
+	// starting server
+	// sending syscall.SIGTERM signal
+	// stopped server
 }
 
 func certExpirationPublisherTask(tlsloader *tlsconfig.KeypairReloader) {
