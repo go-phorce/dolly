@@ -247,8 +247,8 @@ func (c *serverConfig) GetServiceName() string {
 }
 
 // GetDisabled specifies if the service is disabled
-func (c *serverConfig) GetDisabled() *bool {
-	return c.Disabled
+func (c *serverConfig) GetDisabled() bool {
+	return c.Disabled != nil && *c.Disabled
 }
 
 // GetVIPName is the FQ name of the VIP to the cluster [this is used when building the cert requests]
@@ -267,8 +267,8 @@ func (c *serverConfig) GetPackageLogger() string {
 }
 
 // GetAllowProfiling if set, will allow for per request CPU/Memory profiling triggered by the URI QueryString
-func (c *serverConfig) GetAllowProfiling() *bool {
-	return c.AllowProfiling
+func (c *serverConfig) GetAllowProfiling() bool {
+	return c.AllowProfiling != nil && *c.AllowProfiling
 }
 
 // GetProfilerDir specifies the directories where per-request profile information is written, if not set will write to a TMP dir

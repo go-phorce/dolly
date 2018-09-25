@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/rest"
+	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/go-phorce/dolly/xhttp/context"
@@ -17,7 +18,6 @@ import (
 	"github.com/go-phorce/dolly/xhttp/retriable"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/dig"
 )
 
 const testURL = "/v1/test"
@@ -82,7 +82,7 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 		BindAddr: ":8088",
 	}
 
-	ioc := dig.New()
+	ioc := container.New()
 	ioc.Provide(func() rest.HTTPServerConfig {
 		return cfg
 	})
@@ -135,7 +135,7 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		BindAddr: ":8443",
 	}
 
-	ioc := dig.New()
+	ioc := container.New()
 	ioc.Provide(func() rest.HTTPServerConfig {
 		return cfg
 	})

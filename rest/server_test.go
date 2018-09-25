@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/rest"
+	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/dig"
 )
 
 func Test_NewServer(t *testing.T) {
@@ -16,7 +16,7 @@ func Test_NewServer(t *testing.T) {
 		BindAddr: ":8081",
 	}
 
-	ioc := dig.New()
+	ioc := container.New()
 	ioc.Provide(func() rest.HTTPServerConfig {
 		return cfg
 	})

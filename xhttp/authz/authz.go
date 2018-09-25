@@ -51,18 +51,13 @@ var (
 	ErrNoPathsConfigured = errors.New("Provider has no paths authorizated, you must authorization at least one path before being able to create a http.Handler")
 )
 
-// RoleMapper abstracts how a role is extracted from an HTTP request
-// Your role mapper can be called concurrently by multiple go-routines so should
-// be careful if it manages any state.
-type RoleMapper func(r *http.Request) string
-
 // Provider represents an Authorization provider,
 // You can call Allow or AllowAny to specify which roles are allowed
 // access to which path segments.
 // once configured you can create a http.Handler that enforces that
 // configuration for you by calling NewHandler
 type Provider struct {
-	roleMapper RoleMapper
+	roleMapper func(r *http.Request) string
 	pathRoot   *pathNode
 }
 
@@ -229,7 +224,7 @@ func (c *Provider) Clone() *Provider {
 }
 
 // SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
-func (c *Provider) SetRoleMapper(m RoleMapper) {
+func (c *Provider) SetRoleMapper(m func(r *http.Request) string) {
 	c.roleMapper = m
 }
 
