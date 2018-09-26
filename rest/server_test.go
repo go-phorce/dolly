@@ -17,6 +17,13 @@ func Test_NewServer(t *testing.T) {
 	}
 
 	ioc := container.New()
+
+	t.Run("IoC without HTTPConfig should fail", func(t *testing.T) {
+		server, err := rest.New("test", "v1.0.123", ioc)
+		assert.Error(t, err)
+		assert.Nil(t, server)
+	})
+
 	ioc.Provide(func() rest.HTTPServerConfig {
 		return cfg
 	})
@@ -49,6 +56,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.StartHTTP)
 	assert.NotNil(t, server.StopHTTP)
 	assert.NotNil(t, server.Scheduler)
+	assert.NotNil(t, server.HTTPConfig)
 
 	assert.NotEmpty(t, server.NodeName())
 	assert.Empty(t, server.LeaderID())
@@ -64,6 +72,8 @@ func Test_NewServer(t *testing.T) {
 	assert.Nil(t, server.Service("abc"))
 	assert.False(t, server.IsReady())
 	assert.NotNil(t, server.Scheduler())
+	assert.NotNil(t, server.HTTPConfig())
+	assert.Equal(t, cfg, server.HTTPConfig())
 
 	//	assert.NotNil(t, server.AddService())
 	err = server.StartHTTP()
