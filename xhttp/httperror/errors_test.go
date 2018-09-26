@@ -12,16 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	ecInvalidJSON       = "Invalid JSON"
-	ecRateLimitExceeded = "Rate limit exceeded"
-)
-
 func TestErrorCode_JSON(t *testing.T) {
-	v := map[string]string{"foo": ecInvalidJSON}
+	v := map[string]string{"foo": httperror.InvalidJSON}
 	b, err := json.Marshal(&v)
 	require.NoError(t, err, "Unable to marshal to json")
-	exp := `{"foo":"Invalid JSON"}`
+	exp := `{"foo":"invalid_json"}`
 	assert.Equal(t, exp, string(b), "Unexpected JSON serializtion of ErrorCode")
 }
 
@@ -29,21 +24,21 @@ func TestError_Error(t *testing.T) {
 	// compile error if Error doesn't impl error
 	var _ error = httperror.Error{}
 
-	e := httperror.New(http.StatusBadRequest, ecInvalidJSON, "Bob")
-	assert.Equal(t, "Invalid JSON: Bob", e.Error())
+	e := httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "Bob")
+	assert.Equal(t, "invalid_json: Bob", e.Error())
 }
 
 func TestError_ManyErrorIsError(t *testing.T) {
-	err := httperror.NewMany(http.StatusBadRequest, ecRateLimitExceeded, "There were 42 errors!")
+	err := httperror.NewMany(http.StatusBadRequest, httperror.RateLimitExceeded, "There were 42 errors!")
 	var _ error = &err // won't compile if ManyError doesn't impl error
-	assert.Equal(t, "Rate limit exceeded: There were 42 errors!", err.Error())
+	assert.Equal(t, "rate_limit_exceeded: There were 42 errors!", err.Error())
 }
 
 func TestError_AddErrorToManyError(t *testing.T) {
-	me := httperror.NewMany(http.StatusBadRequest, ecRateLimitExceeded, "There were 42 errors!")
+	me := httperror.NewMany(http.StatusBadRequest, httperror.RateLimitExceeded, "There were 42 errors!")
 	me.AddError("one", errors.Errorf("test error 1"))
 	assert.Equal(t, 1, len(me.Errors))
-	me.AddError("two", httperror.New(http.StatusBadRequest, ecInvalidJSON, "test error 2"))
+	me.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 	assert.Equal(t, 2, len(me.Errors))
 	assert.True(t, me.HasErrors(), "many error contains two errors")
 	assert.Contains(t, me.Errors, "one")
@@ -54,7 +49,7 @@ func TestError_AddErrorToNilManyError(t *testing.T) {
 	var me httperror.ManyError
 	me.AddError("one", errors.Errorf("test error 1"))
 	assert.Equal(t, 1, len(me.Errors))
-	me.AddError("two", httperror.New(http.StatusBadRequest, ecInvalidJSON, "test error 2"))
+	me.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 	assert.Equal(t, 2, len(me.Errors))
 	assert.True(t, me.HasErrors(), "many error contains two errors")
 	assert.Contains(t, me.Errors, "one")
@@ -62,15 +57,15 @@ func TestError_AddErrorToNilManyError(t *testing.T) {
 }
 
 func TestError_WriteHTTPResponse(t *testing.T) {
-	single := httperror.New(http.StatusBadRequest, ecInvalidJSON, "test error 2")
+	single := httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2")
 
-	many := httperror.NewMany(http.StatusBadRequest, ecRateLimitExceeded, "There were 2 errors!")
+	many := httperror.NewMany(http.StatusBadRequest, httperror.RateLimitExceeded, "There were 2 errors!")
 	many.AddError("one", errors.Errorf("test error 1"))
-	many.AddError("two", httperror.New(http.StatusBadRequest, ecInvalidJSON, "test error 2"))
+	many.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 
 	var manyNil httperror.ManyError
 	manyNil.AddError("one", errors.Errorf("test error 1"))
-	manyNil.AddError("two", httperror.New(http.StatusBadRequest, ecInvalidJSON, "test error 2"))
+	manyNil.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 
 	cases := []struct {
 		name     string
@@ -82,14 +77,14 @@ func TestError_WriteHTTPResponse(t *testing.T) {
 			name:     "single_raw_json",
 			err:      single,
 			urlPath:  "/",
-			expected: `{"code":"Invalid JSON","message":"test error 2"}`,
+			expected: `{"code":"invalid_json","message":"test error 2"}`,
 		},
 		{
 			name:    "single_pretty_json",
 			err:     single,
 			urlPath: "/?pp",
 			expected: `{
-	"code": "Invalid JSON",
+	"code": "invalid_json",
 	"message": "test error 2"
 }`,
 		},
@@ -98,14 +93,14 @@ func TestError_WriteHTTPResponse(t *testing.T) {
 			err:     many,
 			urlPath: "/?pp",
 			expected: `{
-	"code": "Rate limit exceeded",
+	"code": "rate_limit_exceeded",
 	"errors": {
 		"one": {
-			"code": "Unexpected error",
+			"code": "unexpected",
 			"message": "test error 1"
 		},
 		"two": {
-			"code": "Invalid JSON",
+			"code": "invalid_json",
 			"message": "test error 2"
 		}
 	},
@@ -119,11 +114,11 @@ func TestError_WriteHTTPResponse(t *testing.T) {
 			expected: `{
 	"errors": {
 		"one": {
-			"code": "Unexpected error",
+			"code": "unexpected",
 			"message": "test error 1"
 		},
 		"two": {
-			"code": "Invalid JSON",
+			"code": "invalid_json",
 			"message": "test error 2"
 		}
 	}
