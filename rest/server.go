@@ -75,6 +75,8 @@ type Server interface {
 	Uptime() time.Duration
 	LocalCtx() xcontext.Context
 	Service(name string) Service
+	HTTPConfig() HTTPServerConfig
+
 	// IsReady indicates that all subservices are ready to serve
 	IsReady() bool
 
@@ -158,34 +160,6 @@ func New(
 		ipaddr:    ipaddr,
 	}
 
-	err = container.Invoke(func(authz Authz) {
-		s.authz = authz
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='failed to initialize Authz', err='%s'", err.Error())
-	}
-
-	err = container.Invoke(func(cluster ClusterInfo) {
-		s.cluster = cluster
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', err='%s'", err.Error())
-	}
-
-	err = container.Invoke(func(auditor Auditor) {
-		s.auditor = auditor
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='Auditor not provided', err='%s'", err.Error())
-	}
-
-	err = container.Invoke(func(tlsConfig *tls.Config) {
-		s.tlsConfig = tlsConfig
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='tls.Config not provided', err='%s'", err.Error())
-	}
-
 	err = container.Invoke(func(httpConfig HTTPServerConfig) {
 		s.httpConfig = httpConfig
 		baddr := httpConfig.GetBindAddr()
@@ -193,7 +167,40 @@ func New(
 		s.port = GetPort(baddr)
 	})
 	if err != nil {
-		logger.Panicf("api=rest.New, reason='HTTPServerConfig not provided', err=[%v]", errors.ErrorStack(err))
+		return nil, errors.Errorf("HTTPServerConfig not provided, rolename=%s, err='%s'",
+			rolename, err.Error())
+	}
+
+	err = container.Invoke(func(authz Authz) {
+		s.authz = authz
+	})
+	if err != nil {
+		logger.Warningf("api=rest.New, reason='failed to initialize Authz', service=%s, err='%s'",
+			s.httpConfig.GetServiceName(), err.Error())
+	}
+
+	err = container.Invoke(func(cluster ClusterInfo) {
+		s.cluster = cluster
+	})
+	if err != nil {
+		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err='%s'",
+			s.httpConfig.GetServiceName(), err.Error())
+	}
+
+	err = container.Invoke(func(auditor Auditor) {
+		s.auditor = auditor
+	})
+	if err != nil {
+		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s, err='%s'",
+			s.httpConfig.GetServiceName(), err.Error())
+	}
+
+	err = container.Invoke(func(tlsConfig *tls.Config) {
+		s.tlsConfig = tlsConfig
+	})
+	if err != nil {
+		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s, err='%s'",
+			s.httpConfig.GetServiceName(), err.Error())
 	}
 
 	return s, nil
@@ -277,6 +284,10 @@ func (server *server) Version() string {
 // Name returns the server name
 func (server *server) Name() string {
 	return server.httpConfig.GetServiceName()
+}
+
+func (server *server) HTTPConfig() HTTPServerConfig {
+	return server.httpConfig
 }
 
 func (server *server) NodeID() string {

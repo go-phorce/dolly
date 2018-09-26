@@ -522,6 +522,7 @@ var nonRetriableErrors = []string{
 	"certificate signed by unknown authority",
 	"client didn't provide a certificate",
 	"tls: bad certificate",
+	"server gave HTTP response to HTTPS client",
 }
 
 const nonretriablereason = "non-retriable error"
