@@ -70,7 +70,7 @@ func (m *ManyError) AddError(key string, err error) {
 	if gErr, ok := err.(Error); ok {
 		m.Errors[key] = gErr
 	} else {
-		m.Errors[key] = Error{Code: "Unexpected error", Message: err.Error()}
+		m.Errors[key] = Error{Code: UnexpectedError, Message: err.Error()}
 	}
 }
 

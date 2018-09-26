@@ -48,15 +48,15 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 		// errors.Error impls WriteHTTPResponse, so will take this path and do its thing
 		bv.WriteHTTPResponse(w, r)
 		if e, ok := bv.(httperror.Error); ok {
-			logger.Errorf("APIERROR:%s:%s:%d:%v:%s",
+			logger.Errorf("APIERROR=%s:%s:%d:%s:%s",
 				r.URL.Path, context.CorrelationIDFromRequest(r), e.HTTPStatus, e.Code, e.Message)
 		}
 		return
 
 	case error:
 		// you should really be using Error to get a good error response returned
-		logger.Debugf("generic error being returned of type %T/%v, please use Error instead", bv, bv)
-		WriteJSON(w, r, httperror.New(http.StatusInternalServerError, "Unexpected error", bv.Error()))
+		logger.Debugf("api=WriteJSON, reason=generic_error, type=%T, err=[%v]", bv, bv)
+		WriteJSON(w, r, httperror.New(http.StatusInternalServerError, httperror.UnexpectedError, bv.Error()))
 		return
 
 	default:
@@ -70,7 +70,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 		}
 		bw := bufio.NewWriter(out)
 		if err := NewEncoder(bw, r).Encode(body); err != nil {
-			logger.Warningf("Failed to encode %T to json %v", body, err)
+			logger.Warningf("api=WriteJSON, reason=encode, type=%T, err=[%v]", body, err.Error())
 		}
 		bw.Flush()
 	}
