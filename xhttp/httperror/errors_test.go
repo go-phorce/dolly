@@ -22,23 +22,26 @@ func TestErrorCode_JSON(t *testing.T) {
 
 func TestError_Error(t *testing.T) {
 	// compile error if Error doesn't impl error
-	var _ error = httperror.Error{}
+	var _ error = &httperror.Error{}
 
 	e := httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "Bob")
+	assert.Equal(t, "invalid_json: Bob", e.Error())
+
+	e.WithCause(errors.New("some other error"))
 	assert.Equal(t, "invalid_json: Bob", e.Error())
 }
 
 func TestError_ManyErrorIsError(t *testing.T) {
 	err := httperror.NewMany(http.StatusBadRequest, httperror.RateLimitExceeded, "There were 42 errors!")
-	var _ error = &err // won't compile if ManyError doesn't impl error
+	var _ error = err // won't compile if ManyError doesn't impl error
 	assert.Equal(t, "rate_limit_exceeded: There were 42 errors!", err.Error())
 }
 
 func TestError_AddErrorToManyError(t *testing.T) {
 	me := httperror.NewMany(http.StatusBadRequest, httperror.RateLimitExceeded, "There were 42 errors!")
-	me.AddError("one", errors.Errorf("test error 1"))
+	me.Add("one", errors.Errorf("test error 1"))
 	assert.Equal(t, 1, len(me.Errors))
-	me.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
+	me.Add("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 	assert.Equal(t, 2, len(me.Errors))
 	assert.True(t, me.HasErrors(), "many error contains two errors")
 	assert.Contains(t, me.Errors, "one")
@@ -47,9 +50,9 @@ func TestError_AddErrorToManyError(t *testing.T) {
 
 func TestError_AddErrorToNilManyError(t *testing.T) {
 	var me httperror.ManyError
-	me.AddError("one", errors.Errorf("test error 1"))
+	me.Add("one", errors.Errorf("test error 1"))
 	assert.Equal(t, 1, len(me.Errors))
-	me.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
+	me.Add("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 	assert.Equal(t, 2, len(me.Errors))
 	assert.True(t, me.HasErrors(), "many error contains two errors")
 	assert.Contains(t, me.Errors, "one")
@@ -60,12 +63,12 @@ func TestError_WriteHTTPResponse(t *testing.T) {
 	single := httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2")
 
 	many := httperror.NewMany(http.StatusBadRequest, httperror.RateLimitExceeded, "There were 2 errors!")
-	many.AddError("one", errors.Errorf("test error 1"))
-	many.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
+	many.Add("one", errors.Errorf("test error 1"))
+	many.Add("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 
-	var manyNil httperror.ManyError
-	manyNil.AddError("one", errors.Errorf("test error 1"))
-	manyNil.AddError("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
+	manyNil := &httperror.ManyError{}
+	manyNil.Add("one", errors.Errorf("test error 1"))
+	manyNil.Add("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 
 	cases := []struct {
 		name     string
@@ -133,10 +136,10 @@ func TestError_WriteHTTPResponse(t *testing.T) {
 			require.NoError(t, err)
 
 			switch tc.err.(type) {
-			case httperror.ManyError:
-				tc.err.(httperror.ManyError).WriteHTTPResponse(w, r)
+			case *httperror.ManyError:
+				tc.err.(*httperror.ManyError).WriteHTTPResponse(w, r)
 			default:
-				tc.err.(httperror.Error).WriteHTTPResponse(w, r)
+				tc.err.(*httperror.Error).WriteHTTPResponse(w, r)
 			}
 			assert.Equal(t, tc.expected, string(w.Body.Bytes()))
 		})

@@ -22,8 +22,8 @@ const (
 	// RateLimitExceeded is returned when the client has exceeded their request allotment.
 	RateLimitExceeded = "rate_limit_exceeded"
 
-	// UnexpectedError is returned when something went wrong.
-	UnexpectedError = "unexpected"
+	// Unexpected is returned when something went wrong.
+	Unexpected = "unexpected"
 
 	// Forbidden is returned when the client is not authorized to access the resource indicated.
 	Forbidden = "forbidden"
