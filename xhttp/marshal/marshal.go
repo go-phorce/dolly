@@ -11,6 +11,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xlog"
+	"github.com/juju/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "xhttp")
@@ -47,16 +48,24 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 	case WriteHTTPResponse:
 		// errors.Error impls WriteHTTPResponse, so will take this path and do its thing
 		bv.WriteHTTPResponse(w, r)
-		if e, ok := bv.(httperror.Error); ok {
-			logger.Errorf("APIERROR=%s:%s:%d:%s:%s",
-				r.URL.Path, context.CorrelationIDFromRequest(r), e.HTTPStatus, e.Code, e.Message)
+		if e, ok := bv.(*httperror.Error); ok {
+			if e.HTTPStatus >= 500 {
+				logger.Errorf("INTERNAL_ERROR=%s:%s:%d:%s:%s",
+					r.URL.Path, context.CorrelationIDFromRequest(r), e.HTTPStatus, e.Code, e.Message)
+			} else {
+				logger.Warningf("API_ERROR=%s:%s:%d:%s:%s",
+					r.URL.Path, context.CorrelationIDFromRequest(r), e.HTTPStatus, e.Code, e.Message)
+			}
+			if e.Cause != nil {
+				logger.Errorf(errors.ErrorStack(e))
+			}
 		}
 		return
 
 	case error:
 		// you should really be using Error to get a good error response returned
 		logger.Debugf("api=WriteJSON, reason=generic_error, type=%T, err=[%v]", bv, bv)
-		WriteJSON(w, r, httperror.New(http.StatusInternalServerError, httperror.UnexpectedError, bv.Error()))
+		WriteJSON(w, r, httperror.WithUnexpected(bv.Error()))
 		return
 
 	default:

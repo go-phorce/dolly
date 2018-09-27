@@ -15,7 +15,7 @@ func Test_ErrorCodes(t *testing.T) {
 	assert.Equal(t, "request_too_large", httperror.RequestTooLarge)
 	assert.Equal(t, "request_body", httperror.FailedToReadRequestBody)
 	assert.Equal(t, "rate_limit_exceeded", httperror.RateLimitExceeded)
-	assert.Equal(t, "unexpected", httperror.UnexpectedError)
+	assert.Equal(t, "unexpected", httperror.Unexpected)
 	assert.Equal(t, "forbidden", httperror.Forbidden)
 	assert.Equal(t, "not_ready", httperror.NotReady)
 }

@@ -512,7 +512,7 @@ func (server *server) NewMux() http.Handler {
 }
 
 func (server *server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	marshal.WriteJSON(w, r, httperror.New(http.StatusNotFound, "Not found", "URL doesn't exist: %s", r.RequestURI))
+	marshal.WriteJSON(w, r, httperror.New(http.StatusNotFound, httperror.NotFound, "URL: %s", r.RequestURI))
 }
 
 func serverExtraLogger(resp *xhttp.ResponseCapture, req *http.Request) []string {
