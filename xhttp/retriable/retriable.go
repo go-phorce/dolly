@@ -2,13 +2,14 @@ package retriable
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"net/url"
 	"sync"
 	"time"
 
@@ -19,99 +20,27 @@ import (
 	"golang.org/x/net/http2"
 )
 
-var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xhttp", "retry")
+var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xhttp", "retriable")
 
-// Context represents interface for the HTTP request context
-type Context interface {
-	SetHeaders(r *http.Request)
-}
-
-// lenReader is an interface implemented by many in-memory io.Reader's. Used
-// for automatically sending the right Content-Length header when possible.
-type lenReader interface {
-	Len() int
-}
-
-//Requestor defines interface to make HTTP calls
-type Requestor interface {
-	Do(r *http.Request) (*http.Response, error)
-}
-
-// ReaderFunc is the type of function that can be given natively to NewRequest
-type ReaderFunc func() (io.Reader, error)
-
-// Request wraps the metadata needed to create HTTP requests.
-type Request struct {
-	// body is a seekable reader over the request body payload. This is
-	// used to rewind the request data in between retries.
-	body ReaderFunc
-
-	// Embed an HTTP request directly. This makes a *Request act exactly
-	// like an *http.Request so that all meta methods are supported.
-	*http.Request
-}
-
-// NewRequest creates a new wrapped request.
-func NewRequest(method, url string, rawBody io.ReadSeeker) (*Request, error) {
-	var body ReaderFunc
-	var contentLength int64
-
-	if rawBody != nil {
-		raw := rawBody.(io.ReadSeeker)
-		body = func() (io.Reader, error) {
-			raw.Seek(0, 0)
-			return ioutil.NopCloser(raw), nil
-		}
-		if lr, ok := raw.(lenReader); ok {
-			contentLength = int64(lr.Len())
-		}
-	}
-
-	httpReq, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	httpReq.ContentLength = contentLength
-
-	return &Request{body: body, Request: httpReq}, nil
-}
-
-// convertRequest wraps http.Request into retry.Request
-func convertRequest(req *http.Request) (*Request, error) {
-	var body io.ReadSeeker
-	if req != nil && req.Body != nil {
-		defer req.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(req.Body)
-		if err != nil {
-			return nil, errors.Trace(err)
-		}
-		body = bytes.NewReader(bodyBytes)
-	}
-
-	r, err := NewRequest(req.Method, req.URL.String(), body)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	r.Request = r.WithContext(req.Context())
-	for header, vals := range req.Header {
-		for _, val := range vals {
-			r.Request.Header.Add(header, val)
-		}
-	}
-
-	return r, nil
-}
+const (
+	// Success returned when request succeeded
+	Success = "success"
+	// LimitExceeded returned when retry limit exceeded
+	LimitExceeded = "limit-exceeded"
+	// NonRetriableError returned when non-retriable error occured
+	NonRetriableError = "non-retriable"
+)
 
 // ShouldRetry specifies a policy for handling retries. It is called
 // following each request with the response, error values returned by
 // the http.Client and the number of already made retries.
 // If ShouldRetry returns false, the Client stops retrying
 // and returns the response to the caller. The
-// Client will close any response body when retrying, but if the retry is
+// Client will close any response body when retrying, but if the retriable is
 // aborted it is up to the caller to properly close any response body before returning.
 type ShouldRetry func(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string)
 
-// Policy represents the retry policy
+// Policy represents the retriable policy
 type Policy struct {
 
 	// Retries specifies a map of HTTP Status code to ShouldRetry function,
@@ -120,9 +49,6 @@ type Policy struct {
 
 	// Maximum number of retries.
 	TotalRetryLimit int
-
-	// TotalRetryTimeout specifies a timeout period during which connection should succeed
-	TotalRetryTimeout time.Duration
 }
 
 // A ClientOption modifies the default behavior of Client.
@@ -149,7 +75,7 @@ func WithName(name string) ClientOption {
 	})
 }
 
-// WithPolicy is a ClientOption that specifies retry policy.
+// WithPolicy is a ClientOption that specifies retriable policy.
 //
 //   retriable.New(retriable.WithPolicy(p))
 //
@@ -177,6 +103,7 @@ func WithTLS(tlsConfig *tls.Config) ClientOption {
 type Client struct {
 	lock       sync.RWMutex
 	httpClient *http.Client // Internal HTTP client.
+	headers    map[string]string
 	Name       string
 	Policy     *Policy // Rery policy for http requests
 }
@@ -197,6 +124,14 @@ func New(opts ...ClientOption) *Client {
 	return c
 }
 
+// WithHeaders adds additional headers to the request
+func (c *Client) WithHeaders(headers map[string]string) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	c.headers = headers
+	return c
+}
+
 // WithName modifies client's name for logging purposes.
 func (c *Client) WithName(name string) *Client {
 	c.lock.RLock()
@@ -205,7 +140,7 @@ func (c *Client) WithName(name string) *Client {
 	return c
 }
 
-// WithPolicy modifies retry policy.
+// WithPolicy modifies retriable policy.
 func (c *Client) WithPolicy(policy *Policy) *Client {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
@@ -251,21 +186,21 @@ func NewDefaultPolicy() *Policy {
 			// in progress.
 			http.StatusBadGateway: shouldRetryFactory(10, time.Second/2, "gateway"),
 		},
-		TotalRetryLimit:   10,
-		TotalRetryTimeout: time.Second * 10,
+		TotalRetryLimit: 10,
 	}
 }
 
-// Get fetches the specified resource from the specified hosts[the supplied hosts are
-// tried in order until one succeeds, or we run out]
+// Get fetches the specified resource from the specified hosts
+// The supplied hosts are tried in order until one succeeds.
 // It will decode the response payload into the supplied
-// body parameter. it returns the HTTP status code, and an optional error
-// for responses with status codes >= 300 it will try and convert the response
-// into an go error.
-// If configured, this call will wait & retry on rate limit and leader election errors
+// body parameter.
+// It returns the HTTP status code, and an optional error.
+// For responses with status codes >= 300 it will try and convert the response
+// into a Go error.
+// If configured, this call will wait & retry on rate limit and leader election errors.
 // path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) Get(ctx Context, hosts []string, path string, body interface{}) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil, 0)
+func (c *Client) Get(ctx context.Context, hosts []string, path string, body interface{}) (int, error) {
+	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil)
 	if err != nil {
 		return 0, errors.Trace(err)
 	}
@@ -274,16 +209,17 @@ func (c *Client) Get(ctx Context, hosts []string, path string, body interface{})
 	return c.DecodeResponse(resp, body)
 }
 
-// Delete removes the specified resource from the specified hosts[the supplied hosts are
-// tried in order until one succeeds, or we run out]
+// Delete removes the specified resource from the specified hosts.
+// The supplied hosts are tried in order until one succeeds.
 // It will decode the response payload into the supplied
-// body parameter. it returns the HTTP status code, and an optional error
-// for responses with status codes >= 300 it will try and convert the response
-// into an go error.
-// If configured, this call will wait & retry on rate limit and leader election errors
+// body parameter.
+// It returns the HTTP status code, and an optional error.
+// For responses with status codes >= 300 it will try and convert the response
+// into a Go error.
+// If configured, this call will wait & retry on rate limit and leader election errors.
 // path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) Delete(ctx Context, hosts []string, path string, body interface{}) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodDelete, hosts, path, nil, 0)
+func (c *Client) Delete(ctx context.Context, hosts []string, path string, body interface{}) (int, error) {
+	resp, err := c.executeRequest(ctx, http.MethodDelete, hosts, path, nil)
 
 	if err != nil {
 		return 0, errors.Trace(err)
@@ -293,13 +229,15 @@ func (c *Client) Delete(ctx Context, hosts []string, path string, body interface
 	return c.DecodeResponse(resp, body)
 }
 
-// GetResponse executes a GET request against the specified hosts[the supplied hosts are
-// tried in order until one succeeds, or we run out].
-// Path should be an absolute URI path, i.e. /foo/bar/baz
-// the resulting HTTP body will be returned into the supplied body parameter, and the
-// http status code returned.
-func (c *Client) GetResponse(ctx Context, hosts []string, path string, body io.Writer) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil, 0)
+// GetResponse executes a GET request against the specified hosts,
+// The supplied hosts are tried in order until one succeeds.
+// It returns the HTTP status code, and an optional error.
+// For responses with status codes >= 300 it will try and convert the response
+// into a Go error.
+// If configured, this call will wait & retry on rate limit and leader election errors.
+// path should be an absolute URI path, i.e. /foo/bar/baz
+func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, body io.Writer) (int, error) {
+	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil)
 	if err != nil {
 		return 0, errors.Trace(err)
 	}
@@ -308,13 +246,17 @@ func (c *Client) GetResponse(ctx Context, hosts []string, path string, body io.W
 	return c.extractResponse(ctx, resp, body)
 }
 
-// PostBody makes POST request against the specified hosts[the supplied hosts are
-// tried in order until one succeeds, or we run out]
-// each host should include all the protocol/host/port preamble, e.g. http://foo.bar:3444
+// PostBody makes POST request against the specified hosts.
+// The supplied hosts are tried in order until one succeeds.
+// It will decode the response payload into the supplied
+// body parameter.
+// It returns the HTTP status code, and an optional error.
+// For responses with status codes >= 300 it will try and convert the response
+// into a Go error.
+// If configured, this call will wait & retry on rate limit and leader election errors.
 // path should be an absolute URI path, i.e. /foo/bar/baz
-// if set, the callers identity will be passed to the server via the X-Identity header
-func (c *Client) PostBody(ctx Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodPost, hosts, path, reqBody, 0)
+func (c *Client) PostBody(ctx context.Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
+	resp, err := c.executeRequest(ctx, http.MethodPost, hosts, path, reqBody)
 	if err != nil {
 		return 0, errors.Trace(err)
 	}
@@ -323,49 +265,49 @@ func (c *Client) PostBody(ctx Context, hosts []string, path string, reqBody []by
 	return c.DecodeResponse(resp, body)
 }
 
-func (c *Client) executeRequest(ctx Context, httpMethod string, hosts []string, path string, reqBody []byte, retriesOnError int) (*http.Response, error) {
+func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []string, path string, reqBody []byte) (*http.Response, error) {
+	var many *httperror.ManyError
 	var err error
 	var resp *http.Response
-	for _, host := range hosts {
+	for i, host := range hosts {
 		resp, err = c.doHTTP(ctx, httpMethod, host, path, reqBody)
-		if c.shouldTryDifferentHost(resp, err) {
-			if err != nil {
-				logger.Errorf("api=executeRequest, httpMethod='%s', host='%s', path='%s', err=[%v]",
-					httpMethod, host, path, errors.ErrorStack(err))
-			} else {
-				logger.Errorf("api=executeRequest, httpMethod='%s', host='%s', path='%s', status=%v",
-					httpMethod, host, path, resp.Status)
-			}
-			continue
+		if !c.shouldTryDifferentHost(resp, err) {
+			break
 		}
 
-		return resp, errors.Trace(err)
-	}
-	/*
-		if fn, ok := c.RetryPolicy.Retries[0]; ok {
-			if shouldRetry, sleepDuration, reason := fn(resp, err, retriesOnError); shouldRetry {
-				logger.Tracef("api=executeRequest, httpMethod=%s, hosts=[%s], path='%s', retriesOnError=%d, sleepDuration=[%v], reason='%s'",
-					httpMethod, strings.Join(hosts, ","), path, retriesOnError, sleepDuration.Round(1*time.Millisecond), reason)
-
-				time.Sleep(sleepDuration)
-
-				return c.executeRequest(ctx, httpMethod, hosts, path, reqBody, retriesOnError+1)
+		// either success or error
+		if err != nil {
+			many = many.Add(host, err)
+		} else if resp != nil {
+			if resp.StatusCode >= 400 {
+				many = many.Add(host, httperror.New(resp.StatusCode, "reques_failed", "%s %s %s %s",
+					httpMethod, host, path, resp.Status))
+			}
+			// if not the last host, then close it
+			if i < len(hosts)-1 {
+				resp.Body.Close()
+				resp = nil
 			}
 		}
-	*/
-	if err != nil {
-		return nil, errors.Annotatef(err, "hosts=[%s], retriesOnError=%d", strings.Join(hosts, ","), retriesOnError)
+
+		logger.Debugf("api=executeRequest, %s %s %s [%v]", httpMethod, host, path, many.Error())
 	}
-	return nil, errors.Errorf("request failed: hosts=[%s], retriesOnError=%d", strings.Join(hosts, ","), retriesOnError)
+
+	if resp != nil {
+		return resp, nil
+	}
+
+	return nil, many
 }
 
 // doHTTP wraps calling an HTTP method with retries.
-func (c *Client) doHTTP(ctx Context, httpMethod string, host string, path string, reqBody []byte) (*http.Response, error) {
+// TODO: convert reqBody to reader
+func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, path string, reqBody []byte) (*http.Response, error) {
 	uri := host + path
 	logger.Tracef("api=doHTTP, httpMethod='%s', host='%s', path='%s', uri='%s'", httpMethod, host, path, uri)
 
 	var reader io.Reader
-	if httpMethod == http.MethodPost {
+	if httpMethod == http.MethodPost && reqBody != nil {
 		reader = bytes.NewReader(reqBody)
 	}
 
@@ -373,9 +315,13 @@ func (c *Client) doHTTP(ctx Context, httpMethod string, host string, path string
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-	if ctx != nil {
-		ctx.SetHeaders(req)
+
+	req = req.WithContext(ctx)
+
+	for header, val := range c.headers {
+		req.Header.Add(header, val)
 	}
+
 	return c.Do(req)
 }
 
@@ -413,12 +359,15 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 		}
 
 		desc := fmt.Sprintf("%s %s", req.Request.Method, req.Request.URL)
-		if err == nil {
-			desc = fmt.Sprintf("%s (status: %d)", desc, resp.StatusCode)
+		if resp != nil {
+			if resp.Status != "" {
+				desc += " "
+				desc += resp.Status
+			}
 			c.consumeResponseBody(resp)
 		}
 
-		logger.Infof("api=Do, name=%s, retries=%d, description='%s', reason='%s', sleepDuration=[%v]",
+		logger.Warningf("api=Do, name=%s, retries=%d, description='%s', reason='%s', sleep=[%v]",
 			c.Name, retries, desc, reason, sleepDuration.Seconds())
 		time.Sleep(sleepDuration)
 	}
@@ -427,7 +376,11 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 }
 
 // shouldTryDifferentHost returns true if a connection error occurred
-// or response is internal server error.
+// or response has a specific HTTP status:
+// - StatusInternalServerError
+// - StatusServiceUnavailable
+// - StatusGatewayTimeout
+// - StatusTooManyRequests
 // In that case, the caller should try to send the same request to a different host.
 func (c *Client) shouldTryDifferentHost(resp *http.Response, err error) bool {
 	if err != nil {
@@ -436,7 +389,10 @@ func (c *Client) shouldTryDifferentHost(resp *http.Response, err error) bool {
 	if resp == nil {
 		return true
 	}
-	if resp.StatusCode == http.StatusInternalServerError {
+	if resp.StatusCode == http.StatusInternalServerError ||
+		resp.StatusCode == http.StatusServiceUnavailable ||
+		resp.StatusCode == http.StatusGatewayTimeout ||
+		resp.StatusCode == http.StatusTooManyRequests {
 		return true
 	}
 	return false
@@ -458,26 +414,23 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 		e.HTTPStatus = resp.StatusCode
 		bodyCopy := bytes.Buffer{}
 		bodyTee := io.TeeReader(resp.Body, &bodyCopy)
-		if err := json.NewDecoder(bodyTee).Decode(e); err != nil {
+		if err := json.NewDecoder(bodyTee).Decode(e); err != nil || e.Code == "" {
 			io.Copy(ioutil.Discard, bodyTee) // ensure all of body is read
-			return resp.StatusCode, errors.Errorf("HTTP StatusCode %d: [unable to parse body: %v] Body:%s", resp.StatusCode, err, bodyCopy.Bytes())
+			// Unable to parse as Error, then return body as error
+			return resp.StatusCode, errors.New(string(bodyCopy.Bytes()))
 		}
-		if e.Code != "" {
-			return resp.StatusCode, e
-		}
-		// expecting { "code" : "fooo", "message":"bar"}, but didn't get that, so just return the entire body structure with an error
-		return resp.StatusCode, errors.Errorf("HTTP StatusCode %d: Body: %s", resp.StatusCode, bodyCopy.Bytes())
+		return resp.StatusCode, e
 	}
 
 	switch body.(type) {
 	case io.Writer:
 		_, err := io.Copy(body.(io.Writer), resp.Body)
 		if err != nil {
-			return resp.StatusCode, errors.Errorf("unable to read body response to (%T) type: %v", body, err)
+			return resp.StatusCode, errors.Errorf("unable to read body response to (%T) type: %s", body, err.Error())
 		}
 	default:
 		if err := json.NewDecoder(resp.Body).Decode(body); err != nil {
-			return resp.StatusCode, errors.Errorf("unable to decode body response to (%T) type: %v", body, err)
+			return resp.StatusCode, errors.Errorf("unable to decode body response to (%T) type: %s", body, err.Error())
 		}
 	}
 
@@ -487,25 +440,22 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 // extractResponse will look at the http response, and map it back to either
 // the body parameters, or to an error
 // [retrying rate limit errors should be done before this]
-func (c *Client) extractResponse(ctx Context, resp *http.Response, body io.Writer) (int, error) {
+func (c *Client) extractResponse(ctx context.Context, resp *http.Response, body io.Writer) (int, error) {
 	if resp.StatusCode >= http.StatusMultipleChoices { // 300
 		e := new(httperror.Error)
 		e.HTTPStatus = resp.StatusCode
 		bodyCopy := bytes.Buffer{}
 		bodyTee := io.TeeReader(resp.Body, &bodyCopy)
-		if err := json.NewDecoder(bodyTee).Decode(e); err != nil {
+		if err := json.NewDecoder(bodyTee).Decode(e); err != nil || e.Code == "" {
 			io.Copy(ioutil.Discard, bodyTee) // ensure all of body is read
-			return resp.StatusCode, errors.Errorf("HTTP StatusCode %d: [unable to parse body: %v] Body:%s", resp.StatusCode, err, bodyCopy.Bytes())
+			// Unable to parse as Error, then return body as error
+			return resp.StatusCode, errors.New(string(bodyCopy.Bytes()))
 		}
-		if e.Code != "" {
-			return resp.StatusCode, e
-		}
-		// expecting { "code" : "fooo", "message":"bar"}, but didn't get that, so just return the entire body structure with an error
-		return resp.StatusCode, errors.Errorf("HTTP StatusCode %d: Body: %s", resp.StatusCode, bodyCopy.Bytes())
+		return resp.StatusCode, e
 	}
 
 	if _, err := io.Copy(body, resp.Body); err != nil {
-		return resp.StatusCode, errors.Errorf("unable to decode body response (%T) error: %v", body, err)
+		return resp.StatusCode, errors.Errorf("unable to decode body response (%T) error: %s", body, err.Error())
 	}
 
 	return resp.StatusCode, nil
@@ -525,13 +475,16 @@ var nonRetriableErrors = []string{
 	"server gave HTTP response to HTTPS client",
 }
 
-const nonretriablereason = "non-retriable error"
-
 // ShouldRetry returns if connection should be retried
 func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 	if err != nil {
 		errStr := err.Error()
 		logger.Errorf("api=ShouldRetry, error_type=%T, err='%s'", err, errStr)
+
+		switch err.(type) {
+		case *url.Error:
+			return false, 0, NonRetriableError
+		}
 
 		if r.TLS != nil {
 			logger.Errorf("api=ShouldRetry, complete=%t, mutual=%t, tls_peers=%d, tls_chains=%d",
@@ -546,28 +499,28 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 		}
 
 		if slices.StringContainsOneOf(errStr, nonRetriableErrors) {
-			return false, 0, nonretriablereason
+			return false, 0, NonRetriableError
 		}
 
 		// On error, use 0 code
 		if fn, ok := p.Retries[0]; ok {
 			return fn(r, resp, err, retries)
 		}
-		return false, 0, ""
+		return false, 0, NonRetriableError
 	}
 
 	// Success codes 200-399
 	if resp.StatusCode < 400 {
-		return false, 0, "success"
+		return false, 0, Success
 	}
 
 	if retries >= p.TotalRetryLimit {
-		return false, 0, "retry-limit-exceeded"
+		return false, 0, LimitExceeded
 	}
 
 	if fn, ok := p.Retries[resp.StatusCode]; ok {
 		return fn(r, resp, err, retries)
 	}
 
-	return false, 0, nonretriablereason
+	return false, 0, NonRetriableError
 }

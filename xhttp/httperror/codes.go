@@ -30,4 +30,7 @@ const (
 
 	// NotReady is returned when the service is not ready to serve
 	NotReady = "not_ready"
+
+	// RequestFailed is returned when an outbound request failed.
+	RequestFailed = "request_failed"
 )

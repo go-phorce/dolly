@@ -3,6 +3,7 @@ package httperror
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/ugorji/go/codec"
@@ -90,6 +91,9 @@ func (e *Error) WithCause(err error) *Error {
 
 // Error implements the standard error interface
 func (e *Error) Error() string {
+	if e == nil {
+		return "nil"
+	}
 	return fmt.Sprintf("%s: %s", e.Code, e.Message)
 }
 
@@ -108,7 +112,19 @@ type ManyError struct {
 }
 
 func (m *ManyError) Error() string {
-	return fmt.Sprintf("%s: %s", m.Code, m.Message)
+	if m == nil {
+		return "nil"
+	}
+	if m.Code != "" {
+		return fmt.Sprintf("%s: %s", m.Code, m.Message)
+	}
+
+	var errs []string
+	for _, e := range m.Errors {
+		errs = append(errs, e.Error())
+	}
+
+	return strings.Join(errs, ";")
 }
 
 // NewMany builds new ManyError instance, build message string along the way
