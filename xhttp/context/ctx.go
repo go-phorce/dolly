@@ -55,8 +55,6 @@ type Context interface {
 	WithRequestID(requestID string) Context
 	WithAccepts(accepts string) Context
 	WithHeaders(map[string]string) Context
-
-	SetHeaders(r *http.Request)
 }
 
 func init() {

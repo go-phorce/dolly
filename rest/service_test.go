@@ -2,10 +2,12 @@ package rest_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -13,7 +15,6 @@ import (
 	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/testify/auditor"
-	"github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/retriable"
 	"github.com/stretchr/testify/assert"
@@ -61,9 +62,17 @@ func (s *service) Register(r rest.Router) {
 
 func testHandler(s *service) rest.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ rest.Params) {
-		context.ForRequest(r)
+		//context.ForRequest(r)
+
+		status := http.StatusOK
+		if rc, ok := r.URL.Query()["rc"]; ok {
+			if s, err := strconv.Atoi(rc[0]); err == nil {
+				status = s
+			}
+		}
 
 		w.Header().Set(header.ContentType, header.TextPlain)
+		w.WriteHeader(status)
 		fmt.Fprintf(w, "URL: %s\n", r.URL)
 		fmt.Fprintf(w, "Method: %s\n", r.Method)
 		fmt.Fprintf(w, "Agent: %s\n", r.UserAgent())
@@ -183,13 +192,15 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
 
 		w := bytes.NewBuffer([]byte{})
-		status, err := client.Get(nil, hosts, "/v1/test", w)
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		status, err := client.Get(ctx, hosts, "/v1/test", w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 		res := string(w.Bytes())
 		assert.Contains(t, res, "GET")
 	})
-
 	s.T().Run("with client cert / untrusted root", func(t *testing.T) {
 		clientTls, err := tlsconfig.NewClientTLSFromFiles(
 			s.clientCertFile,
@@ -197,13 +208,17 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 			s.clientRootFile)
 		require.NoError(t, err)
 
-		client := retriable.New(retriable.WithTLS(clientTls))
+		client := retriable.New().WithTLS(clientTls)
 		require.NotNil(t, client)
 
 		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
 
 		w := bytes.NewBuffer([]byte{})
-		_, err = client.Get(nil, hosts, "/v1/test", w)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		_, err = client.Get(ctx, hosts, "/v1/test", w)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
 	})
@@ -271,7 +286,11 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
 
 		w := bytes.NewBuffer([]byte{})
-		_, err = client.Get(nil, hosts, "/v1/test", w)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		_, err = client.Get(ctx, hosts, "/v1/test", w)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tls: bad certificate")
 	})
@@ -289,7 +308,11 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		hosts := []string{fmt.Sprintf("%s://localhost:%s", server.Protocol(), server.Port())}
 
 		w := bytes.NewBuffer([]byte{})
-		_, err = client.Get(nil, hosts, "/v1/test", w)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		_, err = client.Get(ctx, hosts, "/v1/test", w)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
 	})

@@ -12,6 +12,7 @@ import (
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/testify/testca"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/certutil"
 	"github.com/juju/errors"
 	"github.com/stretchr/testify/suite"
@@ -34,6 +35,8 @@ func Test_RestSuite(t *testing.T) {
 }
 
 func (s *testSuite) SetupTest() {
+	xlog.SetGlobalLogLevel(xlog.DEBUG)
+
 	s.tmpDir = filepath.Join(os.TempDir(), "tests", "rest", guid.MustCreate())
 	err := os.MkdirAll(s.tmpDir, os.ModePerm)
 	s.Require().NoError(err)
