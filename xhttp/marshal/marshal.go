@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
@@ -51,10 +51,10 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 		if e, ok := bv.(*httperror.Error); ok {
 			if e.HTTPStatus >= 500 {
 				logger.Errorf("INTERNAL_ERROR=%s:%s:%d:%s:%s",
-					r.URL.Path, context.CorrelationIDFromRequest(r), e.HTTPStatus, e.Code, e.Message)
+					r.URL.Path, identity.ForRequest(r).CorrelationID(), e.HTTPStatus, e.Code, e.Message)
 			} else {
 				logger.Warningf("API_ERROR=%s:%s:%d:%s:%s",
-					r.URL.Path, context.CorrelationIDFromRequest(r), e.HTTPStatus, e.Code, e.Message)
+					r.URL.Path, identity.ForRequest(r).CorrelationID(), e.HTTPStatus, e.Code, e.Message)
 			}
 			if e.Cause != nil {
 				logger.Errorf(errors.ErrorStack(e))

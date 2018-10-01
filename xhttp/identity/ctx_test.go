@@ -1,4 +1,4 @@
-package context
+package identity
 
 import (
 	"net/http"
@@ -17,17 +17,17 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
-func Test_ClientIdentity(t *testing.T) {
-	i := clientIdentity{role: "netmgmt", cn: "Ekspand"}
+func Test_Identity(t *testing.T) {
+	i := identity{role: "netmgmt", name: "Ekspand"}
 	assert.Equal(t, "netmgmt", i.Role())
-	assert.Equal(t, "Ekspand", i.CommonName())
+	assert.Equal(t, "Ekspand", i.Name())
 	assert.Equal(t, "netmgmt/Ekspand", i.String())
 }
 
 func Test_NewIdentity(t *testing.T) {
 	i := NewIdentity("netmgmt", "Ekspand")
 	assert.Equal(t, "netmgmt", i.Role())
-	assert.Equal(t, "Ekspand", i.CommonName())
+	assert.Equal(t, "Ekspand", i.Name())
 	assert.Equal(t, "netmgmt/Ekspand", i.String())
 }
 
@@ -42,9 +42,9 @@ func Test_HostnameHeader(t *testing.T) {
 }
 
 func Test_RoleContext(t *testing.T) {
-	c := NewForRole("bob_1").WithRequestID("1234gdhfewq")
-	assert.Equal(t, "1234gdhfewq", c.RequestID())
+	c := NewForRole("bob_1").WithCorrelationID("1234gdhfewq")
+	assert.Equal(t, "1234gdhfewq", c.CorrelationID())
 	assert.Equal(t, "bob_1/"+nodeInfo.HostName(), c.Identity().String())
-	assert.Equal(t, nodeInfo.HostName(), c.Identity().CommonName())
+	assert.Equal(t, nodeInfo.HostName(), c.Identity().Name())
 	assert.Equal(t, "bob_1", c.Identity().Role())
 }
