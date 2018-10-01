@@ -16,8 +16,8 @@ import (
 	"github.com/go-phorce/dolly/rest/ready"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
-	xcontext "github.com/go-phorce/dolly/xhttp/context"
 	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
@@ -73,7 +73,7 @@ type Server interface {
 	Protocol() string
 	StartedAt() time.Time
 	Uptime() time.Duration
-	LocalCtx() xcontext.Context
+	Identity() identity.Context
 	Service(name string) Service
 	HTTPConfig() HTTPServerConfig
 
@@ -117,7 +117,7 @@ type Server interface {
 type server struct {
 	Server
 	container      container.Container
-	context        xcontext.Context
+	identity       identity.Context
 	auditor        Auditor
 	authz          Authz
 	cluster        ClusterInfo
@@ -151,7 +151,7 @@ func New(
 	}
 
 	s := &server{
-		context:   xcontext.NewForRole(rolename),
+		identity:  identity.NewForRole(rolename),
 		services:  map[string]Service{},
 		scheduler: tasks.NewScheduler(),
 		rolename:  rolename,
@@ -206,9 +206,9 @@ func New(
 	return s, nil
 }
 
-// LocalCtx specifies local context for the server
-func (server *server) LocalCtx() xcontext.Context {
-	return server.context
+// Identity specifies local context for the server
+func (server *server) Identity() identity.Context {
+	return server.identity
 }
 
 // AddService provides a service registration for the server
@@ -423,8 +423,8 @@ func (server *server) StartHTTP() error {
 	server.Audit(
 		EvtSourceStatus,
 		EvtServiceStarted,
-		server.context.Identity().String(),
-		server.context.RequestID(),
+		server.identity.Identity().String(),
+		server.identity.CorrelationID(),
 		0,
 		fmt.Sprintf("node='%s', address='%s', ClientAuth=%t",
 			server.NodeName(), strings.TrimPrefix(bindAddr, ":"), server.withClientAuth),
@@ -470,8 +470,8 @@ func (server *server) StopHTTP() {
 	server.Audit(
 		EvtSourceStatus,
 		EvtServiceStopped,
-		server.context.Identity().String(),
-		server.context.RequestID(),
+		server.identity.Identity().String(),
+		server.identity.CorrelationID(),
 		0,
 		fmt.Sprintf("node=%s, uptime=%s", server.NodeName(), ut),
 	)
@@ -494,7 +494,10 @@ func (server *server) NewMux() http.Handler {
 
 	if server.withClientAuth && server.authz != nil {
 		// authz wrapper
-		server.authz.SetRoleMapper(xcontext.RoleFromRequest)
+		server.authz.SetRoleMapper(func(r *http.Request) string {
+			return identity.ForRequest(r).Identity().Role()
+		})
+
 		httpHandler, err = server.authz.NewHandler(httpHandler)
 		if err != nil {
 			panic(errors.ErrorStack(err))
@@ -507,7 +510,7 @@ func (server *server) NewMux() http.Handler {
 	httpHandler = xhttp.NewRequestLogger(httpHandler, server.rolename, serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
 
 	// role/contextID wrapper
-	ctxHandler := xcontext.NewContextHandler(httpHandler)
+	ctxHandler := identity.NewContextHandler(httpHandler)
 	return ctxHandler
 }
 
@@ -516,5 +519,5 @@ func (server *server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func serverExtraLogger(resp *xhttp.ResponseCapture, req *http.Request) []string {
-	return []string{xcontext.CorrelationIDFromRequest(req)}
+	return []string{identity.ForRequest(req).CorrelationID()}
 }
