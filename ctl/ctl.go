@@ -131,9 +131,14 @@ func (ctl *Ctl) ServerURL() string {
 	return *ctl.flags.url
 }
 
-// Retries returns retries settings
-func (ctl *Ctl) Retries() (int, time.Duration) {
-	return *ctl.flags.retries, time.Duration(*ctl.flags.retryWait)
+// RetryLimit returns retries limit
+func (ctl *Ctl) RetryLimit() int {
+	return *ctl.flags.retries
+}
+
+// RetryTimeout returns retries timeout
+func (ctl *Ctl) RetryTimeout() time.Duration {
+	return time.Duration(*ctl.flags.retryWait)
 }
 
 // ContentType is content-type for the server commands
