@@ -27,6 +27,8 @@ const (
 	Success = "success"
 	// LimitExceeded returned when retry limit exceeded
 	LimitExceeded = "limit-exceeded"
+	// Cancelled returned when request was cancelled or timed out
+	Cancelled = "cancelled"
 	// NonRetriableError returned when non-retriable error occured
 	NonRetriableError = "non-retriable"
 )
@@ -49,6 +51,8 @@ type Policy struct {
 
 	// Maximum number of retries.
 	TotalRetryLimit int
+
+	RequestTimeout time.Duration
 }
 
 // A ClientOption modifies the default behavior of Client.
@@ -243,7 +247,7 @@ func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, b
 	}
 	defer resp.Body.Close()
 
-	return c.extractResponse(ctx, resp, body)
+	return c.extractResponse(resp, body)
 }
 
 // PostBody makes POST request against the specified hosts.
@@ -440,7 +444,7 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 // extractResponse will look at the http response, and map it back to either
 // the body parameters, or to an error
 // [retrying rate limit errors should be done before this]
-func (c *Client) extractResponse(ctx context.Context, resp *http.Response, body io.Writer) (int, error) {
+func (c *Client) extractResponse(resp *http.Response, body io.Writer) (int, error) {
 	if resp.StatusCode >= http.StatusMultipleChoices { // 300
 		e := new(httperror.Error)
 		e.HTTPStatus = resp.StatusCode
@@ -480,6 +484,13 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 	if err != nil {
 		errStr := err.Error()
 		logger.Errorf("api=ShouldRetry, error_type=%T, err='%s'", err, errStr)
+
+		select {
+		// If the context is finished, don't bother processing the
+		case <-r.Context().Done():
+			return false, 0, Cancelled
+		default:
+		}
 
 		switch err.(type) {
 		case *url.Error:
