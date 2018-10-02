@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/go-phorce/dolly/rest/ready"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/go-phorce/dolly/xhttp/marshal"
@@ -512,4 +514,26 @@ func (server *server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
 
 func serverExtraLogger(resp *xhttp.ResponseCapture, req *http.Request) []string {
 	return []string{identity.ForRequest(req).CorrelationID()}
+}
+
+// GetServerURL returns complete server URL for given relative end-point
+func GetServerURL(s Server, r *http.Request, relativeEndpoint string) *url.URL {
+	proto := s.Protocol()
+
+	// Allow upstream proxies  to specify the forwarded protocol. Allow this value
+	// to override our own guess.
+	if specifiedProto := r.Header.Get(header.XForwardedProto); specifiedProto != "" {
+		proto = specifiedProto
+	}
+
+	host := r.Host
+	if host == "" {
+		host = s.HostName() + ":" + s.Port()
+	}
+
+	return &url.URL{
+		Scheme: proto,
+		Host:   host,
+		Path:   relativeEndpoint,
+	}
 }

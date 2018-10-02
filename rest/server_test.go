@@ -1,8 +1,12 @@
 package rest_test
 
 import (
+	"fmt"
+	"net/http"
 	"testing"
 	"time"
+
+	"github.com/go-phorce/dolly/xhttp/header"
 
 	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/rest/container"
@@ -88,4 +92,41 @@ func Test_NewServer(t *testing.T) {
 	server.StopHTTP()
 	e = audit.Find(rest.EvtSourceStatus, rest.EvtServiceStopped)
 	require.NotNil(t, e)
+}
+
+func Test_GetServerURL(t *testing.T) {
+	cfg := &serverConfig{
+		BindAddr: "hostname:8081",
+	}
+
+	ioc := container.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+
+	server, err := rest.New("test", "v1.0.123", ioc)
+	require.NoError(t, err)
+	require.NotNil(t, server)
+
+	t.Run("without XForwardedProto", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/get/GET", nil)
+		require.NoError(t, err)
+
+		u := rest.GetServerURL(server, r, "/another/location")
+		require.NotNil(t, u)
+
+		assert.Equal(t, fmt.Sprintf("%s://%s/another/location", server.Protocol(), cfg.BindAddr), u.String())
+	})
+
+	t.Run("with XForwardedProto", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/get/GET", nil)
+		require.NoError(t, err)
+		r.Header.Set(header.XForwardedProto, "https")
+		r.Host = "localhost"
+
+		u := rest.GetServerURL(server, r, "/another/location")
+		require.NotNil(t, u)
+
+		assert.Equal(t, "https://localhost/another/location", u.String())
+	})
 }

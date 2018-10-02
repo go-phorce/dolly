@@ -25,9 +25,10 @@ const (
 	XIdentity = "X-Identity"
 	// XHostname contains the name of the HTTP header to indicate which host requested the signature
 	XHostname = "X-HostName"
-
 	// XCorrelationID is HTTP header for "X-CorrelationID"
 	XCorrelationID = "X-CorrelationID"
 	// XFilename contains the name of the artifact to sign
 	XFilename = "X-Filename"
+	// XForwardedProto contains the protocol
+	XForwardedProto = "X-Forwarded-Proto"
 )
