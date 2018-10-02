@@ -19,4 +19,5 @@ func Test_Headers(t *testing.T) {
 	assert.Equal(t, "X-HostName", header.XHostname)
 	assert.Equal(t, "X-CorrelationID", header.XCorrelationID)
 	assert.Equal(t, "X-Filename", header.XFilename)
+	assert.Equal(t, "X-Forwarded-Proto", header.XForwardedProto)
 }
