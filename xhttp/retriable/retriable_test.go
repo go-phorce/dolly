@@ -195,9 +195,10 @@ func Test_RetriableTimeout(t *testing.T) {
 	status, err := client.Get(ctx, hosts, "/v1/test", w)
 	require.Error(t, err)
 	assert.Equal(t, 0, status)
-	exp := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded;unexpected: Get %s/v1/test: context deadline exceeded",
-		server1.URL, server2.URL)
-	assert.Equal(t, exp, err.Error())
+	exp1 := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded", server1.URL)
+	exp2 := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded", server2.URL)
+	assert.Contains(t, err.Error(), exp1)
+	assert.Contains(t, err.Error(), exp2)
 }
 
 func makeTestHandler(t *testing.T, expURI string, status int, responseBody string) http.Handler {
