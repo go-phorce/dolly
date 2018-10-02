@@ -68,6 +68,12 @@ func (r *Request) WithHeaders(headers map[string]string) *Request {
 	return r
 }
 
+// AddHeader adds additional header to the request
+func (r *Request) AddHeader(header, value string) *Request {
+	r.Request.Header.Add(header, value)
+	return r
+}
+
 // convertRequest wraps http.Request into retriable.Request
 func convertRequest(req *http.Request) (*Request, error) {
 	var body io.ReadSeeker
