@@ -65,7 +65,7 @@ func Initialize(n netutil.NodeInfo, e ExtractRole) {
 	}
 
 	if roleExtractor == nil {
-		roleExtractor = extractCommonName
+		roleExtractor = extractRoleFromPKIX
 	}
 
 	emptyContext = New("", "", "", "", "")
@@ -113,20 +113,6 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 		delegate.ServeHTTP(w, r.WithContext(c))
 	}
 	return http.HandlerFunc(h)
-}
-
-// WithTestContext is used in unit tests to set HTTP context
-func WithTestContext(r *http.Request, identity Identity, correlationID string) *http.Request {
-	ctx := &RequestContext{
-		identity:      identity,
-		correlationID: correlationID,
-		hostname:      nodeInfo.HostName(),
-		ipaddr:        nodeInfo.LocalIP(),
-	}
-	c := r.Context()
-	c = context.WithValue(c, keyContext, ctx)
-
-	return r.WithContext(c)
 }
 
 // New returns a new Context with the supplied identity & request identifiers

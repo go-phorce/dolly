@@ -4,6 +4,8 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"net/http"
+
+	"github.com/go-phorce/dolly/xhttp"
 )
 
 // ExtractRole will parse out from the supplied Name the clients roleName
@@ -61,7 +63,10 @@ func (c identity) String() string {
 
 func extractIdentityFromRequest(r *http.Request) Identity {
 	if r.TLS == nil {
-		return identity{}
+		return identity{
+			name: xhttp.ClientIPFromRequest(r),
+			role: "guest",
+		}
 	}
 	pc := r.TLS.PeerCertificates
 	if len(pc) == 0 {
@@ -73,6 +78,6 @@ func extractIdentityFromRequest(r *http.Request) Identity {
 	}
 }
 
-func extractCommonName(n *pkix.Name) string {
+func extractRoleFromPKIX(n *pkix.Name) string {
 	return n.CommonName
 }

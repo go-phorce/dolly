@@ -73,7 +73,6 @@ type Server interface {
 	Protocol() string
 	StartedAt() time.Time
 	Uptime() time.Duration
-	Identity() identity.Context
 	Service(name string) Service
 	HTTPConfig() HTTPServerConfig
 
@@ -117,7 +116,6 @@ type Server interface {
 type server struct {
 	Server
 	container      container.Container
-	identity       identity.Context
 	auditor        Auditor
 	authz          Authz
 	cluster        ClusterInfo
@@ -151,7 +149,6 @@ func New(
 	}
 
 	s := &server{
-		identity:  identity.NewForRole(rolename),
 		services:  map[string]Service{},
 		scheduler: tasks.NewScheduler(),
 		rolename:  rolename,
@@ -204,11 +201,6 @@ func New(
 	}
 
 	return s, nil
-}
-
-// Identity specifies local context for the server
-func (server *server) Identity() identity.Context {
-	return server.identity
 }
 
 // AddService provides a service registration for the server
@@ -423,8 +415,8 @@ func (server *server) StartHTTP() error {
 	server.Audit(
 		EvtSourceStatus,
 		EvtServiceStarted,
-		server.identity.Identity().String(),
-		server.identity.CorrelationID(),
+		server.NodeName(),
+		server.NodeID(),
 		0,
 		fmt.Sprintf("node='%s', address='%s', ClientAuth=%t",
 			server.NodeName(), strings.TrimPrefix(bindAddr, ":"), server.withClientAuth),
@@ -470,8 +462,8 @@ func (server *server) StopHTTP() {
 	server.Audit(
 		EvtSourceStatus,
 		EvtServiceStopped,
-		server.identity.Identity().String(),
-		server.identity.CorrelationID(),
+		server.NodeName(),
+		server.NodeID(),
 		0,
 		fmt.Sprintf("node=%s, uptime=%s", server.NodeName(), ut),
 	)
@@ -510,8 +502,8 @@ func (server *server) NewMux() http.Handler {
 	httpHandler = xhttp.NewRequestLogger(httpHandler, server.rolename, serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
 
 	// role/contextID wrapper
-	ctxHandler := identity.NewContextHandler(httpHandler)
-	return ctxHandler
+	httpHandler = identity.NewContextHandler(httpHandler)
+	return httpHandler
 }
 
 func (server *server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
