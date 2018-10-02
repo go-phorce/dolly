@@ -3,6 +3,7 @@ package retriable_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xhttp/retriable"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -95,6 +97,46 @@ func Test_Retriable_OK(t *testing.T) {
 	status, err := client.Get(ctx, hosts, "/v1/test", w)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, status)
+}
+
+func Test_RetriableWithHeaders(t *testing.T) {
+	h := func(w http.ResponseWriter, r *http.Request) {
+		headers := map[string]string{
+			"h1": r.Header.Get("header1"),
+			"h2": r.Header.Get("header2"),
+			"h3": r.Header.Get("header3"),
+			"h4": r.Header.Get("header4"),
+		}
+
+		marshal.WriteJSON(w, r, headers)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(h))
+	defer server.Close()
+
+	client := retriable.New()
+	require.NotNil(t, client)
+
+	client.WithHeaders(map[string]string{
+		"header1": "val1",
+		"header2": "val2",
+	})
+
+	client.AddHeader("header3", "val3")
+
+	w := bytes.NewBuffer([]byte{})
+
+	status, err := client.Get(context.Background(), []string{server.URL}, "/v1/test", w)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, status)
+
+	var headers map[string]string
+	require.NoError(t, json.Unmarshal(w.Bytes(), &headers))
+
+	assert.Equal(t, "val1", headers["h1"])
+	assert.Equal(t, "val2", headers["h2"])
+	assert.Equal(t, "val3", headers["h3"])
+	assert.Empty(t, headers["h4"])
 }
 
 func Test_Retriable500(t *testing.T) {

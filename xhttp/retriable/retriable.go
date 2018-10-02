@@ -132,7 +132,27 @@ func New(opts ...ClientOption) *Client {
 func (c *Client) WithHeaders(headers map[string]string) *Client {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	c.headers = headers
+
+	if c.headers == nil {
+		c.headers = map[string]string{}
+	}
+
+	for key, val := range headers {
+		c.headers[key] = val
+	}
+	return c
+}
+
+// AddHeader adds additional header to the request
+func (c *Client) AddHeader(header, value string) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	if c.headers == nil {
+		c.headers = map[string]string{}
+	}
+
+	c.headers[header] = value
 	return c
 }
 
