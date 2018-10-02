@@ -136,6 +136,19 @@ func New(role, commonName, correlationID, host, ip string) *RequestContext {
 	}
 }
 
+// WithTestIdentity is used in unit tests to set HTTP request identity
+func WithTestIdentity(r *http.Request, identity Identity) *http.Request {
+	ctx := &RequestContext{
+		identity:      identity,
+		correlationID: extractCorrelationID(r),
+		hostname:      nodeInfo.HostName(),
+		ipaddr:        nodeInfo.LocalIP(),
+	}
+
+	c := context.WithValue(r.Context(), keyContext, ctx)
+	return r.WithContext(c)
+}
+
 func (c *RequestContext) copy() *RequestContext {
 	return &RequestContext{
 		identity:      c.identity,
