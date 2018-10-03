@@ -83,8 +83,8 @@ type Ctl struct {
 		ctJSON *bool
 
 		// Retry settings
-		retries   *int
-		retryWait *int
+		retries *int
+		timeout *int
 	}
 }
 
@@ -138,7 +138,10 @@ func (ctl *Ctl) RetryLimit() int {
 
 // RetryTimeout returns retries timeout
 func (ctl *Ctl) RetryTimeout() time.Duration {
-	return time.Duration(*ctl.flags.retryWait)
+	if ctl.flags.timeout != nil && *ctl.flags.timeout > 0 {
+		return time.Second * time.Duration(*ctl.flags.timeout)
+	}
+	return 0
 }
 
 // ContentType is content-type for the server commands
@@ -230,7 +233,7 @@ func (ctl *Ctl) initGlobalFlags() {
 		ctl.flags.ctJSON = app.Flag("json", "Use JSON Content-Type in Accepts header and printed response").Bool()
 
 		ctl.flags.retries = app.Flag("retries", "Number of retries for connect failures").Default("0").Int()
-		ctl.flags.retryWait = app.Flag("retry-wait", "Number of seconds to wait between retries").Default("1").Int()
+		ctl.flags.timeout = app.Flag("timeout", "Timeout in seconds").Default("6").Int()
 	}
 }
 
