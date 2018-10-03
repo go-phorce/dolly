@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 	"sync"
 	"time"
 
@@ -510,11 +509,6 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 		case <-r.Context().Done():
 			return false, 0, Cancelled
 		default:
-		}
-
-		switch err.(type) {
-		case *url.Error:
-			return false, 0, NonRetriableError
 		}
 
 		if r.TLS != nil {

@@ -342,7 +342,8 @@ func (server *server) StartHTTP() error {
 
 	// Main server
 	if _, err = net.ResolveTCPAddr("tcp", bindAddr); err != nil {
-		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, addr='%s'", bindAddr)
+		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, service=%s, addr='%s'",
+			server.Name(), bindAddr)
 	}
 
 	server.httpServer = &http.Server{
@@ -356,7 +357,8 @@ func (server *server) StartHTTP() error {
 		// Start listening on main server over TLS
 		httpsListener, err = tls.Listen("tcp", bindAddr, server.tlsConfig)
 		if err != nil {
-			return errors.Annotatef(err, "api=StartHTTP, reason=unable_listen, address='%s'", bindAddr)
+			return errors.Annotatef(err, "api=StartHTTP, reason=unable_listen, service=%s, address='%s'",
+				server.Name(), bindAddr)
 		}
 
 		server.httpServer.TLSConfig = server.tlsConfig
@@ -368,7 +370,7 @@ func (server *server) StartHTTP() error {
 	metricsmux := xhttp.NewRequestMetrics(readyHandler)
 	if server.httpConfig.GetAllowProfiling() {
 		if metricsmux, err = xhttp.NewRequestProfiler(metricsmux, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
-			return err
+			return errors.Trace(err)
 		}
 	}
 
@@ -385,14 +387,17 @@ func (server *server) StartHTTP() error {
 				//panic, only if address is already in use, not for other errors like
 				//Serve error while stopping the server, which is a valid error
 				if netutil.IsAddrInUse(err) {
-					logger.Panicf("api=StartHTTP, err=%v", errors.Trace(err))
+					logger.Panicf("api=StartHTTP, service=%s, err=%v",
+						server.Name(), errors.Trace(err))
 				}
-				logger.Errorf("api=StartHTTP, err=%v", errors.Trace(err))
+				logger.Warningf("api=StartHTTP, service=%s, err=%v",
+					server.Name(), errors.Trace(err))
 			}
 		}()
 	} else {
 		go func() {
-			logger.Infof("api=StartHTTP, port=%v, status=starting, mode=HTTP", bindAddr)
+			logger.Infof("api=StartHTTP, service=%s, port=%v, status=starting, mode=HTTP",
+				server.Name(), bindAddr)
 			go func() {
 				time.Sleep(100 * time.Millisecond)
 				server.serving = true
@@ -401,9 +406,11 @@ func (server *server) StartHTTP() error {
 				//panic, only if address is already in use, not for other errors like
 				//Serve error while stopping the server, which is a valid error
 				if netutil.IsAddrInUse(err) {
-					logger.Panicf("api=StartHTTP, err=%v", errors.Trace(err))
+					logger.Panicf("api=StartHTTP, service=%s, err=%v",
+						server.Name(), errors.Trace(err))
 				}
-				logger.Errorf("api=StartHTTP, err=%v", errors.Trace(err))
+				logger.Errorf("api=StartHTTP, service=%s, err=%v",
+					server.Name(), errors.Trace(err))
 			}
 		}()
 	}
@@ -479,7 +486,8 @@ func (server *server) NewMux() http.Handler {
 	for _, f := range server.services {
 		f.Register(router)
 	}
-	logger.Debugf("api=NewMux, service_count=%d", len(server.services))
+	logger.Debugf("api=NewMux, service=%s, service_count=%d",
+		server.Name(), len(server.services))
 
 	var err error
 	httpHandler := router.Handler()

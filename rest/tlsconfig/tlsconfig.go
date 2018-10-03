@@ -52,11 +52,6 @@ func NewServerTLSFromFiles(certFile, keyFile, rootsFile string, clientauthType t
 // caBundle is optional.
 // rootsFile is optional, if not specified the standard OS CA roots will be used.
 func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, error) {
-	tlscert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
 	var roots *x509.CertPool
 
 	if rootsFile != "" {
@@ -69,11 +64,21 @@ func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, er
 		roots.AppendCertsFromPEM(rootsBytes)
 	}
 
-	return &tls.Config{
-		MinVersion:   tls.VersionTLS12,
-		NextProtos:   []string{"h2", "http/1.1"},
-		Certificates: []tls.Certificate{tlscert},
-		ClientCAs:    roots,
-		RootCAs:      roots,
-	}, nil
+	cfg := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		NextProtos: []string{"h2", "http/1.1"},
+		//Certificates: []tls.Certificate{tlscert},
+		ClientCAs: roots,
+		RootCAs:   roots,
+	}
+
+	if certFile != "" {
+		tlscert, err := tls.LoadX509KeyPair(certFile, keyFile)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		cfg.Certificates = []tls.Certificate{tlscert}
+	}
+
+	return cfg, nil
 }
