@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"reflect"
 
+	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/ugorji/go/codec"
 )
 
@@ -94,10 +95,29 @@ func DecodeBytes(data []byte, result interface{}) error {
 	return codec.NewDecoderBytes(data, DecoderHandle()).Decode(result)
 }
 
-// Decode will read the json from the supplied reader, and decode it into
-// the supplied result instance.
+// Decode will read the json from the supplied reader,
+// and decode it into the supplied result instance.
 func Decode(r io.Reader, result interface{}) error {
 	// codec can make many little reads from the reader, so wrap it in a buffered reader
 	// to keep perf lively
 	return codec.NewDecoder(bufio.NewReader(r), DecoderHandle()).Decode(result)
+}
+
+// DecodeBody will read the json from the HTTP request body,
+// and decode it into the supplied result instance.
+// If error occured, then
+func DecodeBody(w http.ResponseWriter, r *http.Request, result interface{}) error {
+	err := Decode(r.Body, result)
+	if err != nil {
+		WriteJSON(
+			w, r,
+			httperror.New(
+				http.StatusBadRequest,
+				httperror.InvalidJSON,
+				"failed to decode '%T': %v",
+				result, err.Error(),
+			).WithCause(err))
+		return err
+	}
+	return nil
 }

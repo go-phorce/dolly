@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ugorji/go/codec"
 )
 
 func Test_ShouldPrettyPrint(t *testing.T) {
@@ -60,8 +60,23 @@ func Test_DecodeJSONRawMessageMakesCopy(t *testing.T) {
 func Test_Decode(t *testing.T) {
 	j := []byte(`{"A":"a","B":"b","C":"c"}`)
 	var r AStruct
-	err := codec.NewDecoderBytes(j, DecoderHandle()).Decode(&r)
+	err := Decode(bytes.NewReader(j), &r)
 	assert.Error(t, err)
+	assert.Equal(t, "json decode error [pos 21]: no matching struct field found when decoding stream map with key C", err.Error())
+}
+
+func Test_DecodeBody(t *testing.T) {
+	j := []byte(`{"A":"a","B":"b","C":"c"}`)
+	w := httptest.NewRecorder()
+
+	r, err := http.NewRequest(http.MethodPost, "/v1/test", bytes.NewReader(j))
+	require.NoError(t, err)
+
+	var res AStruct
+	err = DecodeBody(w, r, &res)
+	require.Error(t, err)
+	assert.Equal(t, "json decode error [pos 21]: no matching struct field found when decoding stream map with key C", err.Error())
+	assert.Equal(t, `{"code":"invalid_json","message":"failed to decode '*marshal.AStruct': json decode error [pos 21]: no matching struct field found when decoding stream map with key C"}`, string(w.Body.Bytes()))
 }
 
 func Test_Uint64(t *testing.T) {
