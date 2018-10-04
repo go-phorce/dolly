@@ -376,44 +376,28 @@ func (server *server) StartHTTP() error {
 
 	server.httpServer.Handler = metricsmux
 
-	if httpsListener != nil {
-		go func() {
-			logger.Infof("api=StartHTTP, port=%v, status=starting, mode=TLS", bindAddr)
-			go func() {
-				time.Sleep(100 * time.Millisecond)
-				server.serving = true
-			}()
-			if err := server.httpServer.Serve(httpsListener); err != nil {
-				//panic, only if address is already in use, not for other errors like
-				//Serve error while stopping the server, which is a valid error
-				if netutil.IsAddrInUse(err) {
-					logger.Panicf("api=StartHTTP, service=%s, err=%v",
-						server.Name(), errors.Trace(err))
-				}
-				logger.Warningf("api=StartHTTP, service=%s, err=%v",
-					server.Name(), errors.Trace(err))
-			}
-		}()
-	} else {
-		go func() {
-			logger.Infof("api=StartHTTP, service=%s, port=%v, status=starting, mode=HTTP",
-				server.Name(), bindAddr)
-			go func() {
-				time.Sleep(100 * time.Millisecond)
-				server.serving = true
-			}()
-			if err := server.httpServer.ListenAndServe(); err != nil {
-				//panic, only if address is already in use, not for other errors like
-				//Serve error while stopping the server, which is a valid error
-				if netutil.IsAddrInUse(err) {
-					logger.Panicf("api=StartHTTP, service=%s, err=%v",
-						server.Name(), errors.Trace(err))
-				}
-				logger.Errorf("api=StartHTTP, service=%s, err=%v",
-					server.Name(), errors.Trace(err))
-			}
-		}()
+	serve := func() error {
+		server.serving = true
+		if httpsListener != nil {
+			return server.httpServer.Serve(httpsListener)
+		}
+		return server.httpServer.ListenAndServe()
 	}
+
+	go func() {
+		logger.Infof("api=StartHTTP, service=%s, port=%v, status=starting, protocol=%s",
+			server.Name(), bindAddr, server.Protocol())
+
+		if err := serve(); err != nil {
+			server.serving = false
+			//panic, only if not Serve error while stopping the server,
+			// which is a valid error
+			if err != http.ErrServerClosed {
+				logger.Panicf("api=StartHTTP, service=%s, err=[%v]", server.Name(), errors.Trace(err))
+			}
+			logger.Warningf("api=StartHTTP, service=%s, status=stopped, reason=[%s]", server.Name(), err.Error())
+		}
+	}()
 
 	if server.httpConfig.GetHeartbeatSecs() > 0 {
 		task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).Do("server", uptimeTask, server)
