@@ -133,24 +133,29 @@ type ColorFormatter struct {
 
 // color pallete map
 var (
-	ColorOff    = []byte("\033[0m")
-	colorRed    = []byte("\033[0;31m") // ERROR
-	colorGreen  = []byte("\033[0;32m") // NOTICE
-	colorOrange = []byte("\033[0;33m") // WARN
-	colorBlue   = []byte("\033[0;34m") // INFO
-	colorPurple = []byte("\033[0;35m") // DEBUG
-	colorCyan   = []byte("\033[0;36m")
-	colorGray   = []byte("\033[0;37m") // TRACE
+	ColorOff         = []byte("\033[0m")
+	colorRed         = []byte("\033[0;31m")
+	colorGreen       = []byte("\033[0;32m")
+	colorOrange      = []byte("\033[0;33m")
+	colorBlue        = []byte("\033[0;34m")
+	colorPurple      = []byte("\033[0;35m")
+	colorCyan        = []byte("\033[0;36m")
+	colorGray        = []byte("\033[0;37m") // TRACE
+	colorLightRed    = []byte("\033[0;91m") // ERROR
+	colorLightGreen  = []byte("\033[0;92m") // NOTICE
+	colorLightOrange = []byte("\033[0;93m") // WARN
+	colorLightBlue   = []byte("\033[0;94m") // DEBUG
+	colorLightCyan   = []byte("\033[0;96m") // INFO
 )
 
 // LevelColors provides colors map
 var LevelColors = map[LogLevel][]byte{
-	CRITICAL: colorRed,
-	ERROR:    colorRed,
-	WARNING:  colorOrange,
-	NOTICE:   colorGreen,
-	INFO:     colorBlue,
-	DEBUG:    colorPurple,
+	CRITICAL: colorLightRed,
+	ERROR:    colorLightRed,
+	WARNING:  colorLightOrange,
+	NOTICE:   colorLightGreen,
+	INFO:     colorLightCyan,
+	DEBUG:    colorGray,
 	TRACE:    colorGray,
 }
 
