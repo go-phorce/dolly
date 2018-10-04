@@ -392,7 +392,7 @@ func (server *server) StartHTTP() error {
 			server.serving = false
 			//panic, only if not Serve error while stopping the server,
 			// which is a valid error
-			if err != http.ErrServerClosed {
+			if netutil.IsAddrInUse(err) || err != http.ErrServerClosed {
 				logger.Panicf("api=StartHTTP, service=%s, err=[%v]", server.Name(), errors.Trace(err))
 			}
 			logger.Warningf("api=StartHTTP, service=%s, status=stopped, reason=[%s]", server.Name(), err.Error())
