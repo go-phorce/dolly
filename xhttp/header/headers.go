@@ -3,21 +3,22 @@ package header
 const (
 	// Accept is HTTP header for "Accept"
 	Accept = "Accept"
-	// ContentType is HTTP header for "Content-Type"
-	ContentType = "Content-Type"
-	// ContentLength is HTTP header for "Content-Length"
-	ContentLength = "Content-Length"
-	// ContentDisposition is HTTP header for "Content-Disposition"
-	ContentDisposition = "Content-Disposition"
-
 	// ApplicationJSON is HTTP header value for "application/json"
 	ApplicationJSON = "application/json"
-
+	// ApplicationJoseJSON is HTTP header value for "application/jose+json"
+	ApplicationJoseJSON = "application/jose+json"
 	// ApplicationTimestampQuery is HTTP header value for RFC3161 Timestamp request
 	ApplicationTimestampQuery = "application/timestamp-query"
 	// ApplicationTimestampReply is HTTP header value for RFC3161 Timestamp response
 	ApplicationTimestampReply = "application/timestamp-reply"
-
+	// ContentDisposition is HTTP header for "Content-Disposition"
+	ContentDisposition = "Content-Disposition"
+	// ContentLength is HTTP header for "Content-Length"
+	ContentLength = "Content-Length"
+	// ContentType is HTTP header for "Content-Type"
+	ContentType = "Content-Type"
+	// ReplayNonce is HTTP header for "Replay-Nonce"
+	ReplayNonce = "Replay-Nonce"
 	// TextPlain is HTTP header value for "application/json"
 	TextPlain = "text/plain"
 

@@ -43,9 +43,29 @@ func WithInvalidJSON(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusBadRequest, InvalidJSON, msgFormat, vals...)
 }
 
+// WithBadNonce for builds a new Error instance with BadNonce code
+func WithBadNonce(msgFormat string, vals ...interface{}) *Error {
+	return New(http.StatusBadRequest, BadNonce, msgFormat, vals...)
+}
+
 // WithInvalidRequest for builds a new Error instance with InvalidRequest code
 func WithInvalidRequest(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusBadRequest, InvalidRequest, msgFormat, vals...)
+}
+
+// WithMalformed for builds a new Error instance with Malformed code
+func WithMalformed(msgFormat string, vals ...interface{}) *Error {
+	return New(http.StatusBadRequest, Malformed, msgFormat, vals...)
+}
+
+// WithInvalidContentType for builds a new Error instance with InvalidContentType code
+func WithInvalidContentType(msgFormat string, vals ...interface{}) *Error {
+	return New(http.StatusBadRequest, InvalidContentType, msgFormat, vals...)
+}
+
+// WithContentLengthRequired for builds a new Error instance with ContentLengthRequired code
+func WithContentLengthRequired() *Error {
+	return New(http.StatusBadRequest, ContentLengthRequired, "Content-Length header not provided")
 }
 
 // WithNotFound for builds a new Error instance with NotFound code
@@ -76,6 +96,11 @@ func WithUnexpected(msgFormat string, vals ...interface{}) *Error {
 // WithForbidden for builds a new Error instance with Forbidden code
 func WithForbidden(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusForbidden, Forbidden, msgFormat, vals...)
+}
+
+// WithAccountNotFound for builds a new Error instance with AccountNotFound code
+func WithAccountNotFound(msgFormat string, vals ...interface{}) *Error {
+	return New(http.StatusForbidden, AccountNotFound, msgFormat, vals...)
 }
 
 // WithNotReady for builds a new Error instance with NotReady code
