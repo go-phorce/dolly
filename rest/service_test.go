@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strconv"
 	"testing"
@@ -140,7 +141,7 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 	defer tlsloader.Close()
 
 	cfg := &serverConfig{
-		BindAddr: ":8443",
+		BindAddr: getAvailableBinding(),
 	}
 
 	ioc := container.New()
@@ -237,7 +238,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 	defer tlsloader.Close()
 
 	cfg := &serverConfig{
-		BindAddr: ":8443",
+		BindAddr: getAvailableBinding(),
 	}
 
 	ioc := container.New()
@@ -316,4 +317,14 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
 	})
+}
+
+// returns free open TCP port
+func getAvailableBinding() string {
+	ln, err := net.Listen("tcp", "[::]:0")
+	if err != nil {
+		panic("unable to get port: " + err.Error())
+	}
+	defer ln.Close()
+	return ":" + strconv.Itoa(ln.Addr().(*net.TCPAddr).Port)
 }

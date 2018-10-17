@@ -11,6 +11,8 @@ const (
 	ApplicationTimestampQuery = "application/timestamp-query"
 	// ApplicationTimestampReply is HTTP header value for RFC3161 Timestamp response
 	ApplicationTimestampReply = "application/timestamp-reply"
+	// CacheControl is HTTP header for "Cache-Control"
+	CacheControl = "Cache-Control"
 	// ContentDisposition is HTTP header for "Content-Disposition"
 	ContentDisposition = "Content-Disposition"
 	// ContentLength is HTTP header for "Content-Length"
