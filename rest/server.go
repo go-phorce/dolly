@@ -61,6 +61,8 @@ type ClusterInfo interface {
 
 	// ClusterMembers returns the list of members in the cluster
 	ClusterMembers() ([]*ClusterMember, error)
+
+	NodeHostName(nodeID string) (string, error)
 }
 
 // Server is an interface to provide server status
@@ -298,12 +300,19 @@ func (server *server) LeaderID() string {
 	return server.cluster.LeaderID()
 }
 
-// IsLeader returns whether the server is the leader or not
 func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 	if server.cluster == nil {
 		return nil, errors.NotSupportedf("cluster")
 	}
 	return server.cluster.ClusterMembers()
+}
+
+// NodeHostName returns the host name of specific node
+func (server *server) NodeHostName(nodeID string) (string, error) {
+	if server.cluster == nil {
+		return "", errors.NotSupportedf("cluster")
+	}
+	return server.cluster.NodeHostName(nodeID)
 }
 
 // IsReady returns true when the server is ready to serve
