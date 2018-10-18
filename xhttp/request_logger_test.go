@@ -104,7 +104,7 @@ func TestHttp_RequestLogger(t *testing.T) {
 	logParts := strings.Split(logLine, ":")
 	const something = "<SOMETHING>"
 	// API, HTTP Method, ClientUser, Path, IP Address, Port, HTTP status code, HTTP version, response length, duration, agent
-	exp := []string{"xhttp", " " + testLogPrefix, "GET", "", "/foo", testRemoteIP, testRemotePort, strconv.Itoa(http.StatusBadRequest), "1.1", strconv.Itoa(len(testResponseBody)), something, "no-agent\n"}
+	exp := []string{"xhttp", " " + testLogPrefix, "", "GET", "/foo", testRemoteIP, testRemotePort, strconv.Itoa(http.StatusBadRequest), "1.1", strconv.Itoa(len(testResponseBody)), something, "\"no-agent\"\n"}
 	if len(logParts) != len(exp) {
 		t.Errorf("Expecting %d log line items, but got %d (%q)", len(exp), len(logParts), logParts)
 	}
