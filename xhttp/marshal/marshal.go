@@ -12,6 +12,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
+	"github.com/ugorji/go/codec"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "xhttp")
@@ -82,5 +83,13 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 			logger.Warningf("api=WriteJSON, reason=encode, type=%T, err=[%v]", body, err.Error())
 		}
 		bw.Flush()
+	}
+}
+
+// WritePlainJSON will serialize the supplied body parameter as a http response.
+func WritePlainJSON(w http.ResponseWriter, body interface{}, printSetting PrettyPrintSetting) {
+	w.Header().Set(header.ContentType, header.ApplicationJSON)
+	if err := codec.NewEncoder(w, encoderHandle(printSetting)).Encode(body); err != nil {
+		logger.Warningf("api=WritePlainJSON, reason=encode, type=%T, err=[%v]", body, err.Error())
 	}
 }
