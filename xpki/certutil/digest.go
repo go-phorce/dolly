@@ -3,6 +3,8 @@ package certutil
 import (
 	"crypto"
 	"encoding/hex"
+
+	"github.com/juju/errors"
 )
 
 // SHA1Hex returns hex-encoded SHA1
@@ -20,7 +22,7 @@ func HashToHex(hash crypto.Hash, data []byte) (string, error) {
 	h := hash.New()
 	_, err := h.Write(data)
 	if err != nil {
-		return "", err
+		return "", errors.Trace(err)
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
