@@ -87,8 +87,9 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 }
 
 // WritePlainJSON will serialize the supplied body parameter as a http response.
-func WritePlainJSON(w http.ResponseWriter, body interface{}, printSetting PrettyPrintSetting) {
+func WritePlainJSON(w http.ResponseWriter, statusCode int, body interface{}, printSetting PrettyPrintSetting) {
 	w.Header().Set(header.ContentType, header.ApplicationJSON)
+	w.WriteHeader(statusCode)
 	if err := codec.NewEncoder(w, encoderHandle(printSetting)).Encode(body); err != nil {
 		logger.Warningf("api=WritePlainJSON, reason=encode, type=%T, err=[%v]", body, err.Error())
 	}

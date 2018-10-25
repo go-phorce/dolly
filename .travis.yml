@@ -43,7 +43,4 @@ before_script:
 # failing test, we want to see both. Configure golangci-lint with a
 # .golangci.yml file at the top level of your repo.
 script:
-  - make vars build covtest # Run all the tests with coverage report
-
-after_success:
-  - make coveralls
+  - make vars build covtest coveralls # Run all the tests with coverage report
