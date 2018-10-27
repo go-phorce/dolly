@@ -14,13 +14,6 @@ import (
 )
 
 func Test_KeypairReloader(t *testing.T) {
-	// try 3 times to ensure notifications
-	for i := 0; i < 3; i++ {
-		keypairReloader(t)
-	}
-}
-
-func keypairReloader(t *testing.T) {
 	now := time.Now().UTC()
 	pemCert, pemKey, err := testify.MakeSelfCertRSAPem(1)
 	require.NoError(t, err)
@@ -37,12 +30,10 @@ func keypairReloader(t *testing.T) {
 
 	time.Sleep(100)
 
-	k, err := tlsconfig.NewKeypairReloader(pemFile, keyFile, 1*time.Second)
+	k, err := tlsconfig.NewKeypairReloader(pemFile, keyFile, 100*time.Millisecond)
 	require.NoError(t, err)
 	require.NotNil(t, k)
 	defer k.Close()
-
-	// time.Sleep(time.Second * 1)
 
 	loadedAt := k.LoadedAt()
 	assert.True(t, loadedAt.After(now), "loaded time must be after test start time")
@@ -55,7 +46,7 @@ func keypairReloader(t *testing.T) {
 	err = ioutil.WriteFile(pemFile, pemCert, os.ModePerm)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 1)
+	time.Sleep(200 * time.Millisecond)
 
 	loadedAt2 := k.LoadedAt()
 	count := int(k.LoadedCount())
@@ -71,7 +62,7 @@ func keypairReloader(t *testing.T) {
 	err = ioutil.WriteFile(keyFile, pemKey, os.ModePerm)
 	require.NoError(t, err)
 
-	time.Sleep(time.Second * 1)
+	time.Sleep(200 * time.Millisecond)
 
 	loadedAt3 := k.LoadedAt()
 	count = int(k.LoadedCount())

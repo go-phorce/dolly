@@ -2,83 +2,84 @@ package tlsconfig
 
 import (
 	"crypto/tls"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
-	"github.com/go-phorce/dolly/algorithms/throttle"
 	"github.com/juju/errors"
 )
 
-// KeypairReloader keeps necessary info to provide reloaded certificate
-type KeypairReloader struct {
-	watcher    *fsnotify.Watcher
-	lock       sync.RWMutex
-	loadedAt   time.Time
-	count      uint32
-	keypair    *tls.Certificate
-	certPath   string
-	keyPath    string
-	throttle   throttle.Driver
-	inProgress bool
+// Wrap time.Tick so we can override it in tests.
+var makeTicker = func(interval time.Duration) (func(), <-chan time.Time) {
+	t := time.NewTicker(interval)
+	return t.Stop, t.C
 }
 
-const evtToWatch = fsnotify.Write
+// KeypairReloader keeps necessary info to provide reloaded certificate
+type KeypairReloader struct {
+	lock           sync.RWMutex
+	loadedAt       time.Time
+	count          uint32
+	keypair        *tls.Certificate
+	certPath       string
+	certModifiedAt time.Time
+	keyPath        string
+	keyModifiedAt  time.Time
+	inProgress     bool
+	stopChan       chan<- struct{}
+}
 
 // NewKeypairReloader return an instance of the TLS cert loader
-func NewKeypairReloader(certPath, keyPath string, throttlePeriod time.Duration) (*KeypairReloader, error) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
+func NewKeypairReloader(certPath, keyPath string, checkInterval time.Duration) (*KeypairReloader, error) {
 	result := &KeypairReloader{
-		watcher:  watcher,
 		certPath: certPath,
 		keyPath:  keyPath,
+		stopChan: make(chan struct{}),
 	}
 
 	logger.Infof("api=NewKeypairReloader, status=started")
 
-	err = result.Reload()
+	err := result.Reload()
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
 
-	result.throttle = throttle.Func(throttlePeriod, true, func() {
-		if err := result.Reload(); err != nil {
-			logger.Errorf("api=NewKeypairReloader, reason=reload, cert='%s', key='%s', err=[%v]", certPath, keyPath, errors.ErrorStack(err))
-		}
-	})
-
+	stopChan := make(chan struct{})
+	tickerStop, tickChan := makeTicker(checkInterval)
 	go func() {
-		closed := false
-		for !closed {
+		for {
 			select {
-			case event, ok := <-watcher.Events:
-				if !ok {
-					closed = true
+			case <-stopChan:
+				tickerStop()
+				logger.Infof("api=NewKeypairReloader, status=closed, count=%d", result.LoadedCount())
+				return
+			case <-tickChan:
+				modified := false
+				fi, err := os.Stat(certPath)
+				if err == nil {
+					modified = fi.ModTime().After(result.certModifiedAt)
+				} else {
+					logger.Warning("api=NewKeypairReloader, reason=stat, file=%q, err=[%v]", certPath, err)
 				}
-				if event.Op&evtToWatch != 0 {
-					logger.Noticef("api=NewKeypairReloader, reason=event, event=[%v]", event)
-					result.throttle.Trigger()
+				if !modified {
+					fi, err = os.Stat(keyPath)
+					if err == nil {
+						modified = fi.ModTime().After(result.keyModifiedAt)
+					} else {
+						logger.Warning("api=NewKeypairReloader, reason=stat, file=%q, err=[%v]", keyPath, err)
+					}
 				}
-			case err, ok := <-watcher.Errors:
-				if !ok {
-					closed = true
-				}
-				if err != nil {
-					logger.Errorf("api=NewKeypairReloader, reason=watcher,  cert='%s', key='%s', err=[%v]", certPath, keyPath, errors.ErrorStack(err))
+				if modified {
+					err := result.Reload()
+					if err != nil {
+						logger.Errorf("api=NewKeypairReloader, err=[%v]", errors.ErrorStack(err))
+					}
 				}
 			}
 		}
-		logger.Infof("api=NewKeypairReloader, status=closed, count=%d", result.LoadedCount())
 	}()
-
-	watcher.Add(certPath)
-	watcher.Add(keyPath)
-
+	result.stopChan = stopChan
 	return result, nil
 }
 
@@ -110,13 +111,27 @@ func (k *KeypairReloader) Reload() error {
 		if err == nil {
 			break
 		}
-		logger.Errorf("api=NewKeypairReloader, reason=LoadX509KeyPair, err=[%v]", err)
+		logger.Warning("api=Reload, reason=LoadX509KeyPair, err=[%v]", err)
 	}
 	if err != nil {
 		return errors.Annotatef(err, "count: %d", k.count)
 	}
 
 	k.keypair = &newCert
+
+	certFileInfo, err := os.Stat(k.certPath)
+	if err == nil {
+		k.certModifiedAt = certFileInfo.ModTime()
+	} else {
+		logger.Warning("api=Reload, reason=stat, file=%q, err=[%v]", k.certPath, err)
+	}
+
+	keyFileInfo, err := os.Stat(k.keyPath)
+	if err == nil {
+		k.keyModifiedAt = keyFileInfo.ModTime()
+	} else {
+		logger.Warning("api=Reload, reason=stat, file=%q, err=[%v]", k.keyPath, err)
+	}
 
 	logger.Infof("api=NewKeypairReloader, count=%d, cert='%s', key='%s'", k.count, k.certPath, k.keyPath)
 	return nil
@@ -173,12 +188,5 @@ func (k *KeypairReloader) Close() {
 	k.lock.RLock()
 	defer k.lock.RUnlock()
 
-	if k.throttle != nil {
-		k.throttle.Stop()
-	}
-
-	if k.watcher != nil {
-		k.watcher.Close()
-		k.watcher = nil
-	}
+	k.stopChan <- struct{}{}
 }
