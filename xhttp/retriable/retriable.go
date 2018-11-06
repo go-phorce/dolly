@@ -24,6 +24,8 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xhttp", "retriabl
 const (
 	// Success returned when request succeeded
 	Success = "success"
+	// NotFound returned when request returned 404
+	NotFound = "not-found"
 	// LimitExceeded returned when retry limit exceeded
 	LimitExceeded = "limit-exceeded"
 	// Cancelled returned when request was cancelled or timed out
@@ -491,6 +493,7 @@ func shouldRetryFactory(limit int, wait time.Duration, reason string) ShouldRetr
 }
 
 var nonRetriableErrors = []string{
+	"no such host",
 	"TLS handshake error",
 	"certificate signed by unknown authority",
 	"client didn't provide a certificate",
@@ -537,6 +540,14 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 	// Success codes 200-399
 	if resp.StatusCode < 400 {
 		return false, 0, Success
+	}
+
+	if resp.StatusCode == 404 {
+		return false, 0, NotFound
+	}
+
+	if resp.StatusCode == 400 || resp.StatusCode == 401 {
+		return false, 0, NonRetriableError
 	}
 
 	if retries >= p.TotalRetryLimit {

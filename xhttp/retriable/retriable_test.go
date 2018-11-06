@@ -56,7 +56,7 @@ func TestDefaultPolicy(t *testing.T) {
 		{false, "success", 0, 200, nil},
 		{false, retriable.NonRetriableError, 0, 400, nil},
 		{false, retriable.NonRetriableError, 0, 401, nil},
-		{false, retriable.NonRetriableError, 0, 404, nil},
+		{false, retriable.NotFound, 0, 404, nil},
 		{false, retriable.NonRetriableError, 0, 500, nil},
 		// connection
 		{true, "connection", 0, 0, errors.New("some error")},
