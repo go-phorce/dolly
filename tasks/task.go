@@ -226,7 +226,7 @@ func (j *task) at(hour, min int) *task {
 	if j.unit == Days {
 		if !time.Now().After(mock) {
 			// remove 1 day
-			mock = mock.AddDate(0, 0, -1)
+			mock = mock.UTC().AddDate(0, 0, -1).Local()
 		}
 	} else if j.unit == Weeks {
 		if j.startDay != time.Now().Weekday() || (time.Now().After(mock) && j.startDay == time.Now().Weekday()) {
@@ -234,10 +234,10 @@ func (j *task) at(hour, min int) *task {
 			if i < 0 {
 				i = 7 + i
 			}
-			mock = mock.AddDate(0, 0, -i)
+			mock = mock.UTC().AddDate(0, 0, -i).Local()
 		} else {
 			// remove 1 week
-			mock = mock.AddDate(0, 0, -7)
+			mock = mock.UTC().AddDate(0, 0, -7).Local()
 		}
 	}
 	j.lastRunAt = &mock
