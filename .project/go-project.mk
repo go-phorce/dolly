@@ -79,11 +79,10 @@ export VENDOR_SRC=$(PROJ_ROOT)/vendor
 # then GOPATH and GOPROJ_DIR are expected to be set, and symbolic link to the project must be created;
 # otherwise create necessary environment
 ifndef PROJ_GOPATH
-export PROJ_GOPATH_DIR=.gopath
-export PROJ_GOPATH := ${PROJ_DIR}/${PROJ_GOPATH_DIR}
-export GOPATH := ${PROJ_GOPATH}
-export GOPROJ_DIR := $(shell go env GOPROJ_DIR)
-export PATH := ${PATH}:${GOPATH}/bin:${GOPROJ_DIR}/bin
+export PROJ_GOPATH_DIR := /tmp/gopath/$(PROJ_NAME)
+export PROJ_GOPATH := /tmp/gopath/$(PROJ_NAME)
+export GOPATH := /tmp/gopath/$(PROJ_NAME)
+export PATH := ${PATH}:${GOPATH}/bin
 endif
 
 # tools path
@@ -131,6 +130,12 @@ define show_dep_updates
 	find $(1) -name .git -exec sh -c 'cd {}/.. && [ $$(git log --oneline HEAD...origin/master | wc -l) -gt 0 ] && echo "\n" && pwd && git --no-pager log --pretty=oneline --abbrev=0 --graph HEAD...origin/master' \;
 endef
 
+# add url.insteadOf to fix GHE
+define ssh_insteadOf
+	@echo "git config --global url.ssh://git@$(1).git.insteadOf $(2)"
+	@git config --global url.ssh://git@$(1).git.insteadOf $(2)
+endef
+
 # httpsclone is a function that will do a clone, or a fetch / checkout [if we'd previous done a clone]
 # usage, $(call httpsclone,github.com,ekspand/foo,/some/directory,some_sha)
 # it builds a repo url from the first 2 params, the 3rd param is the directory to place the repo
@@ -152,6 +157,12 @@ define gitclone
 	@if [ -d $(3) ]; then cd $(3) && git fetch origin; fi			# update from remote if we've already cloned it
 	@if [ ! -d $(3) ]; then git clone -q -n git@$(1):$(2).git $(3); fi  # clone a new copy
 	@cd $(3) && git checkout -q $(4)								# checkout out specific commit
+	@sleep ${CLONE_DELAY}
+endef
+
+define gitclonenewonly
+	@echo "Checking dependency git@$(1):$(2).git"
+	@if [ ! -d $(3) ]; then git clone -q -n git@$(1):$(2).git $(3) && cd $(3) && git checkout -q $(4); fi  # clone a new copy
 	@sleep ${CLONE_DELAY}
 endef
 
@@ -257,9 +268,9 @@ gopath:
 	@[ ! -d $(PROJ_REPO_TARGET) ] && \
 		rm -f "${PROJ_REPO_TARGET}" && \
 		mkdir -p "${PROJ_GOPATH_DIR}/src/${ORG_NAME}" && \
-		ln -s ${REL_PATH_TO_GOPATH} "${PROJ_REPO_TARGET}" && \
-		echo "Created symbolic link: ${PROJ_REPO_TARGET} => ${REL_PATH_TO_GOPATH}" || \
-	echo "Repo target exists: ${PROJ_REPO_TARGET} => ${REL_PATH_TO_GOPATH}"
+		ln -s ${PROJ_DIR} "${PROJ_REPO_TARGET}" && \
+		echo "Created symbolic link: ${PROJ_REPO_TARGET} => ${PROJ_DIR}" || \
+	echo "Repo target exists: ${PROJ_REPO_TARGET} => ${PROJ_DIR}"
 
 #
 # show updates in Tools and vendor folder.
