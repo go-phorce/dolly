@@ -418,7 +418,7 @@ devtools: getdevtools
 	GOPATH=${TOOLS_PATH} go install github.com/jteeuwen/go-bindata/...
 
 upgrade-project.mk:
-	wget -O vscode.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/vscode.sh
 	wget -O .project/go-project.mk https://raw.githubusercontent.com/go-phorce/go-makefile/master/.project/go-project.mk
 	wget -O .project/rel_gopath.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/.project/rel_gopath.sh
 	wget -O .project/config-softhsm.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/.project/config-softhsm.sh
+	wget -O vscode.sh https://raw.githubusercontent.com/go-phorce/go-makefile/master/vscode.sh && chmod +x vscode.sh
