@@ -9,6 +9,19 @@ import (
 	"github.com/go-phorce/dolly/metrics/tags"
 )
 
+// PublishShortLivedCertExpirationInDays publish cert expiration time in Days for short lived certificates
+func PublishShortLivedCertExpirationInDays(c *x509.Certificate, typ string) ([]string, float32) {
+	metricKey := []string{"cert", "expiry", "days",
+		tags.Separator,
+		"CN", c.Subject.CommonName,
+		"type", typ,
+	}
+	expiresIn := c.NotAfter.Sub(time.Now().UTC())
+	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
+	SetGauge(metricKey, expiresInDays)
+	return metricKey, expiresInDays
+}
+
 // PublishCertExpirationInDays publish cert expiration time in Days
 func PublishCertExpirationInDays(c *x509.Certificate, typ string) float32 {
 	metricKey := []string{"cert", "expiry", "days",
