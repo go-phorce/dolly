@@ -104,6 +104,18 @@ func WithTLS(tlsConfig *tls.Config) ClientOption {
 	})
 }
 
+// WithTransport is a ClientOption that specifies HTTP Transport configuration.
+//
+//   retriable.New(retriable.WithTransport(t))
+//
+// This option cannot be provided for constructors which produce result
+// objects.
+func WithTransport(transport http.RoundTripper) ClientOption {
+	return optionFunc(func(c *Client) {
+		c.WithTransport(transport)
+	})
+}
+
 // Client is custom implementation of http.Client
 type Client struct {
 	lock       sync.RWMutex
@@ -175,8 +187,7 @@ func (c *Client) WithPolicy(policy *Policy) *Client {
 
 // WithTLS modifies TLS configuration.
 func (c *Client) WithTLS(tlsConfig *tls.Config) *Client {
-	c.lock.RLock()
-	defer c.lock.RUnlock()
+	var transport http.RoundTripper
 	if tlsConfig != nil {
 		tr := &http.Transport{
 			TLSClientConfig:     tlsConfig,
@@ -188,11 +199,17 @@ func (c *Client) WithTLS(tlsConfig *tls.Config) *Client {
 		if err != nil {
 			logger.Errorf("api=WithTLS, err=[%s]", errors.ErrorStack(err))
 		} else {
-			c.httpClient.Transport = tr
+			transport = tr
 		}
-	} else {
-		c.httpClient.Transport = nil
 	}
+	return c.WithTransport(transport)
+}
+
+// WithTransport modifies HTTP Transport configuration.
+func (c *Client) WithTransport(transport http.RoundTripper) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	c.httpClient.Transport = transport
 	return c
 }
 
