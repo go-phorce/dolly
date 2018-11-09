@@ -69,14 +69,6 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
-  name = "github.com/fsnotify/fsnotify"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
-  version = "v1.4.7"
-
-[[projects]]
   digest = "1:fabe4bb8fadac9fd769267f14316ed84a86cd49e722c5e65f4881ae0082bf76f"
   name = "github.com/google/certificate-transparency-go"
   packages = [
@@ -197,14 +189,6 @@
   revision = "2f5d2388922f370f4355f327fcf4cfe9f5583908"
 
 [[projects]]
-  branch = "master"
-  digest = "1:6c54cefa33de85c47075aae30f1d1a333967c405272010bb76aa943467e4cbae"
-  name = "golang.org/x/sys"
-  packages = ["unix"]
-  pruneopts = "UT"
-  revision = "d47a0f3392421c5624713c9a19fe781f651f8a50"
-
-[[projects]]
   digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"
   name = "golang.org/x/text"
   packages = [
@@ -250,7 +234,6 @@
     "github.com/armon/go-metrics",
     "github.com/cloudflare/cfssl/bundler",
     "github.com/coreos/pkg/capnslog",
-    "github.com/fsnotify/fsnotify",
     "github.com/juju/errors",
     "github.com/julienschmidt/httprouter",
     "github.com/miekg/pkcs11",

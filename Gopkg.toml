@@ -31,10 +31,6 @@ required = ["github.com/coreos/pkg/capnslog", "go.uber.org/dig/internal/digrefle
   name = "github.com/armon/go-metrics"
 
 [[constraint]]
-  name = "github.com/fsnotify/fsnotify"
-  version = "1.4.7"
-
-[[constraint]]
   branch = "master"
   name = "github.com/juju/errors"
 
