@@ -2,6 +2,7 @@ package netutil
 
 import (
 	"net"
+	"time"
 
 	"github.com/juju/errors"
 )
@@ -63,4 +64,20 @@ func GetLocalIP() (string, error) {
 		}
 	}
 	return "", errors.New("unable to resolve local IP address")
+}
+
+// WaitForNetwork will wait until the local IP is available or timeout ocurred
+func WaitForNetwork(d time.Duration) (ipaddr string, err error) {
+	ipaddr, err = GetLocalIP()
+	if err != nil {
+		cutoff := time.Now().Add(d)
+		for cutoff.After(time.Now()) {
+			ipaddr, err = GetLocalIP()
+			if err == nil {
+				break
+			}
+			time.Sleep(time.Second)
+		}
+	}
+	return
 }

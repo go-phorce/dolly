@@ -2,6 +2,7 @@ package netutil_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/go-phorce/dolly/netutil"
 	"github.com/stretchr/testify/assert"
@@ -39,4 +40,14 @@ func TestIsPrivateAddr(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, isLocal, isPrivate, addr)
 	}
+}
+
+func Test_WaitForNetwork(t *testing.T) {
+	ip, err := netutil.WaitForNetwork(0)
+	require.NoError(t, err)
+	assert.NotEmpty(t, ip)
+
+	ip, err = netutil.WaitForNetwork(time.Second)
+	require.NoError(t, err)
+	assert.NotEmpty(t, ip)
 }
