@@ -3,6 +3,7 @@
 package ctl
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -47,7 +48,7 @@ type Control interface {
 	Printf(format string, args ...interface{})
 	PrintJSON(value interface{})
 	Fail(msg string, err error) error
-
+	AskForConfirmation(r io.Reader, s string) (bool, error)
 	Parse(args []string) string
 	ReturnCode() ReturnCode
 
@@ -198,6 +199,36 @@ func (ctl *Ctl) Reset(w io.Writer) {
 
 	ctl.params.Output = w
 	ctl.rc = RCOkay
+}
+
+// AskForConfirmation asks the user for confirmation. A user must type in "yes" or "no" and
+// then press enter. It has fuzzy matching, so "y", "Y", "yes", "YES", and "Yes" all count as
+// confirmations. If the input is not recognized, it will ask again. The function does not return
+// until it gets a valid response from the user or if an error occurs.
+func (ctl *Ctl) AskForConfirmation(r io.Reader, s string) (bool, error) {
+	if r == nil {
+		r = os.Stdin
+	}
+
+	reader := bufio.NewReader(r)
+
+	for i := 0; i < 3; i++ {
+		ctl.Printf("%s [y/n]: ", s)
+
+		response, err := reader.ReadString('\n')
+		if err != nil {
+			return false, errors.Errorf("ReadString failed: [%v]", err)
+		}
+
+		response = strings.ToLower(strings.TrimSpace(response))
+
+		if response == "y" || response == "yes" {
+			return true, nil
+		} else if response == "n" || response == "no" {
+			break
+		}
+	}
+	return false, nil
 }
 
 // ControlDefinition contains the default settings for control application

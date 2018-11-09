@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/go-phorce/dolly/ctl"
@@ -180,6 +181,40 @@ func Test_Action(t *testing.T) {
 	assert.Empty(t, cmd)
 	assert.False(t, cli.Verbose())
 	assert.Equal(t, "ERROR: FailedAction\n", out)
+}
+
+func Test_AskForConfirmation(t *testing.T) {
+	app := ctl.NewApplication("test", "A test command-line tool").Terminate(nil)
+	cli := ctl.NewControl(&ctl.ControlDefinition{
+		App:        app,
+		Output:     os.Stderr,
+		WithServer: true,
+	})
+
+	tcases := []struct {
+		prompt   string
+		response string
+		res      bool
+		err      string
+	}{
+		{"Answer_y", "y\n", true, ""},
+		{"Answer_yes", "yes\n", true, ""},
+		{"Answer_no", "no\n", false, ""},
+		{"Answer_n", "n\n", false, ""},
+		{"Answer_nn", "nn", false, "error"},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.prompt, func(t *testing.T) {
+			ok, err := cli.AskForConfirmation(strings.NewReader(tc.response), tc.prompt)
+			if tc.err != "" {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.res, ok)
+			}
+		})
+	}
 }
 
 func successAction(c ctl.Control, f interface{}) error {
