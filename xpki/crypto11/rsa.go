@@ -118,7 +118,6 @@ func (lib *PKCS11Lib) GenerateRSAKeyPairOnSession(
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
 		pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, pkcs11.CKK_RSA),
 		pkcs11.NewAttribute(pkcs11.CKA_TOKEN, true),
-		// pkcs11.NewAttribute(pkcs11.CKA_WRAP, true),
 		pkcs11.NewAttribute(pkcs11.CKA_PUBLIC_EXPONENT, []byte{1, 0, 1}),
 		pkcs11.NewAttribute(pkcs11.CKA_MODULUS_BITS, bits),
 		pkcs11.NewAttribute(pkcs11.CKA_LABEL, label),
@@ -130,7 +129,6 @@ func (lib *PKCS11Lib) GenerateRSAKeyPairOnSession(
 		pkcs11.NewAttribute(pkcs11.CKA_PRIVATE, true),
 		pkcs11.NewAttribute(pkcs11.CKA_SENSITIVE, true),
 		pkcs11.NewAttribute(pkcs11.CKA_EXTRACTABLE, false),
-		// pkcs11.NewAttribute(pkcs11.CKA_UNWRAP, true),
 		pkcs11.NewAttribute(pkcs11.CKA_LABEL, label),
 		pkcs11.NewAttribute(pkcs11.CKA_ID, id),
 	}
@@ -144,10 +142,7 @@ func (lib *PKCS11Lib) GenerateRSAKeyPairOnSession(
 		privateKeyTemplate = append(privateKeyTemplate, pkcs11.NewAttribute(pkcs11.CKA_DECRYPT, true))
 	}
 
-	mech := []*pkcs11.Mechanism{
-		pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_KEY_PAIR_GEN, nil),
-		pkcs11.NewMechanism(pkcs11.CKM_RSA_X9_31_KEY_PAIR_GEN, nil),
-	}
+	mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_KEY_PAIR_GEN, nil)}
 	pubHandle, privHandle, err := lib.Ctx.GenerateKeyPair(session,
 		mech,
 		publicKeyTemplate,
