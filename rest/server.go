@@ -152,6 +152,10 @@ func New(
 		logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use='%s', err=[%v]", ipaddr, errors.ErrorStack(err))
 	}
 
+	if container == nil {
+		logger.Panic("container parameter is required")
+	}
+
 	s := &server{
 		services:  map[string]Service{},
 		scheduler: tasks.NewScheduler(),

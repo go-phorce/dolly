@@ -307,10 +307,27 @@ func (c *Client) PostBody(ctx context.Context, hosts []string, path string, reqB
 	return c.DecodeResponse(resp, body)
 }
 
+var noop context.CancelFunc = func() {}
+
+func (c *Client) ensureContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+		if c.Policy != nil && c.Policy.RequestTimeout > 0 {
+			return context.WithTimeout(ctx, c.Policy.RequestTimeout)
+		}
+	}
+
+	return ctx, noop
+}
+
 func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []string, path string, reqBody []byte) (*http.Response, error) {
 	var many *httperror.ManyError
 	var err error
 	var resp *http.Response
+
+	ctx, cancel := c.ensureContext(ctx)
+	defer cancel()
+
 	for i, host := range hosts {
 		resp, err = c.doHTTP(ctx, httpMethod, host, path, reqBody)
 		if !c.shouldTryDifferentHost(resp, err) {
