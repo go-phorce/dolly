@@ -159,6 +159,7 @@ func New(
 		startedAt: time.Now().UTC(),
 		version:   version,
 		ipaddr:    ipaddr,
+		container: container,
 	}
 
 	err = container.Invoke(func(httpConfig HTTPServerConfig) {
@@ -326,6 +327,14 @@ func (server *server) IsReady() bool {
 		}
 	}
 	return true
+}
+
+func (server *server) Invoke(function interface{}) error {
+	err := server.container.Invoke(function)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	return nil
 }
 
 // Audit create an audit event
