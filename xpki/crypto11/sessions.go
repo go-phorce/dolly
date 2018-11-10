@@ -5,8 +5,8 @@ import (
 	pkcs11 "github.com/miekg/pkcs11"
 )
 
-// Create a new session for a given slot
-func (lib *PKCS11Lib) newSession(slot uint) (pkcs11.SessionHandle, error) {
+// NewSession creates new RW session for a given slot
+func (lib *PKCS11Lib) NewSession(slot uint) (pkcs11.SessionHandle, error) {
 	session, err := lib.Ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
 		return 0, errors.Trace(err)
@@ -27,7 +27,7 @@ func (lib *PKCS11Lib) withSession(slot uint, f func(session pkcs11.SessionHandle
 	case session = <-sessionPool:
 		// nop
 	default:
-		if session, err = lib.newSession(slot); err != nil {
+		if session, err = lib.NewSession(slot); err != nil {
 			return errors.Trace(err)
 		}
 	}
