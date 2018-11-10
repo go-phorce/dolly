@@ -44,6 +44,12 @@ func Test_NewServer(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
+	require.NotNil(t, server.(rest.Server), "ensure interface")
+	err = server.Invoke(func(c rest.HTTPServerConfig) {
+		require.NotNil(t, c)
+	})
+	require.NoError(t, err)
+
 	assert.NotNil(t, server.NodeName)
 	assert.NotNil(t, server.LeaderID)
 	assert.NotNil(t, server.NodeID)
