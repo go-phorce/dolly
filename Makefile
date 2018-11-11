@@ -1,4 +1,5 @@
 include .project/go-project.mk
+export GO111MODULE=off
 
 .PHONY: *
 
@@ -34,4 +35,4 @@ build:
 hsmconfig:
 	echo "*** Running hsmconfig"
 	mkdir -p ~/softhsm2
-	.project/config-softhsm.sh --pin-file ~/softhsm2/pin_unittest.txt --generate-pin -s dolly_unittest -o ./softhsm_unittest.json --list-slots --list-object
+	.project/config-softhsm.sh --pin-file ~/softhsm2/pin_unittest.txt --generate-pin -s dolly_unittest -o ./softhsm_unittest.json --list-slots --list-object --delete

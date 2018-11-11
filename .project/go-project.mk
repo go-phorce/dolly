@@ -79,7 +79,6 @@ export VENDOR_SRC=$(PROJ_ROOT)/vendor
 # then GOPATH and GOPROJ_DIR are expected to be set, and symbolic link to the project must be created;
 # otherwise create necessary environment
 ifndef PROJ_GOPATH
-export PROJ_GOPATH_DIR := /tmp/gopath/$(PROJ_NAME)
 export PROJ_GOPATH := /tmp/gopath/$(PROJ_NAME)
 export GOPATH := /tmp/gopath/$(PROJ_NAME)
 export PATH := ${PATH}:${GOPATH}/bin
@@ -91,7 +90,7 @@ export TOOLS_SRC := ${TOOLS_PATH}/src
 export TOOLS_BIN := ${TOOLS_PATH}/bin
 export PATH := ${PATH}:${PROJ_BIN}:${TOOLS_BIN}
 
-PROJ_REPO_TARGET := "${PROJ_GOPATH_DIR}/src/${REPO_NAME}"
+PROJ_REPO_TARGET := "${PROJ_GOPATH}/src/${REPO_NAME}"
 
 # test path
 TEST_GOPATH := "${PROJ_GOPATH}"
@@ -234,9 +233,9 @@ vars:
 	echo "PROJ_REPO_TARGET=$(PROJ_REPO_TARGET)"
 	echo "GOROOT=$(GOROOT)"
 	echo "GOPATH=$(GOPATH)"
+	echo "PROJ_GOPATH=$(PROJ_GOPATH)"
 	echo "PROJ_REPO_TARGET=$(PROJ_REPO_TARGET)"
 	echo "PROJ_PACKAGE=$(PROJ_PACKAGE)"
-	echo "PROJ_GOPATH=$(PROJ_GOPATH)"
 	echo "TOOLS_PATH=$(TOOLS_PATH)"
 	echo "TEST_GOPATH=$(TEST_GOPATH)"
 	echo "TEST_DIR=$(TEST_DIR)"
@@ -267,7 +266,7 @@ purge: clean
 gopath:
 	@[ ! -d $(PROJ_REPO_TARGET) ] && \
 		rm -f "${PROJ_REPO_TARGET}" && \
-		mkdir -p "${PROJ_GOPATH_DIR}/src/${ORG_NAME}" && \
+		mkdir -p "${PROJ_GOPATH}/src/${ORG_NAME}" && \
 		ln -s ${PROJ_DIR} "${PROJ_REPO_TARGET}" && \
 		echo "Created symbolic link: ${PROJ_REPO_TARGET} => ${PROJ_DIR}" || \
 	echo "Repo target exists: ${PROJ_REPO_TARGET} => ${PROJ_DIR}"
@@ -311,15 +310,15 @@ fmt:
 	gofmt -s -l -w ${GOFILES_NOVENDOR}
 
 vet: build
-	echo "Running vet"
+	echo "Running vet in ${TEST_DIR}"
 	cd ${TEST_DIR} && go vet ./...
 
 lint:
-	echo "Running lint"
+	echo "Running lint in ${TEST_DIR}"
 	cd ${TEST_DIR} && GOPATH=${TEST_GOPATH}  go list ./... | grep -v /vendor/ | xargs -L1 golint -set_exit_status
 
 test: fmt vet lint
-	echo "Running test"
+	echo "Running test in ${TEST_DIR}"
 	cd ${TEST_DIR} && go test ${TEST_RACEFLAG} ./...
 
 testshort:
