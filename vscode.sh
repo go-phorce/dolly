@@ -18,4 +18,4 @@ export PATH=$PATH:$PROJ_ROOT/.tools/bin
 make gopath
 
 echo "Working in $GOPATH/src/$REPO_NAME"
-code . & make devtools
+code "$GOPATH/src/$REPO_NAME" & make devtools
