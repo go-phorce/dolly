@@ -9,9 +9,9 @@ import (
 	"time"
 	"unsafe"
 
-	pkcs11 "github.com/miekg/pkcs11"
+	"github.com/juju/errors"
+	"github.com/miekg/pkcs11"
 )
-import "github.com/juju/errors"
 
 // AttributeNames maps PKCS11 atribute to string
 var AttributeNames = map[uint]string{

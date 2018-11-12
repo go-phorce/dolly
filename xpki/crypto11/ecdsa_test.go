@@ -8,7 +8,6 @@ import (
 	_ "crypto/sha1"
 	_ "crypto/sha256"
 	_ "crypto/sha512"
-	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,11 +24,6 @@ var curves = []elliptic.Curve{
 }
 
 func TestNativeECDSA(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Log("Skipping TestNativeECDSA on Mac")
-		return
-	}
-
 	var err error
 	var key *ecdsa.PrivateKey
 	for i, curve := range curves {
@@ -46,10 +40,6 @@ func TestNativeECDSA(t *testing.T) {
 }
 
 func TestHardECDSA(t *testing.T) {
-	if runtime.GOOS == "darwin" {
-		t.Log("Skipping TestHardECDSA on Mac")
-		return
-	}
 	var err error
 	var priv *PKCS11PrivateKeyECDSA
 	var key2, key3 crypto.PrivateKey
