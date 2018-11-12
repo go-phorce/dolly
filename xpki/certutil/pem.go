@@ -43,19 +43,40 @@ func ParseFromPEM(bytes []byte) (*x509.Certificate, error) {
 	return cert, nil
 }
 
+// LoadChainFromPEM returns Certificates loaded from the file
+func LoadChainFromPEM(certFile string) ([]*x509.Certificate, error) {
+	bytes, err := ioutil.ReadFile(certFile)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	certs, err := ParseChainFromPEM(bytes)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	return certs, nil
+}
+
 // ParseChainFromPEM returns Certificates parsed from PEM
 func ParseChainFromPEM(certificateChainPem []byte) ([]*x509.Certificate, error) {
 	list := make([]*x509.Certificate, 0)
 	var block *pem.Block
-	for rest := certificateChainPem; len(rest) != 0; {
+	// trim white space around PEM
+	rest := []byte(strings.TrimSpace(string(certificateChainPem)))
+	for len(rest) != 0 {
 		block, rest = pem.Decode(rest)
-		if block != nil && block.Type == "CERTIFICATE" {
+		if block == nil {
+			return list, errors.Errorf("potentially malformed PEM")
+		}
+		if block.Type == "CERTIFICATE" {
 			x509Certificate, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
 				return nil, errors.Annotate(err, "failed to parse certificate")
 			}
 			list = append(list, x509Certificate)
 		}
+		rest = []byte(strings.TrimSpace(string(rest)))
 	}
 	return list, nil
 }

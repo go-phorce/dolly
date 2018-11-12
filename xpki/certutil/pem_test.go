@@ -40,3 +40,9 @@ func Test_LoadFromPEM(t *testing.T) {
 	n := certutil.NameToString(&crt.Subject)
 	assert.Equal(t, "C=US, ST=CA, L=San Francisco, O=CloudFlare LLC, OU=Security, CN=testssl.lol", n)
 }
+
+func Test_LoadChainFromPEM(t *testing.T) {
+	chain, err := certutil.LoadChainFromPEM("testdata/ca-bundle.pem")
+	require.NoError(t, err)
+	assert.True(t, len(chain) > 100)
+}
