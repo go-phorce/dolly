@@ -36,3 +36,6 @@ hsmconfig:
 	echo "*** Running hsmconfig"
 	mkdir -p ~/softhsm2
 	.project/config-softhsm.sh --pin-file ~/softhsm2/pin_unittest.txt --generate-pin -s dolly_unittest -o ./softhsm_unittest.json --list-slots --list-object --delete
+
+dep-update:
+	cd ${TEST_DIR} && dep ensure -update
