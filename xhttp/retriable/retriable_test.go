@@ -124,19 +124,60 @@ func Test_RetriableWithHeaders(t *testing.T) {
 
 	client.AddHeader("header3", "val3")
 
-	w := bytes.NewBuffer([]byte{})
+	t.Run("clientHeaders", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
 
-	status, err := client.Get(context.Background(), []string{server.URL}, "/v1/test", w)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, status)
+		status, err := client.Get(context.Background(), []string{server.URL}, "/v1/test", w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
 
-	var headers map[string]string
-	require.NoError(t, json.Unmarshal(w.Bytes(), &headers))
+		var headers map[string]string
+		require.NoError(t, json.Unmarshal(w.Bytes(), &headers))
 
-	assert.Equal(t, "val1", headers["h1"])
-	assert.Equal(t, "val2", headers["h2"])
-	assert.Equal(t, "val3", headers["h3"])
-	assert.Empty(t, headers["h4"])
+		assert.Equal(t, "val1", headers["h1"])
+		assert.Equal(t, "val2", headers["h2"])
+		assert.Equal(t, "val3", headers["h3"])
+		assert.Empty(t, headers["h4"])
+	})
+
+	t.Run("call.setHeader", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		// set custom header via request context
+		callSpecific := map[string]string{
+			"header4": "val4",
+		}
+		ctx := context.WithValue(context.Background(), retriable.ContextValueForHTTPHeader, callSpecific)
+		status, err := client.Get(ctx, []string{server.URL}, "/v1/test", w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+
+		var headers map[string]string
+		require.NoError(t, json.Unmarshal(w.Bytes(), &headers))
+
+		assert.Equal(t, "val1", headers["h1"])
+		assert.Equal(t, "val2", headers["h2"])
+		assert.Equal(t, "val3", headers["h3"])
+		assert.Equal(t, "val4", headers["h4"])
+	})
+
+	t.Run("call.addHeader", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		callSpecific := map[string][]string{
+			"header4": {"val4-1", "val4-2"},
+		}
+		ctx := context.WithValue(context.Background(), retriable.ContextValueForHTTPHeader, callSpecific)
+		status, err := client.Get(ctx, []string{server.URL}, "/v1/test", w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+
+		var headers map[string]string
+		require.NoError(t, json.Unmarshal(w.Bytes(), &headers))
+
+		assert.Equal(t, "val1", headers["h1"])
+		assert.Equal(t, "val2", headers["h2"])
+		assert.Equal(t, "val3", headers["h3"])
+		assert.Equal(t, "val4-1", headers["h4"])
+	})
 }
 
 func Test_Retriable500(t *testing.T) {
