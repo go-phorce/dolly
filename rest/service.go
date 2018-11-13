@@ -8,3 +8,6 @@ type Service interface {
 	// IsReady indicates that service is ready to serve its end-points
 	IsReady() bool
 }
+
+// Factory is interface to create Services
+type Factory func(Server) Service
