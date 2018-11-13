@@ -34,9 +34,12 @@ const (
 	NonRetriableError = "non-retriable"
 )
 
+// contextValueName is cusmom type to be used as a key in context values map
+type contextValueName string
+
 const (
 	// ContextValueForHTTPHeader specifies context value name for HTTP headers
-	ContextValueForHTTPHeader = "HTTP-Header"
+	contextValueForHTTPHeader = contextValueName("HTTP-Header")
 )
 
 // ShouldRetry specifies a policy for handling retries. It is called
@@ -386,7 +389,7 @@ func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, pat
 		req.Header.Add(header, val)
 	}
 
-	switch headers := ctx.Value(ContextValueForHTTPHeader).(type) {
+	switch headers := ctx.Value(contextValueForHTTPHeader).(type) {
 	case map[string]string:
 		for header, val := range headers {
 			req.Header.Set(header, val)
@@ -611,4 +614,35 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 	}
 
 	return false, 0, NonRetriableError
+}
+
+// PropagateHeadersFromRequest will set specified headers in the context,
+// if present in the request
+func PropagateHeadersFromRequest(ctx context.Context, r *http.Request, headers ...string) context.Context {
+	values := map[string]string{}
+	for _, header := range headers {
+		val := r.Header.Get(header)
+		if val != "" {
+			values[header] = val
+		}
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if len(values) > 0 {
+		ctx = context.WithValue(ctx, contextValueForHTTPHeader, values)
+	}
+
+	return ctx
+}
+
+// WithHeaders returns a copy of parent with the provided headers set
+func WithHeaders(ctx context.Context, headers map[string]string) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	return context.WithValue(ctx, contextValueForHTTPHeader, headers)
 }
