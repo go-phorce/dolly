@@ -29,6 +29,7 @@
       "**/.rpm": true,
       "**/.vscode": true,
       "**/vendor": true,
+      "**/.git": true,
       "**/bin": true
     },
 
@@ -36,6 +37,7 @@
     "files.exclude": {
       "**/.gopath": true,
       "**/.tools": true,
+      "**/.git": true,
       "**/.idea": true
     },
 

@@ -34,6 +34,11 @@ const (
 	NonRetriableError = "non-retriable"
 )
 
+const (
+	// ContextValueForHTTPHeader specifies context value name for HTTP headers
+	ContextValueForHTTPHeader = "HTTP-Header"
+)
+
 // ShouldRetry specifies a policy for handling retries. It is called
 // following each request with the response, error values returned by
 // the http.Client and the number of already made retries.
@@ -379,6 +384,19 @@ func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, pat
 
 	for header, val := range c.headers {
 		req.Header.Add(header, val)
+	}
+
+	switch headers := ctx.Value(ContextValueForHTTPHeader).(type) {
+	case map[string]string:
+		for header, val := range headers {
+			req.Header.Set(header, val)
+		}
+	case map[string][]string:
+		for header, list := range headers {
+			for _, val := range list {
+				req.Header.Add(header, val)
+			}
+		}
 	}
 
 	return c.Do(req)
