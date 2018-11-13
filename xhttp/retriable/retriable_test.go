@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xhttp/retriable"
 	"github.com/stretchr/testify/assert"
@@ -90,22 +91,47 @@ func Test_Retriable_OK(t *testing.T) {
 
 	hosts := []string{server.URL}
 
-	w := bytes.NewBuffer([]byte{})
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
+	t.Run("GET WithTimeout", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
 
-	status, err := client.Get(ctx, hosts, "/v1/test", w)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, status)
+		status, err := client.Get(ctx, hosts, "/v1/test", w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+	})
+
+	t.Run("POST", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		status, err := client.PostBody(nil, hosts, "/v1/test", []byte("{}"), w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+	})
+
+	t.Run("POST Empty body", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		status, err := client.PostBody(nil, hosts, "/v1/test", nil, w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+	})
+
+	t.Run("DELETE", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		status, err := client.Delete(nil, hosts, "/v1/test", w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+	})
 }
 
 func Test_RetriableWithHeaders(t *testing.T) {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		headers := map[string]string{
-			"h1": r.Header.Get("header1"),
-			"h2": r.Header.Get("header2"),
-			"h3": r.Header.Get("header3"),
-			"h4": r.Header.Get("header4"),
+			header.Accept:      r.Header.Get(header.Accept),
+			header.ContentType: r.Header.Get(header.ContentType),
+			"h1":               r.Header.Get("header1"),
+			"h2":               r.Header.Get("header2"),
+			"h3":               r.Header.Get("header3"),
+			"h4":               r.Header.Get("header4"),
 		}
 
 		marshal.WriteJSON(w, r, headers)
@@ -146,7 +172,7 @@ func Test_RetriableWithHeaders(t *testing.T) {
 		callSpecific := map[string]string{
 			"header4": "val4",
 		}
-		ctx := context.WithValue(context.Background(), retriable.ContextValueForHTTPHeader, callSpecific)
+		ctx := retriable.WithHeaders(context.Background(), callSpecific)
 		status, err := client.Get(ctx, []string{server.URL}, "/v1/test", w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
@@ -160,12 +186,16 @@ func Test_RetriableWithHeaders(t *testing.T) {
 		assert.Equal(t, "val4", headers["h4"])
 	})
 
-	t.Run("call.addHeader", func(t *testing.T) {
+	t.Run("from request", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodGet, "/test", nil)
+		require.NoError(t, err)
+		req.Header.Set("header4", "val4")
+		req.Header.Set(header.Accept, "custom")
+		req.Header.Set(header.ContentType, "test")
+
 		w := bytes.NewBuffer([]byte{})
-		callSpecific := map[string][]string{
-			"header4": {"val4-1", "val4-2"},
-		}
-		ctx := context.WithValue(context.Background(), retriable.ContextValueForHTTPHeader, callSpecific)
+		ctx := retriable.PropagateHeadersFromRequest(context.Background(), req, header.Accept, "header4", header.ContentType)
+
 		status, err := client.Get(ctx, []string{server.URL}, "/v1/test", w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
@@ -173,10 +203,9 @@ func Test_RetriableWithHeaders(t *testing.T) {
 		var headers map[string]string
 		require.NoError(t, json.Unmarshal(w.Bytes(), &headers))
 
-		assert.Equal(t, "val1", headers["h1"])
-		assert.Equal(t, "val2", headers["h2"])
-		assert.Equal(t, "val3", headers["h3"])
-		assert.Equal(t, "val4-1", headers["h4"])
+		assert.Equal(t, "val4", headers["h4"])
+		assert.Equal(t, "custom", headers[header.Accept])
+		assert.Equal(t, "test", headers[header.ContentType])
 	})
 }
 
