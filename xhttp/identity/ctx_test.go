@@ -36,10 +36,26 @@ func Test_NewIdentity(t *testing.T) {
 }
 
 func Test_HostnameHeader(t *testing.T) {
-	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	})
 	rw := httptest.NewRecorder()
 	handler := NewContextHandler(d)
 	r, err := http.NewRequest("GET", "/test", nil)
+	assert.NoError(t, err)
+	handler.ServeHTTP(rw, r)
+	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
+}
+
+func Test_CallerHost(t *testing.T) {
+	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		caller := ForRequest(r)
+		assert.Equal(t, "somehost", caller.Host())
+	})
+	rw := httptest.NewRecorder()
+	handler := NewContextHandler(d)
+	r, err := http.NewRequest("GET", "/test", nil)
+	r.Host = "somehost:2323"
 	assert.NoError(t, err)
 	handler.ServeHTTP(rw, r)
 	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
