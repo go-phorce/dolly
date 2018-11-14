@@ -9,7 +9,7 @@ import (
 // FolderExists ensures that folder exists
 func FolderExists(dir string) error {
 	if dir == "" {
-		return errors.Errorf("invalid parameter")
+		return errors.Errorf("invalid parameter: dir")
 	}
 
 	stat, err := os.Stat(dir)

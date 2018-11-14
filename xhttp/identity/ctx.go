@@ -5,6 +5,7 @@ package identity
 import (
 	"context"
 	"crypto/x509"
+	"net"
 	"net/http"
 
 	"github.com/go-phorce/dolly/algorithms/guid"
@@ -198,9 +199,15 @@ func extractCorrelationID(req *http.Request) string {
 // extractHost extracts the client Host from req, if present.
 func extractHostname(req *http.Request) string {
 	// TODO: check headers "X-Forwarded-For"
-	host := req.Header.Get(header.XHostname)
-	if host == "" {
-		host = req.Host
+	rawhost := req.Header.Get(header.XHostname)
+	if rawhost == "" {
+		rawhost = req.Host
+	}
+
+	host, _, err := net.SplitHostPort(rawhost)
+	if err != nil {
+		logger.Errorf("api=extractHostname, reason=SplitHostPort, host=%s, err=[%v]",
+			rawhost, err.Error())
 	}
 	return host
 }
