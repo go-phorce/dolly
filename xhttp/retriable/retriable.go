@@ -259,6 +259,20 @@ func (c *Client) Get(ctx context.Context, hosts []string, path string, body inte
 	return c.DecodeResponse(resp, body)
 }
 
+// Head makes HEAD request against the specified hosts[the supplied hosts are
+// tried in order until one succeeds, or we run out]
+// each host should include all the protocol/host/port preamble, e.g. http://foo.bar:3444
+// path should be an absolute URI path, i.e. /foo/bar/baz
+// if set, the callers identity will be passed to Raphty via the X-Raphty-Identity header
+func (c *Client) Head(ctx context.Context, hosts []string, path string) (http.Header, error) {
+	resp, err := c.executeRequest(ctx, http.MethodHead, hosts, path, nil)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	defer resp.Body.Close()
+	return resp.Header, nil
+}
+
 // Delete removes the specified resource from the specified hosts.
 // The supplied hosts are tried in order until one succeeds.
 // It will decode the response payload into the supplied
@@ -307,6 +321,25 @@ func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, b
 // path should be an absolute URI path, i.e. /foo/bar/baz
 func (c *Client) PostBody(ctx context.Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodPost, hosts, path, reqBody)
+	if err != nil {
+		return 0, errors.Trace(err)
+	}
+	defer resp.Body.Close()
+
+	return c.DecodeResponse(resp, body)
+}
+
+// PutBody makes PUT request against the specified hosts.
+// The supplied hosts are tried in order until one succeeds.
+// It will decode the response payload into the supplied
+// body parameter.
+// It returns the HTTP status code, and an optional error.
+// For responses with status codes >= 300 it will try and convert the response
+// into a Go error.
+// If configured, this call will wait & retry on rate limit and leader election errors.
+// path should be an absolute URI path, i.e. /foo/bar/baz
+func (c *Client) PutBody(ctx context.Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
+	resp, err := c.executeRequest(ctx, http.MethodPut, hosts, path, reqBody)
 	if err != nil {
 		return 0, errors.Trace(err)
 	}

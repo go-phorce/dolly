@@ -101,6 +101,13 @@ func Test_Retriable_OK(t *testing.T) {
 		assert.Equal(t, http.StatusOK, status)
 	})
 
+	t.Run("PUT", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		status, err := client.PutBody(nil, hosts, "/v1/test", []byte("{}"), w)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+	})
+
 	t.Run("POST", func(t *testing.T) {
 		w := bytes.NewBuffer([]byte{})
 		status, err := client.PostBody(nil, hosts, "/v1/test", []byte("{}"), w)

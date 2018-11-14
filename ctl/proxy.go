@@ -133,3 +133,13 @@ func (f *FlagClause) Bool() (target *bool) {
 	kpf := (*kp.FlagClause)(f)
 	return kpf.Bool()
 }
+
+// Settings interface
+type Settings kp.Settings
+
+// GetFilesList retruns list from command arguments
+func GetFilesList(s Settings) *FilesList {
+	target := (*FilesList)(new([]string))
+	s.SetValue(target)
+	return target
+}
