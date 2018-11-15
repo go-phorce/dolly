@@ -7,14 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xhttp/retriable"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -318,6 +321,52 @@ func Test_RetriableTimeout(t *testing.T) {
 	exp2 := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded", server2.URL)
 	assert.Contains(t, err.Error(), exp1)
 	assert.Contains(t, err.Error(), exp2)
+}
+
+func Test_DecodeResponse(t *testing.T) {
+	res := http.Response{StatusCode: http.StatusNotFound, Body: ioutil.NopCloser(bytes.NewBufferString(`{"code":"MY_CODE","message":"doesn't exist"}`))}
+	c := retriable.New()
+
+	var body map[string]string
+	sc, err := c.DecodeResponse(&res, &body)
+	require.Equal(t, res.StatusCode, sc)
+	require.Error(t, err)
+
+	ge, ok := err.(*httperror.Error)
+	require.True(t, ok, "Expecting decodeResponse to map a valid error to the Error struct, but was %T %v", err, err)
+	assert.Equal(t, "MY_CODE", ge.Code)
+	assert.Equal(t, "doesn't exist", ge.Message)
+	assert.Equal(t, http.StatusNotFound, ge.HTTPStatus)
+
+	// if the body isn't valid json, we should get returned a json parser error, as well as the body
+	invalidResponse := `["foo"}`
+	res.Body = ioutil.NopCloser(bytes.NewBufferString(invalidResponse))
+	sc, err = c.DecodeResponse(&res, &body)
+	require.Error(t, err)
+	assert.Equal(t, invalidResponse, err.Error())
+
+	// error body is valid json, but missing the error field
+	res.Body = ioutil.NopCloser(bytes.NewBufferString(`{"foo":"bar"}`))
+	sc, err = c.DecodeResponse(&res, &body)
+	assert.Error(t, err)
+	assert.Equal(t, "{\"foo\":\"bar\"}", err.Error())
+
+	// statusCode < 300, with a decodeable body
+	res.StatusCode = http.StatusOK
+	res.Body = ioutil.NopCloser(bytes.NewBufferString(`{"foo":"baz"}`))
+	sc, err = c.DecodeResponse(&res, &body)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, sc)
+	assert.Equal(t, "baz", body["foo"], "decodeResponse hasn't correctly decoded the payload, got %+v", body)
+
+	xlog.SetGlobalLogLevel(xlog.TRACE)
+
+	// statusCode < 300, with a parsing error
+	res.Body = ioutil.NopCloser(bytes.NewBufferString(`[}`))
+	sc, err = c.DecodeResponse(&res, &body)
+	assert.Equal(t, http.StatusOK, sc, "decodeResponse returned unexpected statusCode, expecting 200")
+	assert.Error(t, err)
+	assert.Equal(t, "unable to decode body response to (*map[string]string) type: invalid character '}' looking for beginning of value", err.Error())
 }
 
 func makeTestHandler(t *testing.T, expURI string, status int, responseBody string) http.Handler {

@@ -562,12 +562,12 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 		_, err := io.Copy(body.(io.Writer), resp.Body)
 		if err != nil {
 			debugResponse(resp)
-			return resp.StatusCode, errors.Annotatef(err, "unable to read body response to (%T) type: %s", body, err.Error())
+			return resp.StatusCode, errors.Annotatef(err, "unable to read body response to (%T) type", body)
 		}
 	default:
 		if err := json.NewDecoder(resp.Body).Decode(body); err != nil {
 			debugResponse(resp)
-			return resp.StatusCode, errors.Annotatef(err, "unable to decode body response to (%T) type: %s", body, err.Error())
+			return resp.StatusCode, errors.Annotatef(err, "unable to decode body response to (%T) type", body)
 		}
 	}
 
