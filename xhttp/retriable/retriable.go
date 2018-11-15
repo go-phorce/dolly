@@ -9,7 +9,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -308,12 +307,7 @@ func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, b
 	}
 	defer resp.Body.Close()
 
-	sc, err := c.extractResponse(resp, body)
-	if err != nil {
-		logger.Errorf("api=GetResponse, hosts=[%s], path=%q, status=%v, err=[%v]",
-			strings.Join(hosts, ","), path, sc, errors.ErrorStack(err))
-	}
-	return sc, err
+	return c.extractResponse(resp, body)
 }
 
 // PostBody makes POST request against the specified hosts.
@@ -374,8 +368,9 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 	var err error
 	var resp *http.Response
 
-	ctx, cancel := c.ensureContext(ctx, httpMethod, path)
-	defer cancel()
+	// NOTE: do not `defer cancel()` context as it will cause error
+	// when reading the body
+	ctx, _ = c.ensureContext(ctx, httpMethod, path)
 
 	for i, host := range hosts {
 		resp, err = c.doHTTP(ctx, httpMethod, host, path, reqBody)
@@ -533,6 +528,18 @@ func (c *Client) consumeResponseBody(r *http.Response) {
 	}
 }
 
+func debugResponse(resp *http.Response) {
+	if logger.LevelAt(xlog.DEBUG) {
+		b := bytes.NewBuffer([]byte{})
+		err := resp.Write(b)
+		if err != nil {
+			logger.Debugf("api=debugResponse, err=[%v]", err.Error())
+		} else {
+			logger.Debug(string(b.Bytes()))
+		}
+	}
+}
+
 // DecodeResponse will look at the http response, and map it back to either
 // the body parameters, or to an error
 // [retrying rate limit errors should be done before this]
@@ -554,10 +561,12 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 	case io.Writer:
 		_, err := io.Copy(body.(io.Writer), resp.Body)
 		if err != nil {
+			debugResponse(resp)
 			return resp.StatusCode, errors.Annotatef(err, "unable to read body response to (%T) type: %s", body, err.Error())
 		}
 	default:
 		if err := json.NewDecoder(resp.Body).Decode(body); err != nil {
+			debugResponse(resp)
 			return resp.StatusCode, errors.Annotatef(err, "unable to decode body response to (%T) type: %s", body, err.Error())
 		}
 	}
@@ -583,6 +592,7 @@ func (c *Client) extractResponse(resp *http.Response, body io.Writer) (int, erro
 	}
 
 	if _, err := io.Copy(body, resp.Body); err != nil {
+		debugResponse(resp)
 		return resp.StatusCode, errors.Annotatef(err, "unable to decode body response (%T) error: %s", body, err.Error())
 	}
 
@@ -608,7 +618,7 @@ var nonRetriableErrors = []string{
 func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 	if err != nil {
 		errStr := err.Error()
-		logger.Errorf("api=ShouldRetry, error_type=%T, err=%q", err, errStr)
+		logger.Errorf("api=ShouldRetry, error_type=%T, err=[%s]", err, errStr)
 
 		select {
 		// If the context is finished, don't bother processing the
