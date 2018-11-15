@@ -116,7 +116,7 @@ func (s *scheduler) Add(j Task) Scheduler {
 // runPending will run all the tasks that are scheduled to run.
 func (s *scheduler) runPending() {
 	for _, task := range s.getRunnableTasks() {
-		logger.Tracef("api=Scheduler.RunPending, task='%s'", task.Name())
+		logger.Tracef("api=Scheduler.RunPending, task=%q", task.Name())
 		go task.Run()
 	}
 }

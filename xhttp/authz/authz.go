@@ -107,12 +107,12 @@ func New(allow, allowAny, allowAnyRole []string) (*Provider, error) {
 		for _, s := range allow {
 			parts := strings.Split(s, ":")
 			if len(parts) != 2 {
-				return nil, errors.NotValidf("Authz allow configuration '%s'", s)
+				return nil, errors.NotValidf("Authz allow configuration %q", s)
 			}
 			logger.Infof("api=authz.New, Allow=%s:%s", parts[0], parts[1])
 			roles := strings.Split(parts[1], ",")
 			if len(roles) < 1 {
-				return nil, errors.NotValidf("Authz allow configuration '%s'", s)
+				return nil, errors.NotValidf("Authz allow configuration %q", s)
 			}
 			az.Allow(parts[0], roles...)
 		}
@@ -304,9 +304,9 @@ func (c *Provider) isAllowed(path, role string) bool {
 		} else {
 			reason = "Role"
 		}
-		logger.Infof("api=Authz, status=allowed, role='%s', path=%s, reason='%s', node=%s", role, path, reason, node.value)
+		logger.Infof("api=Authz, status=allowed, role=%q, path=%s, reason=%q, node=%s", role, path, reason, node.value)
 	} else {
-		logger.Infof("api=Authz, status=disallowed, role='%s', path=%s, allowed_roles='%v', node=%s", role, path, strings.Join(node.allowedRoleKeys(), ","), node.value)
+		logger.Infof("api=Authz, status=disallowed, role=%q, path=%s, allowed_roles='%v', node=%s", role, path, strings.Join(node.allowedRoleKeys(), ","), node.value)
 	}
 	return res
 }

@@ -21,7 +21,7 @@ func Directory(dir string, baseDir string, create bool) (resolved string, err er
 	if _, err := os.Stat(resolved); os.IsNotExist(err) {
 		if create {
 			if err = os.MkdirAll(resolved, 0744); err != nil {
-				return "", errors.Annotatef(err, "crerate dir: '%s'", resolved)
+				return "", errors.Annotatef(err, "crerate dir: %q", resolved)
 			}
 		} else {
 			return resolved, errors.NewNotFound(err, resolved)

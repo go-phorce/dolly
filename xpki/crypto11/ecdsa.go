@@ -249,7 +249,7 @@ func (lib *PKCS11Lib) GenerateECDSAKeyPairOnSession(session pkcs11.SessionHandle
 		return nil, errors.Trace(err)
 	}
 
-	logger.Infof("api=GenerateECDSAKeyPairOnSession, slot=0x%X, id=%s, label='%s'", slot, string(id), string(label))
+	logger.Infof("api=GenerateECDSAKeyPairOnSession, slot=0x%X, id=%s, label=%q", slot, string(id), string(label))
 
 	publicKeyTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),

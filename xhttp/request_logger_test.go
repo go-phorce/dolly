@@ -24,7 +24,7 @@ func assertRespEqual(t *testing.T, res *httptest.ResponseRecorder, expStatusCode
 		t.Errorf("Expecting statusCode %d, but got %d", expStatusCode, res.Code)
 	}
 	if expBody != res.Body.String() {
-		t.Errorf("Expecting responseBody '%s', but got '%s'", expBody, res.Body.String())
+		t.Errorf("Expecting responseBody %q, but got %q", expBody, res.Body.String())
 	}
 }
 

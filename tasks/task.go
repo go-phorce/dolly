@@ -261,7 +261,7 @@ func (j *task) scheduleNextRun() time.Time {
 
 	j.nextRunAt = j.lastRunAt.Add(j.Duration())
 	/*
-		logger.Tracef("api=task.scheduleNextRun, lastRunAt='%v', nextRunAt='%v', task='%s'",
+		logger.Tracef("api=task.scheduleNextRun, lastRunAt='%v', nextRunAt='%v', task=%q",
 			j.lastRunAt.Format(time.RFC3339),
 			j.nextRunAt.Format(time.RFC3339),
 			j.Name())
@@ -287,7 +287,7 @@ func (j *task) Run() bool {
 		j.running = true
 		count := atomic.AddUint32(&j.count, 1)
 
-		logger.Infof("api=task.Run, status=running, count=%d, started_at='%v', task='%s'",
+		logger.Infof("api=task.Run, status=running, count=%d, started_at='%v', task=%q",
 			count,
 			j.lastRunAt.Format(time.RFC3339),
 			j.Name())
@@ -299,7 +299,7 @@ func (j *task) Run() bool {
 		return true
 	case <-time.After(timeout):
 	}
-	logger.Tracef("api=task.run, reason=already_running, count=%d, started_at='%v', task='%s'",
+	logger.Tracef("api=task.run, reason=already_running, count=%d, started_at='%v', task=%q",
 		j.count,
 		j.lastRunAt.Format(time.RFC3339),
 		j.Name())
@@ -308,7 +308,7 @@ func (j *task) Run() bool {
 }
 
 func parseTimeFormat(t string) (hour, min int, err error) {
-	var errTimeFormat = errors.NotValidf("'%s' time format", t)
+	var errTimeFormat = errors.NotValidf("%q time format", t)
 	ts := strings.Split(t, ":")
 	if len(ts) != 2 {
 		err = errors.Trace(errTimeFormat)
@@ -334,7 +334,7 @@ func parseTimeFormat(t string) (hour, min int, err error) {
 }
 
 func parseTaskFormat(format string) (*task, error) {
-	var errTimeFormat = errors.NotValidf("'%s' task format", format)
+	var errTimeFormat = errors.NotValidf("%q task format", format)
 
 	j := &task{
 		interval:  0,

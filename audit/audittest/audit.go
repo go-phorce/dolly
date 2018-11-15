@@ -105,7 +105,7 @@ func (a *auditor) MostRecent(t *testing.T, eventType string) *event {
 			return a.events[i]
 		}
 	}
-	assert.Failf(t, "Unable to find an audit event of type '%s' in captured items", eventType)
+	assert.Failf(t, "Unable to find an audit event of type %q in captured items", eventType)
 	return nil
 }
 

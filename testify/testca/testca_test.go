@@ -76,7 +76,7 @@ func TestIssuer(t *testing.T) {
 			actual   = inter.Certificate.RawIssuer
 		)
 
-		require.Equal(t, expected, actual, "bad issuer. expected '%s', got '%s'", string(expected), string(actual))
+		require.Equal(t, expected, actual, "bad issuer. expected %q, got %q", string(expected), string(actual))
 
 		err := inter.Certificate.CheckSignatureFrom(root.Certificate)
 		require.NoError(t, err)

@@ -116,11 +116,11 @@ func Init(config TokenConfig) (*PKCS11Lib, error) {
 	}
 
 	for _, slot := range slots {
-		logger.Tracef("api=TokenConfig.Load, state=search, slot=%d, serial='%s', label='%s'", slot.id, slot.serial, slot.label)
+		logger.Tracef("api=TokenConfig.Load, state=search, slot=%d, serial=%q, label=%q", slot.id, slot.serial, slot.label)
 		if slot.serial == config.TokenSerial() || slot.label == config.TokenLabel() {
 			lib.Slot = slot
 			flags = slot.flags
-			logger.Infof("api=TokenConfig.Load, state=found, slot=%d, serial='%s', label='%s'", slot.id, slot.serial, slot.label)
+			logger.Infof("api=TokenConfig.Load, state=found, slot=%d, serial=%q, label=%q", slot.id, slot.serial, slot.label)
 			break
 		}
 	}
@@ -156,11 +156,11 @@ func Init(config TokenConfig) (*PKCS11Lib, error) {
 func ConfigureFromFile(configLocation string) (*PKCS11Lib, error) {
 	cfg, err := LoadTokenConfig(configLocation)
 	if err != nil {
-		return nil, errors.Annotatef(err, "load p11 config: '%s'", configLocation)
+		return nil, errors.Annotatef(err, "load p11 config: %q", configLocation)
 	}
 	lib, err := Init(cfg)
 	if err != nil {
-		return nil, errors.Annotatef(err, "initialize p11 config: '%s'", configLocation)
+		return nil, errors.Annotatef(err, "initialize p11 config: %q", configLocation)
 	}
 	return lib, nil
 }

@@ -149,7 +149,7 @@ func New(
 	ipaddr, err := netutil.GetLocalIP()
 	if err != nil {
 		ipaddr = "127.0.0.1"
-		logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use='%s', err=[%v]", ipaddr, errors.ErrorStack(err))
+		logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use=%q, err=[%v]", ipaddr, errors.ErrorStack(err))
 	}
 
 	if container == nil {
@@ -173,7 +173,7 @@ func New(
 		s.port = GetPort(baddr)
 	})
 	if err != nil {
-		return nil, errors.Errorf("HTTPServerConfig not provided, rolename=%s, err='%s'",
+		return nil, errors.Errorf("HTTPServerConfig not provided, rolename=%s, err=%q",
 			rolename, err.Error())
 	}
 
@@ -181,7 +181,7 @@ func New(
 		s.authz = authz
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='failed to initialize Authz', service=%s, err='%s'",
+		logger.Warningf("api=rest.New, reason='failed to initialize Authz', service=%s, err=%q",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
@@ -189,7 +189,7 @@ func New(
 		s.cluster = cluster
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err='%s'",
+		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err=%q",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
@@ -197,7 +197,7 @@ func New(
 		s.auditor = auditor
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s, err='%s'",
+		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s, err=%q",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
@@ -205,7 +205,7 @@ func New(
 		s.tlsConfig = tlsConfig
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s, err='%s'",
+		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s, err=%q",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
@@ -364,7 +364,7 @@ func (server *server) StartHTTP() error {
 
 	// Main server
 	if _, err = net.ResolveTCPAddr("tcp", bindAddr); err != nil {
-		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, service=%s, addr='%s'",
+		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, service=%s, addr=%q",
 			server.Name(), bindAddr)
 	}
 
@@ -379,7 +379,7 @@ func (server *server) StartHTTP() error {
 		// Start listening on main server over TLS
 		httpsListener, err = tls.Listen("tcp", bindAddr, server.tlsConfig)
 		if err != nil {
-			return errors.Annotatef(err, "api=StartHTTP, reason=unable_listen, service=%s, address='%s'",
+			return errors.Annotatef(err, "api=StartHTTP, reason=unable_listen, service=%s, address=%q",
 				server.Name(), bindAddr)
 		}
 
@@ -433,7 +433,7 @@ func (server *server) StartHTTP() error {
 		server.NodeName(),
 		server.NodeID(),
 		0,
-		fmt.Sprintf("node='%s', address='%s', ClientAuth=%t",
+		fmt.Sprintf("node=%q, address=%q, ClientAuth=%t",
 			server.NodeName(), strings.TrimPrefix(bindAddr, ":"), server.withClientAuth),
 	)
 
@@ -462,7 +462,7 @@ func (server *server) StopHTTP() {
 
 	// close services
 	for _, f := range server.services {
-		logger.Tracef("api=StopHTTP, service='%s'", f.Name())
+		logger.Tracef("api=StopHTTP, service=%q", f.Name())
 		f.Close()
 	}
 
