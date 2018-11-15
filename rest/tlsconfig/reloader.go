@@ -133,7 +133,7 @@ func (k *KeypairReloader) Reload() error {
 		logger.Warning("api=Reload, reason=stat, file=%q, err=[%v]", k.keyPath, err)
 	}
 
-	logger.Infof("api=NewKeypairReloader, count=%d, cert='%s', key='%s'", k.count, k.certPath, k.keyPath)
+	logger.Infof("api=NewKeypairReloader, count=%d, cert=%q, key=%q", k.count, k.certPath, k.keyPath)
 	return nil
 }
 

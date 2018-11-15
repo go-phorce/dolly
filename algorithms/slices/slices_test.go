@@ -59,12 +59,12 @@ func TestSlices_ContainsStringEqualFold(t *testing.T) {
 	m := []string{"", "oned", "Four"}
 	for _, item := range append(src, tests...) {
 		if !ContainsStringEqualFold(src, item) {
-			t.Errorf("Expecting to find '%s' in %v, but didn't", item, src)
+			t.Errorf("Expecting to find %q in %v, but didn't", item, src)
 		}
 	}
 	for _, item := range m {
 		if ContainsStringEqualFold(src, item) {
-			t.Errorf("Not expecting to find '%s' in %v, but did", item, src)
+			t.Errorf("Not expecting to find %q in %v, but did", item, src)
 		}
 	}
 }
@@ -138,7 +138,7 @@ func assertStringSlicesEqual(t *testing.T, preamble string, exp []string, act []
 	} else {
 		for i, a := range act {
 			if a != exp[i] {
-				t.Errorf("%s: at index %d expected to get '%s', but got '%s'", preamble, i, exp[i], a)
+				t.Errorf("%s: at index %d expected to get %q, but got %q", preamble, i, exp[i], a)
 			}
 		}
 	}

@@ -59,7 +59,7 @@ func (p11lib *PKCS11Lib) TokensInfo() ([]*SlotTokenInfo, error) {
 		ti, err := p11lib.Ctx.GetTokenInfo(slotID)
 		if err != nil {
 			logger.Errorf(
-				"api=TokensInfo, reason=GetTokenInfo, slotID=%d, ManufacturerID='%s', SlotDescription='%s', err=[%v]",
+				"api=TokensInfo, reason=GetTokenInfo, slotID=%d, ManufacturerID=%q, SlotDescription=%q, err=[%v]",
 				slotID,
 				si.ManufacturerID,
 				si.SlotDescription,
@@ -135,7 +135,7 @@ func (p11lib *PKCS11Lib) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 	}
 	defer p11lib.Ctx.CloseSession(session)
 
-	logger.Tracef("api=DestroyKey, slot=0x%X, id='%s'", slotID, keyID)
+	logger.Tracef("api=DestroyKey, slot=0x%X, id=%q", slotID, keyID)
 
 	id := []byte(keyID)
 
@@ -152,7 +152,7 @@ func (p11lib *PKCS11Lib) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
-		logger.Infof("api=DestroyKey, type=CKO_PRIVATE_KEY, slot=0x%X, id='%s'", slotID, keyID)
+		logger.Infof("api=DestroyKey, type=CKO_PRIVATE_KEY, slot=0x%X, id=%q", slotID, keyID)
 	}
 
 	if pubHandle != 0 {
@@ -160,14 +160,14 @@ func (p11lib *PKCS11Lib) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 		if err != nil {
 			return errors.Trace(err)
 		}
-		logger.Infof("api=DestroyKey, type=CKO_PUBLIC_KEY, slot=0x%X, id='%s'", slotID, string(id))
+		logger.Infof("api=DestroyKey, type=CKO_PUBLIC_KEY, slot=0x%X, id=%q", slotID, string(id))
 	}
 	return nil
 }
 
 // KeyInfo retrieves info about key with the specified id
 func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, keyInfoFunc func(id, label, typ, class, currentVersionID, pubKey string, creationTime *time.Time) error) error {
-	logger.Tracef("api=KeyInfo, slot=0x%X, id='%s'", slotID, keyID)
+	logger.Tracef("api=KeyInfo, slot=0x%X, id=%q", slotID, keyID)
 	var err error
 	session, err := p11lib.Ctx.OpenSession(slotID, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
@@ -175,7 +175,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 	}
 	defer p11lib.Ctx.CloseSession(session)
 
-	logger.Tracef("api=KeyInfo, slot=0x%X, id='%s'", slotID, keyID)
+	logger.Tracef("api=KeyInfo, slot=0x%X, id=%q", slotID, keyID)
 
 	var privHandle pkcs11.ObjectHandle
 	if privHandle, err = p11lib.findKey(session, keyID, "", pkcs11.CKO_PRIVATE_KEY, ^uint(0)); err != nil {
@@ -199,7 +199,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 	if includePublic {
 		pubKey, err = p11lib.getPublicKey(slotID, keyID)
 		if err != nil {
-			return errors.Annotatef(err, "reason='failed on GetPublicKey', slotID=%d, keyID='%s'", slotID, keyID)
+			return errors.Annotatef(err, "reason='failed on GetPublicKey', slotID=%d, keyID=%q", slotID, keyID)
 		}
 	}
 

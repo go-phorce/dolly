@@ -106,18 +106,18 @@ func ExampleServer() {
 func certExpirationPublisherTask(tlsloader *tlsconfig.KeypairReloader) {
 	certFile, keyFile := tlsloader.CertAndKeyFiles()
 
-	logger.Tracef("api=certExpirationPublisherTask, cert='%s', key='%s'", certFile, keyFile)
+	logger.Tracef("api=certExpirationPublisherTask, cert=%q, key=%q", certFile, keyFile)
 
 	tlsloader.Reload()
 	pair := tlsloader.Keypair()
 	if pair != nil {
 		cert, err := x509.ParseCertificate(pair.Certificate[0])
 		if err != nil {
-			errors.Annotatef(err, "api=certExpirationPublisherTask, reason=unable_parse_tls_cert, file='%s'", certFile)
+			errors.Annotatef(err, "api=certExpirationPublisherTask, reason=unable_parse_tls_cert, file=%q", certFile)
 		} else {
 			metrics.PublishCertExpirationInDays(cert, "server")
 		}
 	} else {
-		logger.Warningf("api=certExpirationPublisherTask, reason=Keypair, cert='%s', key='%s'", certFile, keyFile)
+		logger.Warningf("api=certExpirationPublisherTask, reason=Keypair, cert=%q, key=%q", certFile, keyFile)
 	}
 }

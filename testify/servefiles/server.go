@@ -224,7 +224,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	s.t.Logf("Using '%s' to handle request to '%s'", f.Name(), r.RequestURI)
+	s.t.Logf("Using %q to handle request to %q", f.Name(), r.RequestURI)
 	w.WriteHeader(respInfo.statusCode(count))
 	if strings.HasPrefix(r.RequestURI, "/services/oauth2/token") {
 		handleAuthFixup(s.server.URL, w, f)

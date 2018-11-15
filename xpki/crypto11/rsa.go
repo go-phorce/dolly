@@ -112,7 +112,7 @@ func (lib *PKCS11Lib) GenerateRSAKeyPairOnSession(
 		}
 	}
 
-	logger.Infof("api=GenerateRSAKeyPairOnSession, slot=0x%X, id=%s, label='%s', purpose=%v", slot, string(id), string(label), purpose)
+	logger.Infof("api=GenerateRSAKeyPairOnSession, slot=0x%X, id=%s, label=%q, purpose=%v", slot, string(id), string(label), purpose)
 
 	publicKeyTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),

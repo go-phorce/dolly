@@ -181,7 +181,7 @@ func (ctl *Ctl) PrintJSON(value interface{}) {
 // Fail the execution and return error
 func (ctl *Ctl) Fail(msg string, err error) error {
 	ctl.rc = RCFailed
-	logger.Errorf("api=Ctl, message='%s', err=[%s]", msg, errors.ErrorStack(err))
+	logger.Errorf("api=Ctl, message=%q, err=[%s]", msg, errors.ErrorStack(err))
 	return err
 }
 

@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -307,7 +308,12 @@ func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, b
 	}
 	defer resp.Body.Close()
 
-	return c.extractResponse(resp, body)
+	sc, err := c.extractResponse(resp, body)
+	if err != nil {
+		logger.Errorf("api=GetResponse, hosts=[%s], path=%q, status=%v, err=[%v]",
+			strings.Join(hosts, ","), path, sc, errors.ErrorStack(err))
+	}
+	return sc, err
 }
 
 // PostBody makes POST request against the specified hosts.
@@ -350,10 +356,12 @@ func (c *Client) PutBody(ctx context.Context, hosts []string, path string, reqBo
 
 var noop context.CancelFunc = func() {}
 
-func (c *Client) ensureContext(ctx context.Context) (context.Context, context.CancelFunc) {
+func (c *Client) ensureContext(ctx context.Context, httpMethod, path string) (context.Context, context.CancelFunc) {
 	if ctx == nil {
 		ctx = context.Background()
 		if c.Policy != nil && c.Policy.RequestTimeout > 0 {
+			logger.Debugf("api=ensureContext, method=%s, path=%s, timeout=%v",
+				httpMethod, path, c.Policy.RequestTimeout)
 			return context.WithTimeout(ctx, c.Policy.RequestTimeout)
 		}
 	}
@@ -366,11 +374,19 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 	var err error
 	var resp *http.Response
 
-	ctx, cancel := c.ensureContext(ctx)
+	ctx, cancel := c.ensureContext(ctx, httpMethod, path)
 	defer cancel()
 
 	for i, host := range hosts {
 		resp, err = c.doHTTP(ctx, httpMethod, host, path, reqBody)
+		if err != nil {
+			logger.Errorf("api=doHTTP, httpMethod=%q, host=%q, path=%q, err=[%v]",
+				httpMethod, host, path, errors.ErrorStack(err))
+		} else {
+			logger.Infof("api=doHTTP, httpMethod=%q, host=%q, path=%q, status=%v",
+				httpMethod, host, path, resp.StatusCode)
+		}
+
 		if !c.shouldTryDifferentHost(resp, err) {
 			break
 		}
@@ -390,7 +406,7 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 			}
 		}
 
-		logger.Debugf("api=executeRequest, %s %s %s [%v]", httpMethod, host, path, many.Error())
+		logger.Errorf("api=executeRequest, method=%s, host=%s, path=%s, err=[%v]", httpMethod, host, path, many.Error())
 	}
 
 	if resp != nil {
@@ -404,7 +420,6 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 // TODO: convert reqBody to reader
 func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, path string, reqBody []byte) (*http.Response, error) {
 	uri := host + path
-	logger.Tracef("api=doHTTP, httpMethod='%s', host='%s', path='%s', uri='%s'", httpMethod, host, path, uri)
 
 	var reader io.Reader
 	if httpMethod == http.MethodPost && reqBody != nil {
@@ -480,7 +495,7 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 			c.consumeResponseBody(resp)
 		}
 
-		logger.Warningf("api=Do, name=%s, retries=%d, description='%s', reason='%s', sleep=[%v]",
+		logger.Warningf("api=Do, name=%s, retries=%d, description=%q, reason=%q, sleep=[%v]",
 			c.Name, retries, desc, reason, sleepDuration.Seconds())
 		time.Sleep(sleepDuration)
 	}
@@ -539,11 +554,11 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 	case io.Writer:
 		_, err := io.Copy(body.(io.Writer), resp.Body)
 		if err != nil {
-			return resp.StatusCode, errors.Errorf("unable to read body response to (%T) type: %s", body, err.Error())
+			return resp.StatusCode, errors.Annotatef(err, "unable to read body response to (%T) type: %s", body, err.Error())
 		}
 	default:
 		if err := json.NewDecoder(resp.Body).Decode(body); err != nil {
-			return resp.StatusCode, errors.Errorf("unable to decode body response to (%T) type: %s", body, err.Error())
+			return resp.StatusCode, errors.Annotatef(err, "unable to decode body response to (%T) type: %s", body, err.Error())
 		}
 	}
 
@@ -568,7 +583,7 @@ func (c *Client) extractResponse(resp *http.Response, body io.Writer) (int, erro
 	}
 
 	if _, err := io.Copy(body, resp.Body); err != nil {
-		return resp.StatusCode, errors.Errorf("unable to decode body response (%T) error: %s", body, err.Error())
+		return resp.StatusCode, errors.Annotatef(err, "unable to decode body response (%T) error: %s", body, err.Error())
 	}
 
 	return resp.StatusCode, nil
@@ -593,7 +608,7 @@ var nonRetriableErrors = []string{
 func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 	if err != nil {
 		errStr := err.Error()
-		logger.Errorf("api=ShouldRetry, error_type=%T, err='%s'", err, errStr)
+		logger.Errorf("api=ShouldRetry, error_type=%T, err=%q", err, errStr)
 
 		select {
 		// If the context is finished, don't bother processing the
