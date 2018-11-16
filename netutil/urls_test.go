@@ -38,3 +38,35 @@ func Test_ParseURLs(t *testing.T) {
 		})
 	}
 }
+
+func Test_ParseURLsFromString(t *testing.T) {
+	tcases := []struct {
+		tname string
+		hosts string
+		exp   int
+		err   string
+	}{
+		{"from_empty", "", 0, ""},
+		{"valid", "localhost,123.74.56.18,ekspand.com", 3, ""},
+		{"valid with path", "../dir/,../dir2/", 2, ""},
+		{"valid1 with page", "foo.html,foo.html", 2, ""},
+		{"invalid with ip", "http://192.168.0.%31/", 0, "error"},
+		{"invalid with code", "http://[fe80::%231]:8080/", 0, "error"},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.tname, func(t *testing.T) {
+			l, err := ParseURLsFromString(tc.hosts)
+			if tc.err == "" {
+				require.NoError(t, err)
+				assert.Equal(t, tc.exp, len(l))
+			} else {
+				if !assert.Error(t, err) {
+					for _, u := range l {
+						t.Logf("parsed url: %s", u.String())
+					}
+				}
+			}
+		})
+	}
+}
