@@ -139,6 +139,9 @@ type server struct {
 	lock           sync.RWMutex
 }
 
+// ensure implements interface
+var _ Server = &server{}
+
 // New creates a new instance of the server
 func New(
 	rolename string,
@@ -203,6 +206,9 @@ func New(
 
 	err = container.Invoke(func(tlsConfig *tls.Config) {
 		s.tlsConfig = tlsConfig
+		if tlsConfig != nil {
+			s.withClientAuth = tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert
+		}
 	})
 	if err != nil {
 		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s, err=%q",
