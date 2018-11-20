@@ -27,7 +27,7 @@ const (
 var (
 	emptyContext  *RequestContext
 	nodeInfo      netutil.NodeInfo
-	roleExtractor ExtractRole
+	roleExtractor ExtractRole = extractRoleFromPKIX
 )
 
 // RequestContext represents user contextual information about a request being processed by the server,
@@ -49,27 +49,24 @@ type Context interface {
 }
 
 func init() {
-	Initialize(nil, nil)
+	n, err := netutil.NewNodeInfo(nil)
+	if err != nil {
+		logger.Panicf("context package not initialized: %s", errors.ErrorStack(err))
+	}
+	nodeInfo = n
+
+	emptyContext = New("", "", "", "", "")
 }
 
 // Initialize allows to customize NodeInfo and ExtractRoleName
 func Initialize(n netutil.NodeInfo, e ExtractRole) {
-	roleExtractor = e
-	nodeInfo = n
-
-	if nodeInfo == nil {
-		n, err := netutil.NewNodeInfo(nil)
-		if err != nil {
-			logger.Panicf("context package not initialized: %s", errors.ErrorStack(err))
-		}
+	if n != nil {
 		nodeInfo = n
 	}
 
-	if roleExtractor == nil {
-		roleExtractor = extractRoleFromPKIX
+	if e != nil {
+		roleExtractor = e
 	}
-
-	emptyContext = New("", "", "", "", "")
 }
 
 // ForRequest returns the full context ascocicated with this http request.

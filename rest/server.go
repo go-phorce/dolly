@@ -506,7 +506,7 @@ func (server *server) NewMux() http.Handler {
 
 	logger.Infof("api=NewMux, service=%s, withClientAuth=%t", server.Name(), server.withClientAuth)
 
-	if server.withClientAuth && server.authz != nil {
+	if server.authz != nil {
 		// authz wrapper
 		server.authz.SetRoleMapper(func(r *http.Request) string {
 			return identity.ForRequest(r).Identity().Role()

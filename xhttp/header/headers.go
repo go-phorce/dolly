@@ -27,6 +27,8 @@ const (
 	ReplayNonce = "Replay-Nonce"
 	// TextPlain is HTTP header value for "application/json"
 	TextPlain = "text/plain"
+	// UserAgent is HTTP header value for "User-Agent"
+	UserAgent = "User-Agent"
 
 	// XIdentity is HTTP header for "X-Identity" which is used for cross-role requests
 	XIdentity = "X-Identity"

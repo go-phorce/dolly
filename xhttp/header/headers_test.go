@@ -18,6 +18,7 @@ func Test_Headers(t *testing.T) {
 	assert.Equal(t, "Content-Disposition", header.ContentDisposition)
 	assert.Equal(t, "Replay-Nonce", header.ReplayNonce)
 	assert.Equal(t, "text/plain", header.TextPlain)
+	assert.Equal(t, "User-Agent", header.UserAgent)
 	assert.Equal(t, "X-Identity", header.XIdentity)
 	assert.Equal(t, "X-HostName", header.XHostname)
 	assert.Equal(t, "X-CorrelationID", header.XCorrelationID)
