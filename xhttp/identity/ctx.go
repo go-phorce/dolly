@@ -10,7 +10,6 @@ import (
 
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/netutil"
-	"github.com/go-phorce/dolly/xhttp"
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
@@ -99,7 +98,7 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 			identity:      extractIdentityFromRequest(r),
 			correlationID: extractCorrelationID(r),
 			hostname:      extractHostname(r),
-			ipaddr:        xhttp.ClientIPFromRequest(r),
+			ipaddr:        ClientIPFromRequest(r),
 		}
 
 		c := context.WithValue(r.Context(), keyContext, ctx)
