@@ -9,6 +9,11 @@ import (
 	"github.com/go-phorce/dolly/xlog"
 )
 
+func Test_LevelTrace(t *testing.T) {
+	assert.True(t, xlog.INFO < xlog.TRACE)
+	assert.True(t, xlog.TRACE < xlog.DEBUG)
+}
+
 func Test_LevelChar(t *testing.T) {
 	assert.Equal(t, xlog.CRITICAL.Char(), "C")
 	assert.Equal(t, xlog.ERROR.Char(), "E")
