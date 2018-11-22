@@ -15,6 +15,13 @@ func init() {
 	prov = new(nilmetrics)
 }
 
+// The MetricSink interface is used to transmit metrics information
+// to an external system
+type MetricSink metrics.MetricSink
+
+// Config is used to configure metrics settings
+type Config metrics.Config
+
 // Metrics basics
 type Metrics interface {
 	SetGauge(key []string, val float32)
@@ -26,6 +33,20 @@ type Metrics interface {
 // SetProvider for metrics
 func SetProvider(p Metrics) {
 	prov = p
+}
+
+// New is used to create a new instance of Metrics
+func New(conf *Config, sink MetricSink) (Metrics, error) {
+	m, err := metrics.New(
+		(*metrics.Config)(conf),
+		sink.(metrics.MetricSink))
+
+	return Metrics(m), err
+}
+
+// DefaultConfig provides a sane default configuration
+func DefaultConfig(serviceName string) *Config {
+	return (*Config)(metrics.DefaultConfig(serviceName))
 }
 
 //

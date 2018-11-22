@@ -428,8 +428,14 @@ func (server *server) StartHTTP() error {
 	}()
 
 	if server.httpConfig.GetHeartbeatSecs() > 0 {
-		task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).Do("server", uptimeTask, server)
+		task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).
+			Do("hearbeat", hearbeatTask, server)
 		server.Scheduler().Add(task)
+		task.Run()
+
+		task = tasks.NewTaskAtIntervals(60, tasks.Seconds).Do("uptime", uptimeTask, server)
+		server.Scheduler().Add(task)
+		task.Run()
 	}
 
 	server.scheduler.Start()
@@ -446,8 +452,12 @@ func (server *server) StartHTTP() error {
 	return nil
 }
 
+func hearbeatTask(server *server) {
+	metrics.PublishHeartbeat(server.httpConfig.GetServiceName())
+}
+
 func uptimeTask(server *server) {
-	metrics.PublishHeartbeat(server.httpConfig.GetServiceName(), server.Uptime())
+	metrics.PublishUptime(server.httpConfig.GetServiceName(), server.Uptime())
 }
 
 // StopHTTP will perform a graceful shutdown of the serivce by
