@@ -221,12 +221,18 @@ func Test_LevelAt(t *testing.T) {
 	require.NoError(t, err)
 
 	l.SetRepoLogLevel(xlog.INFO)
-	assert.False(t, logger.LevelAt(xlog.DEBUG))
 	assert.True(t, logger.LevelAt(xlog.INFO))
+	assert.False(t, logger.LevelAt(xlog.TRACE))
+	assert.False(t, logger.LevelAt(xlog.DEBUG))
 
 	l.SetRepoLogLevel(xlog.TRACE)
-	assert.True(t, logger.LevelAt(xlog.TRACE))
 	assert.True(t, logger.LevelAt(xlog.INFO))
+	assert.True(t, logger.LevelAt(xlog.TRACE))
+	assert.False(t, logger.LevelAt(xlog.DEBUG))
+
+	l.SetRepoLogLevel(xlog.DEBUG)
+	assert.True(t, logger.LevelAt(xlog.INFO))
+	assert.True(t, logger.LevelAt(xlog.TRACE))
 	assert.True(t, logger.LevelAt(xlog.DEBUG))
 }
 
@@ -387,7 +393,7 @@ func Test_ColorFormatterDebug(t *testing.T) {
 	writer := bufio.NewWriter(&b)
 
 	xlog.SetFormatter(xlog.NewColorFormatter(writer, true))
-	xlog.SetGlobalLogLevel(xlog.TRACE)
+	xlog.SetGlobalLogLevel(xlog.DEBUG)
 
 	logger.Print("Test", "Info", "\n")
 	result := string(b.Bytes())
@@ -425,15 +431,15 @@ func Test_ColorFormatterDebug(t *testing.T) {
 	assert.Contains(t, result, expected)
 	b.Reset()
 
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
-	expected = string(xlog.LevelColors[xlog.DEBUG]) + " D | xlog_test: Test Debug\n\033[0m"
-	assert.Contains(t, result, expected)
-	b.Reset()
-
 	logger.Tracef("Test Trace\n")
 	result = string(b.Bytes())
 	expected = string(xlog.LevelColors[xlog.TRACE]) + " T | xlog_test: Test Trace\n\033[0m"
+	assert.Contains(t, result, expected)
+	b.Reset()
+
+	logger.Debugf("Test Debug\n")
+	result = string(b.Bytes())
+	expected = string(xlog.LevelColors[xlog.DEBUG]) + " D | xlog_test: Test Debug\n\033[0m"
 	assert.Contains(t, result, expected)
 	b.Reset()
 }

@@ -35,10 +35,10 @@ const (
 	NOTICE
 	// INFO is a log level for common, everyday log updates.
 	INFO
-	// DEBUG is the default hidden level for more verbose updates about internal processes.
-	DEBUG
 	// TRACE is for (potentially) call by call tracing of programs.
 	TRACE
+	// DEBUG is the default hidden level for more verbose updates about internal processes.
+	DEBUG
 )
 
 // Char returns a single-character representation of the log level.
