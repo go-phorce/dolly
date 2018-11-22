@@ -1,10 +1,9 @@
-package xhttp_test
+package identity
 
 import (
 	"net/http"
 	"testing"
 
-	"github.com/go-phorce/dolly/xhttp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -57,7 +56,7 @@ func TestRealIP(t *testing.T) {
 	// Run test
 	for _, v := range testData {
 		t.Run(v.name, func(t *testing.T) {
-			actual := xhttp.ClientIPFromRequest(v.request)
+			actual := ClientIPFromRequest(v.request)
 			assert.Equal(t, v.expected, actual)
 		})
 	}

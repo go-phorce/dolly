@@ -395,14 +395,14 @@ func (server *server) StartHTTP() error {
 	}
 
 	readyHandler := ready.NewServiceStatusVerifier(server, server.NewMux())
-	metricsmux := xhttp.NewRequestMetrics(readyHandler)
+
 	if server.httpConfig.GetAllowProfiling() {
-		if metricsmux, err = xhttp.NewRequestProfiler(metricsmux, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
+		if readyHandler, err = xhttp.NewRequestProfiler(readyHandler, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
 			return errors.Trace(err)
 		}
 	}
 
-	server.httpServer.Handler = metricsmux
+	server.httpServer.Handler = readyHandler
 
 	serve := func() error {
 		server.serving = true
@@ -522,6 +522,9 @@ func (server *server) NewMux() http.Handler {
 
 	// logging wrapper
 	httpHandler = xhttp.NewRequestLogger(httpHandler, server.rolename, serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
+
+	// metrics wrapper
+	httpHandler = xhttp.NewRequestMetrics(httpHandler)
 
 	// role/contextID wrapper
 	httpHandler = identity.NewContextHandler(httpHandler)
