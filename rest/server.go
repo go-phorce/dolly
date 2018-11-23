@@ -526,8 +526,6 @@ func (server *server) NewMux() http.Handler {
 		if err != nil {
 			panic(errors.ErrorStack(err))
 		}
-		// TODO: only allow configured certs
-		// httpHandler = authz.NewClientCertVerifier(httpHandler)
 	}
 
 	// logging wrapper

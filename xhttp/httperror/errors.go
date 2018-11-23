@@ -98,6 +98,11 @@ func WithForbidden(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusForbidden, Forbidden, msgFormat, vals...)
 }
 
+// WithUnauthorized for builds a new Error instance with Unauthorized code
+func WithUnauthorized(msgFormat string, vals ...interface{}) *Error {
+	return New(http.StatusUnauthorized, Unauthorized, msgFormat, vals...)
+}
+
 // WithAccountNotFound for builds a new Error instance with AccountNotFound code
 func WithAccountNotFound(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusForbidden, AccountNotFound, msgFormat, vals...)

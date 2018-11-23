@@ -29,7 +29,6 @@ package authz
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -37,7 +36,9 @@ import (
 	"strings"
 
 	"github.com/go-phorce/dolly/algorithms/math"
-	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/algorithms/slices"
+	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
@@ -46,9 +47,9 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "authz")
 
 var (
 	// ErrNoRoleMapperSpecified can't call NewHandler before you've set the RoleMapper function
-	ErrNoRoleMapperSpecified = errors.New("Provider has no RoleMapper func specified, you must have a RoleMapper set to be able to create a http.Handler")
+	ErrNoRoleMapperSpecified = errors.New("you must have a RoleMapper set to be able to create a http.Handler")
 	// ErrNoPathsConfigured is returned by NewHandler if you call NewHandler, but haven't configured any paths to be accessible
-	ErrNoPathsConfigured = errors.New("Provider has no paths authorizated, you must authorization at least one path before being able to create a http.Handler")
+	ErrNoPathsConfigured = errors.New("you must have at least one path before being able to create a http.Handler")
 )
 
 // Provider represents an Authorization provider,
@@ -57,8 +58,10 @@ var (
 // once configured you can create a http.Handler that enforces that
 // configuration for you by calling NewHandler
 type Provider struct {
-	roleMapper func(r *http.Request) string
-	pathRoot   *pathNode
+	roleMapper             func(r *http.Request) string
+	pathRoot               *pathNode
+	validOrganizations     []string
+	validIssuerCommonNames []string
 }
 
 type allowTypes int8
@@ -86,20 +89,23 @@ type pathNode struct {
 }
 
 // New returns new Authz provider
-func New(allow, allowAny, allowAnyRole []string) (*Provider, error) {
-	az := new(Provider)
+func New(allow, allowAny, allowAnyRole, validOrganizations, validIssuerCommonNames []string) (*Provider, error) {
+	az := &Provider{
+		validOrganizations:     validOrganizations,
+		validIssuerCommonNames: validIssuerCommonNames,
+	}
 
 	if len(allowAny) > 0 {
 		for _, s := range allowAny {
 			az.AllowAny(s)
-			logger.Infof("api=authz.New, AllowAny=%s", s)
+			logger.Noticef("api=authz.New, AllowAny=%s", s)
 		}
 	}
 
 	if len(allowAnyRole) > 0 {
 		for _, s := range allowAnyRole {
 			az.AllowAnyRole(s)
-			logger.Infof("api=authz.New, AllowAnyRole=%s", s)
+			logger.Noticef("api=authz.New, AllowAnyRole=%s", s)
 		}
 	}
 
@@ -109,7 +115,7 @@ func New(allow, allowAny, allowAnyRole []string) (*Provider, error) {
 			if len(parts) != 2 {
 				return nil, errors.NotValidf("Authz allow configuration %q", s)
 			}
-			logger.Infof("api=authz.New, Allow=%s:%s", parts[0], parts[1])
+			logger.Noticef("api=authz.New, Allow=%s:%s", parts[0], parts[1])
 			roles := strings.Split(parts[1], ",")
 			if len(roles) < 1 {
 				return nil, errors.NotValidf("Authz allow configuration %q", s)
@@ -119,6 +125,10 @@ func New(allow, allowAny, allowAnyRole []string) (*Provider, error) {
 	}
 
 	return az, nil
+}
+
+func (c *Provider) requirePeerCert() bool {
+	return len(c.validOrganizations) > 0 || len(c.validIssuerCommonNames) > 0
 }
 
 // treeAtText will return a string of the current configured tree in
@@ -304,16 +314,64 @@ func (c *Provider) isAllowed(path, role string) bool {
 		} else {
 			reason = "Role"
 		}
-		logger.Infof("api=Authz, status=allowed, role=%q, path=%s, reason=%q, node=%s", role, path, reason, node.value)
+		logger.Noticef("api=Authz, status=allowed, role=%q, path=%s, reason=%q, node=%s",
+			role, path, reason, node.value)
 	} else {
-		logger.Infof("api=Authz, status=disallowed, role=%q, path=%s, allowed_roles='%v', node=%s", role, path, strings.Join(node.allowedRoleKeys(), ","), node.value)
+		logger.Noticef("api=Authz, status=disallowed, role=%q, path=%s, allowed_roles='%v', node=%s",
+			role, path, strings.Join(node.allowedRoleKeys(), ","), node.value)
 	}
 	return res
 }
 
-// isRequestAllowed returns true if access to the supplied http.request is allowed
-func (c *Provider) isRequestAllowed(r *http.Request) bool {
-	return c.isAllowed(r.URL.Path, c.roleMapper(r))
+// checkAccess ensures that access to the supplied http.request is allowed
+func (c *Provider) checkAccess(r *http.Request) error {
+	if c.requirePeerCert() {
+		if r.TLS == nil {
+			return errors.Errorf("connection is not over TLS")
+		}
+
+		peers := r.TLS.PeerCertificates
+		if len(peers) == 0 {
+			return errors.Errorf("missing client certificate")
+		}
+
+		var org, issuer string
+		if len(c.validOrganizations) > 0 {
+			found := false
+			for _, peer := range peers {
+				for _, org = range peer.Subject.Organization {
+					if found = slices.ContainsString(c.validOrganizations, org); found {
+						break
+					}
+				}
+				if found {
+					break
+				}
+			}
+			if !found {
+				return errors.Errorf("the %q organization is not allowed", peers[0].Subject.Organization[0])
+			}
+		}
+		if len(c.validIssuerCommonNames) > 0 {
+			found := false
+			for _, chain := range r.TLS.VerifiedChains {
+				issuer = chain[len(chain)-1].Subject.CommonName
+				if found = slices.ContainsString(c.validIssuerCommonNames, issuer); found {
+					break
+				}
+			}
+			if !found {
+				return errors.Errorf("the %q issuer is not allowed", issuer)
+			}
+		}
+	}
+
+	role := c.roleMapper(r)
+	if !c.isAllowed(r.URL.Path, role) {
+		return errors.Errorf("the %q role is not allowed", role)
+	}
+
+	return nil
 }
 
 // NewHandler returns a http.Handler that enforces the current authorization configuration
@@ -329,32 +387,24 @@ func (c *Provider) NewHandler(delegate http.Handler) (http.Handler, error) {
 	if c.pathRoot == nil {
 		return nil, errors.Trace(ErrNoPathsConfigured)
 	}
-	errBody := map[string]string{"code": "Forbidden", "message": "You are not authorized to access this URI"}
-	errBodyBytes, err := json.Marshal(errBody)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
 	h := &authHandler{
-		delegate:  delegate,
-		config:    c.Clone(),
-		errorBody: errBodyBytes,
+		delegate: delegate,
+		config:   c.Clone(),
 	}
 	logger.Infof("api=authz.NewHandler, config=[%s]", h.config.treeAsText())
 	return h, nil
 }
 
 type authHandler struct {
-	delegate  http.Handler
-	config    *Provider
-	errorBody []byte
+	delegate http.Handler
+	config   *Provider
 }
 
 func (a *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if a.config.isRequestAllowed(r) {
+	err := a.config.checkAccess(r)
+	if err == nil {
 		a.delegate.ServeHTTP(w, r)
 	} else {
-		w.Header().Add(header.ContentType, header.ApplicationJSON)
-		w.WriteHeader(http.StatusUnauthorized)
-		w.Write(a.errorBody)
+		marshal.WriteJSON(w, r, httperror.WithUnauthorized(err.Error()))
 	}
 }
