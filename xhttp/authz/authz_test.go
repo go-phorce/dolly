@@ -1,6 +1,9 @@
 package authz
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -64,7 +67,7 @@ func assertPathNodesEqual(t *testing.T, path []string, a, b *pathNode) {
 }
 
 func TestConfig_WalkTree(t *testing.T) {
-	c, err := New(nil, nil, nil)
+	c, err := New(nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 	n1 := c.walkPath("/foo/bar", true)
 	n2 := c.walkPath("/foo/bar/baz", true)
@@ -115,6 +118,8 @@ func TestConfig_Allow(t *testing.T) {
 		},
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	require.NoError(t, err)
 	check := func(path, role string, allowed bool) {
@@ -144,6 +149,8 @@ func TestConfig_Allow(t *testing.T) {
 		},
 		nil,
 		nil,
+		nil,
+		nil,
 	)
 	require.NoError(t, err)
 	check("/", "bob", true)
@@ -166,6 +173,8 @@ func TestConfig_AllowAny(t *testing.T) {
 		[]string{
 			"/foo/eve",
 		},
+		nil,
+		nil,
 	)
 	require.NoError(t, err)
 	check := func(path, role string, allowed bool) {
@@ -192,7 +201,7 @@ func TestConfig_AllowAny(t *testing.T) {
 }
 
 func TestConfig_TreeAsText(t *testing.T) {
-	c, err := New(nil, nil, nil)
+	c, err := New(nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 	c.AllowAny("/")
 	c.Allow("/foo/alice", "svc_alice", "svc_bob")
@@ -232,7 +241,7 @@ func TestConfig_TreeAsText(t *testing.T) {
 }
 
 func TestConfig_InvalidPath(t *testing.T) {
-	c, err := New(nil, nil, nil)
+	c, err := New(nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 	defer func() {
 		e := recover()
@@ -242,7 +251,7 @@ func TestConfig_InvalidPath(t *testing.T) {
 }
 
 func TestConfig_Clone(t *testing.T) {
-	c, err := New(nil, nil, nil)
+	c, err := New(nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	c.SetRoleMapper(roleMapper("bob"))
@@ -256,22 +265,82 @@ func TestConfig_Clone(t *testing.T) {
 	assert.True(t, clone.isAllowed("/foo", "bob"), "Config.Clone() return a clone that's missing an Allow() from the source")
 }
 
-func TestConfig_IsRequestAllowed(t *testing.T) {
-	c, err := New(nil, nil, nil)
+func TestConfig_checkAccess_noTLS(t *testing.T) {
+	c, err := New(nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	c.Allow("/foo", "bob")
 	c.SetRoleMapper(roleMapper("bob"))
 	r, _ := http.NewRequest(http.MethodGet, "/foo", nil)
-	assert.True(t, c.isRequestAllowed(r), "bob should be allowed access to /foo, but wasn't")
+	assert.NoError(t, c.checkAccess(r), "bob should be allowed access to /foo, but wasn't")
 
 	r, _ = http.NewRequest(http.MethodGet, "/", nil)
-	assert.False(t, c.isRequestAllowed(r), "bob shouldn't be allowed access to / but was")
+	assert.Error(t, c.checkAccess(r), "bob shouldn't be allowed access to / but was")
+}
+
+func TestConfig_checkAccess_WithLS(t *testing.T) {
+	t.Run("org_and_issuer", func(t *testing.T) {
+		c, err := New(nil, nil, nil, []string{"org"}, []string{"issuer"})
+		require.NoError(t, err)
+
+		c.Allow("/foo", "bob")
+		c.SetRoleMapper(roleMapper("bob"))
+
+		r, _ := http.NewRequest(http.MethodGet, "/", nil)
+		err = c.checkAccess(r)
+		require.Error(t, err)
+		assert.Equal(t, "connection is not over TLS", err.Error())
+
+		r, _ = http.NewRequest(http.MethodGet, "/", nil)
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{},
+		}
+		err = c.checkAccess(r)
+		require.Error(t, err)
+		assert.Equal(t, "missing client certificate", err.Error())
+
+		r, _ = http.NewRequest(http.MethodGet, "/", nil)
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{
+					Subject: pkix.Name{
+						Organization: []string{"org"},
+					},
+				},
+			},
+		}
+		err = c.checkAccess(r)
+		require.Error(t, err)
+		assert.Equal(t, "the \"\" issuer is not allowed", err.Error())
+
+		r, _ = http.NewRequest(http.MethodGet, "/", nil)
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{
+					Subject: pkix.Name{
+						Organization: []string{"org"},
+					},
+				},
+			},
+			VerifiedChains: [][]*x509.Certificate{
+				{
+					{
+						Subject: pkix.Name{
+							CommonName: "issuer",
+						},
+					},
+				},
+			},
+		}
+		err = c.checkAccess(r)
+		require.Error(t, err)
+		assert.Equal(t, "the \"bob\" role is not allowed", err.Error())
+	})
 }
 
 func TestConfig_HandlerNotValid(t *testing.T) {
 	delegate := http.HandlerFunc(testHTTPHandler)
-	c, err := New(nil, nil, nil)
+	c, err := New(nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	_, err = c.NewHandler(delegate)
@@ -289,7 +358,7 @@ func TestConfig_HandlerNotValid(t *testing.T) {
 
 func TestConfig_Handler(t *testing.T) {
 	delegate := http.HandlerFunc(testHTTPHandler)
-	c, err := New(nil, nil, nil)
+	c, err := New(nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	c.SetRoleMapper(roleMapper("bob"))
@@ -313,7 +382,7 @@ func TestConfig_Handler(t *testing.T) {
 			assert.Equal(t, header.ApplicationJSON, ct, "Unauthorized response should have an application/json contentType")
 
 			body := w.Body.String()
-			assert.JSONEq(t, `{"code":"Forbidden","message":"You are not authorized to access this URI"}`, body, "Got unexpected response body")
+			assert.JSONEq(t, `{"code":"unauthorized", "message":"the \"bob\" role is not allowed"}`, body)
 		}
 	}
 	testHandler("/who", true)
