@@ -59,9 +59,9 @@ func Test_RequestMetrics(t *testing.T) {
 		require.True(t, exists, "Expected metric with key %s to exist, but it doesn't", key)
 		assert.Equal(t, expectedCount, s.Count, "Unexpected count for metric %s", key)
 	}
-	assertSample("test.http.request.TAGS.method.GET.role.enrollme_dev.status.200.uri./", 1)
-	assertSample("test.http.request.TAGS.method.GET.role.enrollme_dev.status.200.uri./foo", 1)
-	assertSample("test.http.request.TAGS.method.POST.role.enrollme_dev.status.200.uri./", 2)
-	assertSample("test.http.request.TAGS.method.POST.role.enrollme_dev.status.400.uri./", 1)
-	assertSample("test.http.request.TAGS.method.POST.role.enrollme_dev.status.400.uri./bar", 1)
+	assertSample("test.http.request;method=GET;role=enrollme_dev;status=200;uri=/", 1)
+	assertSample("test.http.request;method=GET;role=enrollme_dev;status=200;uri=/foo", 1)
+	assertSample("test.http.request;method=POST;role=enrollme_dev;status=200;uri=/", 2)
+	assertSample("test.http.request;method=POST;role=enrollme_dev;status=400;uri=/", 1)
+	assertSample("test.http.request;method=POST;role=enrollme_dev;status=400;uri=/bar", 1)
 }

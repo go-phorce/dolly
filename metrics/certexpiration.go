@@ -5,35 +5,38 @@ import (
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"time"
+)
 
-	"github.com/go-phorce/dolly/metrics/tags"
+var (
+	keyForCertExpiry = []string{"cert", "expiry", "days"}
+	keyForCrlExpiry  = []string{"crl", "expiry", "days"}
 )
 
 // PublishShortLivedCertExpirationInDays publish cert expiration time in Days for short lived certificates
-func PublishShortLivedCertExpirationInDays(c *x509.Certificate, typ string) ([]string, float32) {
-	metricKey := []string{"cert", "expiry", "days",
-		tags.Separator,
-		"CN", c.Subject.CommonName,
-		"type", typ,
-	}
+func PublishShortLivedCertExpirationInDays(c *x509.Certificate, typ string) float32 {
 	expiresIn := c.NotAfter.Sub(time.Now().UTC())
 	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
-	SetGauge(metricKey, expiresInDays)
-	return metricKey, expiresInDays
+	SetGauge(
+		keyForCertExpiry,
+		expiresInDays,
+		Tag{"CN", c.Subject.CommonName},
+		Tag{"type", typ},
+	)
+	return expiresInDays
 }
 
 // PublishCertExpirationInDays publish cert expiration time in Days
 func PublishCertExpirationInDays(c *x509.Certificate, typ string) float32 {
-	metricKey := []string{"cert", "expiry", "days",
-		tags.Separator,
-		"CN", c.Subject.CommonName,
-		"Serial", c.SerialNumber.String(),
-		"SKI", hex.EncodeToString(c.SubjectKeyId),
-		"type", typ,
-	}
 	expiresIn := c.NotAfter.Sub(time.Now().UTC())
 	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
-	SetGauge(metricKey, expiresInDays)
+	SetGauge(
+		keyForCertExpiry,
+		expiresInDays,
+		Tag{"CN", c.Subject.CommonName},
+		Tag{"type", typ},
+		Tag{"Serial", c.SerialNumber.String()},
+		Tag{"SKI", hex.EncodeToString(c.SubjectKeyId)},
+	)
 	return expiresInDays
 }
 
@@ -41,15 +44,14 @@ func PublishCertExpirationInDays(c *x509.Certificate, typ string) float32 {
 func PublishCRLExpirationInDays(c *pkix.CertificateList, issuer *x509.Certificate) float32 {
 	PublishCertExpirationInDays(issuer, "issuer")
 
-	metricKey := []string{"crl", "expiry", "days",
-		tags.Separator,
-		"CN", issuer.Subject.CommonName,
-		"Serial", issuer.SerialNumber.String(),
-		"SKI", hex.EncodeToString(issuer.SubjectKeyId),
-	}
-
 	expiresIn := c.TBSCertList.NextUpdate.Sub(time.Now().UTC())
 	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
-	SetGauge(metricKey, expiresInDays)
+	SetGauge(
+		keyForCrlExpiry,
+		expiresInDays,
+		Tag{"CN", issuer.Subject.CommonName},
+		Tag{"Serial", issuer.SerialNumber.String()},
+		Tag{"SKI", hex.EncodeToString(issuer.SubjectKeyId)},
+	)
 	return expiresInDays
 }

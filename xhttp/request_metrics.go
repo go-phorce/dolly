@@ -37,19 +37,22 @@ func (rm *requestMetrics) statusCode(reqURI string, statusCode int) string {
 	return strconv.Itoa(statusCode)
 }
 
+var (
+	keyForHTTPStats = []string{"http", "request"}
+)
+
 func (rm *requestMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now().UTC()
 	rc := NewResponseCapture(w)
 	rm.handler.ServeHTTP(rc, r)
 	role := identity.ForRequest(r).Identity().Role()
 
-	metricKey := []string{
-		"http", "request",
-		tags.Separator,
-		tags.Method, r.Method,
-		tags.Role, role,
-		tags.Status, rm.statusCode(r.RequestURI, rc.StatusCode()),
-		tags.URI, r.RequestURI,
-	}
-	metrics.MeasureSince(metricKey, start)
+	metrics.MeasureSince(
+		keyForHTTPStats,
+		start,
+		metrics.Tag{Name: tags.Method, Value: r.Method},
+		metrics.Tag{Name: tags.Role, Value: role},
+		metrics.Tag{Name: tags.Status, Value: rm.statusCode(r.RequestURI, rc.StatusCode())},
+		metrics.Tag{Name: tags.URI, Value: r.RequestURI},
+	)
 }
