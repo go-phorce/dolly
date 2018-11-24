@@ -2,22 +2,19 @@ package metrics
 
 import (
 	"time"
+)
 
-	"github.com/go-phorce/dolly/metrics/tags"
+var (
+	keyForHeartbeat = []string{"heartbeat"}
+	keyForUptime    = []string{"uptime", "seconds"}
 )
 
 // PublishHeartbeat publishes heartbeat of the service
 func PublishHeartbeat(service string) {
-	IncrCounter(
-		[]string{"heartbeat", tags.Separator, "service", service},
-		1,
-	)
+	IncrCounter(keyForHeartbeat, 1, Tag{"service", service})
 }
 
 // PublishUptime publishes uptime of the service
 func PublishUptime(service string, uptime time.Duration) {
-	SetGauge(
-		[]string{"uptime", "seconds", tags.Separator, "service", service},
-		float32(uptime/time.Second),
-	)
+	SetGauge(keyForUptime, float32(uptime/time.Second), Tag{"service", service})
 }
