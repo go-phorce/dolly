@@ -228,8 +228,10 @@ func (n *pathNode) allowRole(r string) bool {
 // Clone returns a deep copy of this Provider
 func (c *Provider) Clone() *Provider {
 	return &Provider{
-		roleMapper: c.roleMapper,
-		pathRoot:   c.pathRoot.clone(),
+		roleMapper:             c.roleMapper,
+		pathRoot:               c.pathRoot.clone(),
+		validOrganizations:     c.validOrganizations[:],
+		validIssuerCommonNames: c.validIssuerCommonNames[:],
 	}
 }
 
@@ -361,7 +363,7 @@ func (c *Provider) checkAccess(r *http.Request) error {
 				}
 			}
 			if !found {
-				return errors.Errorf("the %q issuer is not allowed", issuer)
+				return errors.Errorf("the %q root CA is not allowed", issuer)
 			}
 		}
 	}
