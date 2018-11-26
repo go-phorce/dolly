@@ -2,14 +2,11 @@ package rest_test
 
 import (
 	"fmt"
-	"net"
 	"net/http"
-	"net/url"
 	"testing"
 	"time"
 
 	"github.com/go-phorce/dolly/xhttp/header"
-	"github.com/juju/errors"
 
 	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/rest/container"
@@ -162,29 +159,6 @@ func (c *cluster) ClusterMembers() ([]*rest.ClusterMember, error) {
 	return c.members[:], nil
 }
 
-func (c *cluster) NodeHostName(nodeID string) (string, error) {
-	members, err := c.ClusterMembers()
-	if err != nil {
-		return "", errors.Trace(err)
-	}
-
-	for _, m := range members {
-		if m.ID == nodeID {
-			for _, peerURL := range m.PeerURLs {
-				u, err := url.Parse(peerURL)
-				if err == nil {
-					h, _, err := net.SplitHostPort(u.Host)
-					if err == nil {
-						return h, nil
-					}
-				}
-			}
-		}
-	}
-
-	return "", errors.NotFoundf("node: %q", nodeID)
-}
-
 func Test_ClusterInfo(t *testing.T) {
 	cfg := &serverConfig{
 		BindAddr: "hostname:8081",
@@ -200,7 +174,7 @@ func Test_ClusterInfo(t *testing.T) {
 			this:   0,
 			leader: 0,
 			members: []*rest.ClusterMember{
-				{ID: "0000", Name: "node0", PeerURLs: []string{"https://host0:8080"}},
+				{ID: "0000", Name: "node0", PeerURLs: []string{"https://host0:8080", "https://127.0.0.1:8080"}},
 				{ID: "1111", Name: "node1", PeerURLs: []string{"https://host1:8081"}},
 				{ID: "2222", Name: "node2", PeerURLs: []string{"https://host2:8082"}},
 			},
@@ -211,14 +185,10 @@ func Test_ClusterInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
-	n, err := server.NodeHostName("0000")
+	l, err := rest.GetNodePeerURLs(server, "0000")
 	require.NoError(t, err)
-	assert.Equal(t, "host0", n)
+	assert.Equal(t, 2, len(l))
 
-	n, err = server.NodeHostName("2222")
-	require.NoError(t, err)
-	assert.Equal(t, "host2", n)
-
-	n, err = server.NodeHostName("3333")
+	l, err = rest.GetNodePeerURLs(server, "3333")
 	require.Error(t, err)
 }

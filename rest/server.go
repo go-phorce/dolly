@@ -61,8 +61,6 @@ type ClusterInfo interface {
 
 	// ClusterMembers returns the list of members in the cluster
 	ClusterMembers() ([]*ClusterMember, error)
-
-	NodeHostName(nodeID string) (string, error)
 }
 
 // Server is an interface to provide server status
@@ -318,14 +316,6 @@ func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 	return server.cluster.ClusterMembers()
 }
 
-// NodeHostName returns the host name of specific node
-func (server *server) NodeHostName(nodeID string) (string, error) {
-	if server.cluster == nil {
-		return "", errors.NotSupportedf("cluster")
-	}
-	return server.cluster.NodeHostName(nodeID)
-}
-
 // IsReady returns true when the server is ready to serve
 func (server *server) IsReady() bool {
 	if !server.serving {
@@ -567,4 +557,31 @@ func GetServerURL(s Server, r *http.Request, relativeEndpoint string) *url.URL {
 		Host:   host,
 		Path:   relativeEndpoint,
 	}
+}
+
+// GetNodePeerURLs returns a list of URLs to listen on for peer traffic.
+func GetNodePeerURLs(c ClusterInfo, nodeID string) ([]*url.URL, error) {
+	members, err := c.ClusterMembers()
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+
+	list := make([]*url.URL, 0, len(members))
+	for _, m := range members {
+		if m.ID == nodeID {
+			for _, peerURL := range m.PeerURLs {
+				u, err := url.Parse(peerURL)
+				if err == nil {
+					list = append(list, u)
+				} else {
+					logger.Errorf("api=GetNodePeerURLs, nodeID=%s, url=%q, err=[%v]",
+						nodeID, peerURL, err)
+				}
+			}
+		}
+	}
+	if len(list) == 0 {
+		return nil, errors.NotFoundf("node: %q", nodeID)
+	}
+	return list, nil
 }
