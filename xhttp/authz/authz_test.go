@@ -251,18 +251,19 @@ func TestConfig_InvalidPath(t *testing.T) {
 }
 
 func TestConfig_Clone(t *testing.T) {
-	c, err := New(nil, nil, nil, nil, nil)
+	c, err := New(nil, nil, nil, []string{"org1"}, []string{"CN1"})
 	require.NoError(t, err)
 
 	c.SetRoleMapper(roleMapper("bob"))
 	c.Allow("/", "bob")
 	clone := c.Clone()
 	c.Allow("/foo", "alice")
-	if assert.NotNil(t, clone.roleMapper, "Config.Clone() didn't clone roleMapper") {
-		assert.Equal(t, "bob", clone.roleMapper(nil), "Config.Clone() has a roleMapper set, but it doesn't appear to be ours!")
-	}
+	require.NotNil(t, clone.roleMapper, "Config.Clone() didn't clone roleMapper")
+	assert.Equal(t, "bob", clone.roleMapper(nil), "Config.Clone() has a roleMapper set, but it doesn't appear to be ours!")
 	assert.False(t, clone.isAllowed("/foo", "alice"), "Config.Clone() returns a clone that was mutated by mutating the original instance (should be a deep copy)")
 	assert.True(t, clone.isAllowed("/foo", "bob"), "Config.Clone() return a clone that's missing an Allow() from the source")
+	assert.Equal(t, len(c.validOrganizations), len(clone.validOrganizations))
+	assert.Equal(t, len(c.validIssuerCommonNames), len(clone.validIssuerCommonNames))
 }
 
 func TestConfig_checkAccess_noTLS(t *testing.T) {
@@ -311,7 +312,7 @@ func TestConfig_checkAccess_WithLS(t *testing.T) {
 		}
 		err = c.checkAccess(r)
 		require.Error(t, err)
-		assert.Equal(t, "the \"\" issuer is not allowed", err.Error())
+		assert.Equal(t, "the \"\" root CA is not allowed", err.Error())
 
 		r, _ = http.NewRequest(http.MethodGet, "/", nil)
 		r.TLS = &tls.ConnectionState{
