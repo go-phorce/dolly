@@ -493,7 +493,7 @@ func (server *server) StopHTTP() {
 // NewMux creates a new http handler for the http server, typically you only
 // need to call this directly for tests.
 func (server *server) NewMux() http.Handler {
-	router := NewRouter(server.notFoundHandler)
+	router := NewRouter(notFoundHandler)
 
 	for _, f := range server.services {
 		f.Register(router)
@@ -529,8 +529,8 @@ func (server *server) NewMux() http.Handler {
 	return httpHandler
 }
 
-func (server *server) notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	marshal.WriteJSON(w, r, httperror.New(http.StatusNotFound, httperror.NotFound, "URL: %s", r.RequestURI))
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	marshal.WriteJSON(w, r, httperror.WithNotFound(r.RequestURI))
 }
 
 func serverExtraLogger(resp *xhttp.ResponseCapture, req *http.Request) []string {
