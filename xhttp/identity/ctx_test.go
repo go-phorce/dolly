@@ -1,6 +1,9 @@
 package identity
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,26 +50,19 @@ func Test_HostnameHeader(t *testing.T) {
 	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
 }
 
-func Test_CallerHost(t *testing.T) {
+func Test_ClientIP(t *testing.T) {
 	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		caller := ForRequest(r)
-		assert.Equal(t, "somehost", caller.Host())
+		assert.Equal(t, "10.0.0.1", caller.ClientIP())
 	})
 	rw := httptest.NewRecorder()
 	handler := NewContextHandler(d)
 	r, err := http.NewRequest("GET", "/test", nil)
-	r.Host = "somehost:2323"
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	r.RemoteAddr = "10.0.0.1"
+
 	handler.ServeHTTP(rw, r)
 	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
-}
-
-func Test_RoleContext(t *testing.T) {
-	c := NewForRole("bob_1").WithCorrelationID("1234gdhfewq")
-	assert.Equal(t, "1234gdhfewq", c.CorrelationID())
-	assert.Equal(t, "bob_1/"+nodeInfo.HostName(), c.Identity().String())
-	assert.Equal(t, nodeInfo.HostName(), c.Identity().Name())
-	assert.Equal(t, "bob_1", c.Identity().Role())
 }
 
 func Test_RequestorIdentity(t *testing.T) {
@@ -82,8 +78,16 @@ func Test_RequestorIdentity(t *testing.T) {
 
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	require.NoError(t, err)
-	identity := NewIdentity("enrollme_dev", "localhost")
-	r = WithTestIdentity(r, identity)
+	r.TLS = &tls.ConnectionState{
+		PeerCertificates: []*x509.Certificate{
+			{
+				Subject: pkix.Name{
+					CommonName:   "dolly",
+					Organization: []string{"org"},
+				},
+			},
+		},
+	}
 
 	w := httptest.NewRecorder()
 	h(w, r)
@@ -98,87 +102,6 @@ func Test_RequestorIdentity(t *testing.T) {
 	body := w.Body.Bytes()
 	s := string(body)
 	assert.NoError(t, json.Unmarshal(body, res))
-	assert.Equal(t, identity.Role(), res.Role, s)
-	assert.Equal(t, identity.Name(), res.Name, s)
-}
-
-func Test_RequestorHost(t *testing.T) {
-	h := func(w http.ResponseWriter, r *http.Request) {
-		ctx := ForRequest(r)
-		host := ctx.Host()
-		responseBody := fmt.Sprintf(`{"host":"%s"}`, host)
-		io.WriteString(w, responseBody)
-	}
-
-	type rt struct {
-		Host string `json:"host,omitempty"`
-	}
-
-	handler := NewContextHandler(http.HandlerFunc(h))
-	server := httptest.NewServer(handler)
-	defer server.Close()
-
-	t.Run("request_host", func(t *testing.T) {
-		r, err := http.NewRequest(http.MethodGet, "/", nil)
-		r.Host = "testhost"
-		require.NoError(t, err)
-
-		w := httptest.NewRecorder()
-
-		handler.ServeHTTP(w, r)
-		require.Equal(t, http.StatusOK, w.Code)
-
-		res := &rt{}
-		body := w.Body.Bytes()
-		s := string(body)
-		assert.NoError(t, json.Unmarshal(body, res))
-		assert.Equal(t, "testhost", res.Host, s)
-	})
-
-	t.Run("request_host_port", func(t *testing.T) {
-		r, err := http.NewRequest(http.MethodGet, "/", nil)
-		r.Host = "testhost:123"
-		require.NoError(t, err)
-
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, r)
-		require.Equal(t, http.StatusOK, w.Code)
-
-		res := &rt{}
-		body := w.Body.Bytes()
-		s := string(body)
-		assert.NoError(t, json.Unmarshal(body, res))
-		assert.Equal(t, "testhost", res.Host, s)
-	})
-	t.Run("request_host_port_invalid", func(t *testing.T) {
-		r, err := http.NewRequest(http.MethodGet, "/", nil)
-		r.Host = "[testhost:123:"
-		require.NoError(t, err)
-
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, r)
-		require.Equal(t, http.StatusOK, w.Code)
-
-		res := &rt{}
-		body := w.Body.Bytes()
-		s := string(body)
-		assert.NoError(t, json.Unmarshal(body, res))
-		assert.Equal(t, "[testhost:123:", res.Host, s)
-	})
-	t.Run("request_host_header", func(t *testing.T) {
-		r, err := http.NewRequest(http.MethodGet, "/", nil)
-		r.Host = "testhost:123"
-		r.Header.Set(header.XHostname, "newhostname:190")
-		require.NoError(t, err)
-
-		w := httptest.NewRecorder()
-		handler.ServeHTTP(w, r)
-		require.Equal(t, http.StatusOK, w.Code)
-
-		res := &rt{}
-		body := w.Body.Bytes()
-		s := string(body)
-		assert.NoError(t, json.Unmarshal(body, res))
-		assert.Equal(t, "newhostname", res.Host, s)
-	})
+	assert.Equal(t, "dolly", res.Role, s)
+	assert.Equal(t, "dolly", res.Name, s)
 }

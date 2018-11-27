@@ -1,6 +1,9 @@
 package xhttp
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -8,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/metrics"
-	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -37,8 +39,17 @@ func Test_RequestMetrics(t *testing.T) {
 		r, err := http.NewRequest(method, uri, nil)
 		r.RequestURI = uri
 		require.NoError(t, err)
-		testIdentity := identity.NewIdentity("enrollme_dev", "localhost")
-		r = identity.WithTestIdentity(r, testIdentity)
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{
+					Subject: pkix.Name{
+						CommonName:   "dolly",
+						Organization: []string{"org"},
+					},
+				},
+			},
+		}
+
 		w := httptest.NewRecorder()
 		handlerStatusCode = sc
 		rm.ServeHTTP(w, r)
@@ -56,9 +67,9 @@ func Test_RequestMetrics(t *testing.T) {
 		require.True(t, exists, "Expected metric with key %s to exist, but it doesn't", key)
 		assert.Equal(t, expectedCount, s.Count, "Unexpected count for metric %s", key)
 	}
-	assertSample("test.http.request;method=GET;role=enrollme_dev;status=200;uri=/", 1)
-	assertSample("test.http.request;method=GET;role=enrollme_dev;status=200;uri=/foo", 1)
-	assertSample("test.http.request;method=POST;role=enrollme_dev;status=200;uri=/", 2)
-	assertSample("test.http.request;method=POST;role=enrollme_dev;status=400;uri=/", 1)
-	assertSample("test.http.request;method=POST;role=enrollme_dev;status=400;uri=/bar", 1)
+	assertSample("test.http.request;method=GET;role=dolly;status=200;uri=/", 1)
+	assertSample("test.http.request;method=GET;role=dolly;status=200;uri=/foo", 1)
+	assertSample("test.http.request;method=POST;role=dolly;status=200;uri=/", 2)
+	assertSample("test.http.request;method=POST;role=dolly;status=400;uri=/", 1)
+	assertSample("test.http.request;method=POST;role=dolly;status=400;uri=/bar", 1)
 }
