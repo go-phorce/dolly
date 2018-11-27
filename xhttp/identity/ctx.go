@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/netutil"
@@ -200,10 +201,15 @@ func extractHostname(req *http.Request) string {
 		rawhost = req.Host
 	}
 
+	if !strings.Contains(rawhost, ":") {
+		return rawhost
+	}
+
 	host, _, err := net.SplitHostPort(rawhost)
 	if err != nil {
-		logger.Errorf("api=extractHostname, reason=SplitHostPort, host=%s, err=[%v]",
+		logger.Debugf("api=extractHostname, reason=SplitHostPort, host=%s, err=[%v]",
 			rawhost, err.Error())
+		return rawhost
 	}
 	return host
 }

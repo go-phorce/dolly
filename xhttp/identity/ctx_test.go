@@ -69,7 +69,7 @@ func Test_RoleContext(t *testing.T) {
 	assert.Equal(t, "bob_1", c.Identity().Role())
 }
 
-func Test_TestIdentity(t *testing.T) {
+func Test_RequestorIdentity(t *testing.T) {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		ctx := ForRequest(r)
 		identity := ctx.Identity()
@@ -100,4 +100,85 @@ func Test_TestIdentity(t *testing.T) {
 	assert.NoError(t, json.Unmarshal(body, res))
 	assert.Equal(t, identity.Role(), res.Role, s)
 	assert.Equal(t, identity.Name(), res.Name, s)
+}
+
+func Test_RequestorHost(t *testing.T) {
+	h := func(w http.ResponseWriter, r *http.Request) {
+		ctx := ForRequest(r)
+		host := ctx.Host()
+		responseBody := fmt.Sprintf(`{"host":"%s"}`, host)
+		io.WriteString(w, responseBody)
+	}
+
+	type rt struct {
+		Host string `json:"host,omitempty"`
+	}
+
+	handler := NewContextHandler(http.HandlerFunc(h))
+	server := httptest.NewServer(handler)
+	defer server.Close()
+
+	t.Run("request_host", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/", nil)
+		r.Host = "testhost"
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		res := &rt{}
+		body := w.Body.Bytes()
+		s := string(body)
+		assert.NoError(t, json.Unmarshal(body, res))
+		assert.Equal(t, "testhost", res.Host, s)
+	})
+
+	t.Run("request_host_port", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/", nil)
+		r.Host = "testhost:123"
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		res := &rt{}
+		body := w.Body.Bytes()
+		s := string(body)
+		assert.NoError(t, json.Unmarshal(body, res))
+		assert.Equal(t, "testhost", res.Host, s)
+	})
+	t.Run("request_host_port_invalid", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/", nil)
+		r.Host = "[testhost:123:"
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		res := &rt{}
+		body := w.Body.Bytes()
+		s := string(body)
+		assert.NoError(t, json.Unmarshal(body, res))
+		assert.Equal(t, "[testhost:123:", res.Host, s)
+	})
+	t.Run("request_host_header", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/", nil)
+		r.Host = "testhost:123"
+		r.Header.Set(header.XHostname, "newhostname:190")
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		res := &rt{}
+		body := w.Body.Bytes()
+		s := string(body)
+		assert.NoError(t, json.Unmarshal(body, res))
+		assert.Equal(t, "newhostname", res.Host, s)
+	})
 }
