@@ -19,6 +19,9 @@ func init() {
 // to an external system
 type MetricSink metrics.MetricSink
 
+// Label is used to add dimentions to metrics
+type Label metrics.Label
+
 // Config is used to configure metrics settings
 type Config metrics.Config
 
@@ -218,4 +221,9 @@ func (fh *FanoutSink) AddSampleWithLabels(key []string, val float32, labels []me
 	for _, s := range fh.sinks {
 		s.AddSampleWithLabels(key, val, labels)
 	}
+}
+
+// NewInmemSink returns in-memory sink
+func NewInmemSink(interval, retain time.Duration) MetricSink {
+	return metrics.NewInmemSink(interval, retain)
 }
