@@ -33,7 +33,7 @@ type Config struct {
 type Metrics struct {
 	Config
 	lastNumGC     uint32
-	sink          MetricSink
+	sink          Sink
 	filter        *iradix.Tree
 	allowedLabels map[string]bool
 	blockedLabels map[string]bool
@@ -68,7 +68,7 @@ func DefaultConfig(serviceName string) *Config {
 }
 
 // New is used to create a new instance of Metrics
-func New(conf *Config, sink MetricSink) (*Metrics, error) {
+func New(conf *Config, sink Sink) (*Metrics, error) {
 	met := &Metrics{}
 	met.Config = *conf
 	met.sink = sink
@@ -83,7 +83,7 @@ func New(conf *Config, sink MetricSink) (*Metrics, error) {
 
 // NewGlobal is the same as New, but it assigns the metrics object to be
 // used globally as well as returning it.
-func NewGlobal(conf *Config, sink MetricSink) (*Metrics, error) {
+func NewGlobal(conf *Config, sink Sink) (*Metrics, error) {
 	metrics, err := New(conf, sink)
 	if err == nil {
 		globalMetrics.Store(metrics)
@@ -92,42 +92,28 @@ func NewGlobal(conf *Config, sink MetricSink) (*Metrics, error) {
 }
 
 // Proxy all the methods to the globalMetrics instance
-func SetGauge(key []string, val float32) {
-	globalMetrics.Load().(*Metrics).SetGauge(key, val)
+
+// SetGauge should retain the last value it is set to
+func SetGauge(key []string, val float32, tags ...Tag) {
+	globalMetrics.Load().(*Metrics).SetGauge(key, val, tags...)
 }
 
-func SetGaugeWithLabels(key []string, val float32, labels []Label) {
-	globalMetrics.Load().(*Metrics).SetGaugeWithLabels(key, val, labels)
+// IncrCounter should accumulate values
+func IncrCounter(key []string, val float32, tags ...Tag) {
+	globalMetrics.Load().(*Metrics).IncrCounter(key, val, tags...)
 }
 
-func EmitKey(key []string, val float32) {
-	globalMetrics.Load().(*Metrics).EmitKey(key, val)
+// AddSample is for timing information, where quantiles are used
+func AddSample(key []string, val float32, tags ...Tag) {
+	globalMetrics.Load().(*Metrics).AddSample(key, val, tags...)
 }
 
-func IncrCounter(key []string, val float32) {
-	globalMetrics.Load().(*Metrics).IncrCounter(key, val)
+// MeasureSince is for timing information
+func MeasureSince(key []string, start time.Time, tags ...Tag) {
+	globalMetrics.Load().(*Metrics).MeasureSince(key, start, tags...)
 }
 
-func IncrCounterWithLabels(key []string, val float32, labels []Label) {
-	globalMetrics.Load().(*Metrics).IncrCounterWithLabels(key, val, labels)
-}
-
-func AddSample(key []string, val float32) {
-	globalMetrics.Load().(*Metrics).AddSample(key, val)
-}
-
-func AddSampleWithLabels(key []string, val float32, labels []Label) {
-	globalMetrics.Load().(*Metrics).AddSampleWithLabels(key, val, labels)
-}
-
-func MeasureSince(key []string, start time.Time) {
-	globalMetrics.Load().(*Metrics).MeasureSince(key, start)
-}
-
-func MeasureSinceWithLabels(key []string, start time.Time, labels []Label) {
-	globalMetrics.Load().(*Metrics).MeasureSinceWithLabels(key, start, labels)
-}
-
+// UpdateFilter updates filters
 func UpdateFilter(allow, block []string) {
 	globalMetrics.Load().(*Metrics).UpdateFilter(allow, block)
 }

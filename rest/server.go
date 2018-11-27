@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-phorce/dolly/metrics"
+	metricsutil "github.com/go-phorce/dolly/metrics/util"
 	"github.com/go-phorce/dolly/netutil"
 	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/ready"
@@ -443,11 +443,11 @@ func (server *server) StartHTTP() error {
 }
 
 func hearbeatTask(server *server) {
-	metrics.PublishHeartbeat(server.httpConfig.GetServiceName())
+	metricsutil.PublishHeartbeat(server.httpConfig.GetServiceName())
 }
 
 func uptimeTask(server *server) {
-	metrics.PublishUptime(server.httpConfig.GetServiceName(), server.Uptime())
+	metricsutil.PublishUptime(server.httpConfig.GetServiceName(), server.Uptime())
 }
 
 // StopHTTP will perform a graceful shutdown of the serivce by

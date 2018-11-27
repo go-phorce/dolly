@@ -1,4 +1,4 @@
-package metrics
+package util
 
 import (
 	"fmt"
@@ -6,16 +6,15 @@ import (
 	"testing"
 	"time"
 
-	gm "github.com/armon/go-metrics"
+	"github.com/go-phorce/dolly/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_PublishUptime(t *testing.T) {
-	im := gm.NewInmemSink(time.Minute, time.Minute*5)
-	_, err := gm.NewGlobal(gm.DefaultConfig("svc1"), im)
+	im := metrics.NewInmemSink(time.Minute, time.Minute*5)
+	_, err := metrics.NewGlobal(metrics.DefaultConfig("svc1"), im)
 	require.NoError(t, err)
-	SetProvider(NewStandardProvider())
 
 	PublishHeartbeat("svc1")
 	PublishUptime("svc1", time.Second)

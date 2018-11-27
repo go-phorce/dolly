@@ -14,6 +14,11 @@ const (
 	// statsdMaxLen is the maximum size of a packet
 	// to send to statsd
 	statsdMaxLen = 1400
+
+	// We force flush the statsite metrics after this period of
+	// inactivity. Prevents stats from getting stuck in a buffer
+	// forever.
+	flushInterval = 100 * time.Millisecond
 )
 
 // StatsdSink provides a MetricSink that can be used
@@ -26,7 +31,7 @@ type StatsdSink struct {
 
 // NewStatsdSinkFromURL creates an StatsdSink from a URL. It is used
 // (and tested) from NewMetricSinkFromURL.
-func NewStatsdSinkFromURL(u *url.URL) (MetricSink, error) {
+func NewStatsdSinkFromURL(u *url.URL) (Sink, error) {
 	return NewStatsdSink(u.Host)
 }
 
@@ -40,43 +45,26 @@ func NewStatsdSink(addr string) (*StatsdSink, error) {
 	return s, nil
 }
 
-// Close is used to stop flushing to statsd
+// Shutdown is used to stop flushing to statsd
 func (s *StatsdSink) Shutdown() {
 	close(s.metricQueue)
 }
 
-func (s *StatsdSink) SetGauge(key []string, val float32) {
-	flatKey := s.flattenKey(key)
+// SetGauge should retain the last value it is set to
+func (s *StatsdSink) SetGauge(key []string, val float32, tags []Tag) {
+	flatKey := s.flattenKeyLabels(key, tags)
 	s.pushMetric(fmt.Sprintf("%s:%f|g\n", flatKey, val))
 }
 
-func (s *StatsdSink) SetGaugeWithLabels(key []string, val float32, labels []Label) {
-	flatKey := s.flattenKeyLabels(key, labels)
-	s.pushMetric(fmt.Sprintf("%s:%f|g\n", flatKey, val))
-}
-
-func (s *StatsdSink) EmitKey(key []string, val float32) {
-	flatKey := s.flattenKey(key)
-	s.pushMetric(fmt.Sprintf("%s:%f|kv\n", flatKey, val))
-}
-
-func (s *StatsdSink) IncrCounter(key []string, val float32) {
-	flatKey := s.flattenKey(key)
+// IncrCounter should accumulate values
+func (s *StatsdSink) IncrCounter(key []string, val float32, tags []Tag) {
+	flatKey := s.flattenKeyLabels(key, tags)
 	s.pushMetric(fmt.Sprintf("%s:%f|c\n", flatKey, val))
 }
 
-func (s *StatsdSink) IncrCounterWithLabels(key []string, val float32, labels []Label) {
-	flatKey := s.flattenKeyLabels(key, labels)
-	s.pushMetric(fmt.Sprintf("%s:%f|c\n", flatKey, val))
-}
-
-func (s *StatsdSink) AddSample(key []string, val float32) {
-	flatKey := s.flattenKey(key)
-	s.pushMetric(fmt.Sprintf("%s:%f|ms\n", flatKey, val))
-}
-
-func (s *StatsdSink) AddSampleWithLabels(key []string, val float32, labels []Label) {
-	flatKey := s.flattenKeyLabels(key, labels)
+// AddSample is for timing information, where quantiles are used
+func (s *StatsdSink) AddSample(key []string, val float32, tags []Tag) {
+	flatKey := s.flattenKeyLabels(key, tags)
 	s.pushMetric(fmt.Sprintf("%s:%f|ms\n", flatKey, val))
 }
 
@@ -96,7 +84,7 @@ func (s *StatsdSink) flattenKey(parts []string) string {
 }
 
 // Flattens the key along with labels for formatting, removes spaces
-func (s *StatsdSink) flattenKeyLabels(parts []string, labels []Label) string {
+func (s *StatsdSink) flattenKeyLabels(parts []string, labels []Tag) string {
 	for _, label := range labels {
 		parts = append(parts, label.Value)
 	}

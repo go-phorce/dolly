@@ -7,8 +7,8 @@ import (
 	"time"
 )
 
-// MetricsSummary holds a roll-up of metrics info for a given interval
-type MetricsSummary struct {
+// Summary holds a roll-up of metrics info for a given interval
+type Summary struct {
 	Timestamp string
 	Gauges    []GaugeValue
 	Points    []PointValue
@@ -16,20 +16,23 @@ type MetricsSummary struct {
 	Samples   []SampledValue
 }
 
+// GaugeValue provides gauge value
 type GaugeValue struct {
 	Name  string
 	Hash  string `json:"-"`
 	Value float32
 
-	Labels        []Label           `json:"-"`
+	Labels        []Tag             `json:"-"`
 	DisplayLabels map[string]string `json:"Labels"`
 }
 
+// PointValue provides point value
 type PointValue struct {
 	Name   string
 	Points []float32
 }
 
+// SampledValue provides sample value
 type SampledValue struct {
 	Name string
 	Hash string `json:"-"`
@@ -37,7 +40,7 @@ type SampledValue struct {
 	Mean   float64
 	Stddev float64
 
-	Labels        []Label           `json:"-"`
+	Labels        []Tag             `json:"-"`
 	DisplayLabels map[string]string `json:"Labels"`
 }
 
@@ -58,7 +61,7 @@ func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) 
 		interval = i.intervals[n-2]
 	}
 
-	summary := MetricsSummary{
+	summary := Summary{
 		Timestamp: interval.Interval.Round(time.Second).UTC().String(),
 		Gauges:    make([]GaugeValue, 0, len(interval.Gauges)),
 		Points:    make([]PointValue, 0, len(interval.Points)),

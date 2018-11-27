@@ -1,10 +1,12 @@
-package metrics
+package util
 
 import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/hex"
 	"time"
+
+	"github.com/go-phorce/dolly/metrics"
 )
 
 var (
@@ -16,11 +18,11 @@ var (
 func PublishShortLivedCertExpirationInDays(c *x509.Certificate, typ string) float32 {
 	expiresIn := c.NotAfter.Sub(time.Now().UTC())
 	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
-	SetGauge(
+	metrics.SetGauge(
 		keyForCertExpiry,
 		expiresInDays,
-		Tag{"CN", c.Subject.CommonName},
-		Tag{"type", typ},
+		metrics.Tag{Name: "CN", Value: c.Subject.CommonName},
+		metrics.Tag{Name: "type", Value: typ},
 	)
 	return expiresInDays
 }
@@ -29,13 +31,13 @@ func PublishShortLivedCertExpirationInDays(c *x509.Certificate, typ string) floa
 func PublishCertExpirationInDays(c *x509.Certificate, typ string) float32 {
 	expiresIn := c.NotAfter.Sub(time.Now().UTC())
 	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
-	SetGauge(
+	metrics.SetGauge(
 		keyForCertExpiry,
 		expiresInDays,
-		Tag{"CN", c.Subject.CommonName},
-		Tag{"type", typ},
-		Tag{"Serial", c.SerialNumber.String()},
-		Tag{"SKI", hex.EncodeToString(c.SubjectKeyId)},
+		metrics.Tag{Name: "CN", Value: c.Subject.CommonName},
+		metrics.Tag{Name: "type", Value: typ},
+		metrics.Tag{Name: "Serial", Value: c.SerialNumber.String()},
+		metrics.Tag{Name: "SKI", Value: hex.EncodeToString(c.SubjectKeyId)},
 	)
 	return expiresInDays
 }
@@ -46,12 +48,12 @@ func PublishCRLExpirationInDays(c *pkix.CertificateList, issuer *x509.Certificat
 
 	expiresIn := c.TBSCertList.NextUpdate.Sub(time.Now().UTC())
 	expiresInDays := float32(expiresIn) / float32(time.Hour*24)
-	SetGauge(
+	metrics.SetGauge(
 		keyForCrlExpiry,
 		expiresInDays,
-		Tag{"CN", issuer.Subject.CommonName},
-		Tag{"Serial", issuer.SerialNumber.String()},
-		Tag{"SKI", hex.EncodeToString(issuer.SubjectKeyId)},
+		metrics.Tag{Name: "CN", Value: issuer.Subject.CommonName},
+		metrics.Tag{Name: "Serial", Value: issuer.SerialNumber.String()},
+		metrics.Tag{Name: "SKI", Value: hex.EncodeToString(issuer.SubjectKeyId)},
 	)
 	return expiresInDays
 }

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-phorce/dolly/metrics"
+	metricsutil "github.com/go-phorce/dolly/metrics/util"
 	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
@@ -115,7 +115,7 @@ func certExpirationPublisherTask(tlsloader *tlsconfig.KeypairReloader) {
 		if err != nil {
 			errors.Annotatef(err, "api=certExpirationPublisherTask, reason=unable_parse_tls_cert, file=%q", certFile)
 		} else {
-			metrics.PublishCertExpirationInDays(cert, "server")
+			metricsutil.PublishCertExpirationInDays(cert, "server")
 		}
 	} else {
 		logger.Warningf("api=certExpirationPublisherTask, reason=Keypair, cert=%q, key=%q", certFile, keyFile)
