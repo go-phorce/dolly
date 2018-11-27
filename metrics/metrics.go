@@ -164,3 +164,58 @@ func AddSample(key []string, val float32, tags ...Tag) {
 func MeasureSince(key []string, start time.Time, tags ...Tag) {
 	prov.MeasureSince(key, start, tags...)
 }
+
+// FanoutSink is used to sink to fanout values to multiple sinks
+type FanoutSink struct {
+	sinks []MetricSink
+}
+
+// NewFanoutSink return a wrapper for fanout sink
+func NewFanoutSink(sinks ...MetricSink) MetricSink {
+	return &FanoutSink{
+		sinks: sinks,
+	}
+}
+
+// SetGauge wraps SetGauge from armon/go-metrics
+func (fh *FanoutSink) SetGauge(key []string, val float32) {
+	fh.SetGaugeWithLabels(key, val, nil)
+}
+
+// SetGaugeWithLabels wraps SetGauge from armon/go-metrics
+func (fh *FanoutSink) SetGaugeWithLabels(key []string, val float32, labels []metrics.Label) {
+	for _, s := range fh.sinks {
+		s.SetGaugeWithLabels(key, val, labels)
+	}
+}
+
+// EmitKey wraps SetGauge from armon/go-metrics
+func (fh *FanoutSink) EmitKey(key []string, val float32) {
+	for _, s := range fh.sinks {
+		s.EmitKey(key, val)
+	}
+}
+
+// IncrCounter wraps IncrCounter from armon/go-metrics
+func (fh *FanoutSink) IncrCounter(key []string, val float32) {
+	fh.IncrCounterWithLabels(key, val, nil)
+}
+
+// IncrCounterWithLabels wraps IncrCounter from armon/go-metrics
+func (fh *FanoutSink) IncrCounterWithLabels(key []string, val float32, labels []metrics.Label) {
+	for _, s := range fh.sinks {
+		s.IncrCounterWithLabels(key, val, labels)
+	}
+}
+
+// AddSample wraps AddSample from armon/go-metrics
+func (fh *FanoutSink) AddSample(key []string, val float32) {
+	fh.AddSampleWithLabels(key, val, nil)
+}
+
+// AddSampleWithLabels wraps AddSample from armon/go-metrics
+func (fh *FanoutSink) AddSampleWithLabels(key []string, val float32, labels []metrics.Label) {
+	for _, s := range fh.sinks {
+		s.AddSampleWithLabels(key, val, labels)
+	}
+}

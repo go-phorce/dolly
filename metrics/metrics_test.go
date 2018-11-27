@@ -46,40 +46,48 @@ func Test_SetProviderDatadog(t *testing.T) {
 // Mock
 //
 type mockedSink struct {
+	t *testing.T
 	mock.Mock
 }
 
 func (m *mockedSink) SetGauge(key []string, val float32) {
+	m.t.Logf("SetGauge key=%v", key)
 	m.Called(key, val)
 }
 
 func (m *mockedSink) SetGaugeWithLabels(key []string, val float32, labels []gometrics.Label) {
+	m.t.Logf("SetGaugeWithLabels key=%v", key)
 	m.Called(key, val, labels)
 }
 
 func (m *mockedSink) EmitKey(key []string, val float32) {
+	m.t.Logf("EmitKey key=%v", key)
 	m.Called(key, val)
 }
 
 func (m *mockedSink) IncrCounter(key []string, val float32) {
+	m.t.Logf("IncrCounter key=%v", key)
 	m.Called(key, val)
 }
 
 func (m *mockedSink) IncrCounterWithLabels(key []string, val float32, labels []gometrics.Label) {
+	m.t.Logf("IncrCounterWithLabels key=%v", key)
 	m.Called(key, val, labels)
 }
 
 func (m *mockedSink) AddSample(key []string, val float32) {
+	m.t.Logf("AddSample key=%v", key)
 	m.Called(key, val)
 }
 
 func (m *mockedSink) AddSampleWithLabels(key []string, val float32, labels []gometrics.Label) {
+	m.t.Logf("AddSampleWithLabels key=%v", key)
 	m.Called(key, val, labels)
 }
 
 func Test_Emit(t *testing.T) {
 	t.Run("default config", func(t *testing.T) {
-		mocked := &mockedSink{}
+		mocked := &mockedSink{t: t}
 
 		// setup expectations
 		mocked.AssertNotCalled(t, "SetGauge", mock.Anything, mock.Anything)
@@ -101,7 +109,7 @@ func Test_Emit(t *testing.T) {
 	})
 
 	t.Run("enabled config", func(t *testing.T) {
-		mocked := &mockedSink{}
+		mocked := &mockedSink{t: t}
 
 		// setup expectations
 		mocked.AssertNotCalled(t, "SetGauge", mock.Anything, mock.Anything)
@@ -125,4 +133,41 @@ func Test_Emit(t *testing.T) {
 		// assert that the expectations were met
 		mocked.AssertExpectations(t)
 	})
+}
+
+func Test_FanoutSink(t *testing.T) {
+	mocked := &mockedSink{t: t}
+	fan := metrics.NewFanoutSink(mocked, mocked)
+
+	// setup expectations
+	mocked.AssertNotCalled(t, "SetGauge", mock.Anything, mock.Anything)
+	mocked.On("SetGaugeWithLabels", mock.Anything, mock.Anything, mock.Anything).Times(0)
+	mocked.On("EmitKey", mock.Anything, mock.Anything).Times(2)
+	mocked.AssertNotCalled(t, "IncrCounter", mock.Anything, mock.Anything)
+	mocked.On("IncrCounterWithLabels", mock.Anything, mock.Anything, mock.Anything).Times(6)
+	mocked.AssertNotCalled(t, "AddSample", mock.Anything, mock.Anything)
+	mocked.On("AddSampleWithLabels", mock.Anything, mock.Anything, mock.Anything).Times(8)
+
+	prov, err := metrics.New(
+		&metrics.Config{
+			ServiceName:    "dolly",
+			EnableHostname: true,
+			FilterDefault:  true,
+		},
+		fan)
+	require.NoError(t, err)
+	metrics.SetProvider(prov)
+
+	run(1)
+
+	fan.SetGauge([]string{"test", "metrics", "gauge"}, float32(0))
+	fan.EmitKey([]string{"test", "metrics", "gauge"}, float32(0))
+	fan.IncrCounter([]string{"test", "metrics", "counter"}, float32(0))
+	fan.AddSample([]string{"test", "metrics", "sample"}, float32(0))
+	fan.SetGaugeWithLabels([]string{"test", "metrics", "gauge"}, float32(0), nil)
+	fan.IncrCounterWithLabels([]string{"test", "metrics", "counter"}, float32(0), nil)
+	fan.AddSampleWithLabels([]string{"test", "metrics", "sample"}, float32(0), nil)
+
+	// assert that the expectations were met
+	mocked.AssertExpectations(t)
 }
