@@ -137,7 +137,7 @@ func Test_Emit(t *testing.T) {
 
 func Test_FanoutSink(t *testing.T) {
 	mocked := &mockedSink{t: t}
-	fan := metrics.NewFanoutSink(mocked, mocked)
+	fan := metrics.NewFanoutSink(mocked, mocked, metrics.NewInmemSink(time.Minute, time.Minute*5))
 
 	// setup expectations
 	mocked.AssertNotCalled(t, "SetGauge", mock.Anything, mock.Anything)
