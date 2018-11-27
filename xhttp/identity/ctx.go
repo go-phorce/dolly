@@ -4,10 +4,7 @@ package identity
 
 import (
 	"context"
-	"crypto/x509"
-	"net"
 	"net/http"
-	"strings"
 
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/netutil"
@@ -25,7 +22,6 @@ const (
 )
 
 var (
-	emptyContext  *RequestContext
 	nodeInfo      netutil.NodeInfo
 	roleExtractor ExtractRole = extractRoleFromPKIX
 )
@@ -35,8 +31,7 @@ var (
 type RequestContext struct {
 	identity      Identity
 	correlationID string
-	hostname      string
-	ipaddr        string
+	clientIP      string
 }
 
 // Context represents user contextual information about a request being processed by the server,
@@ -44,8 +39,7 @@ type RequestContext struct {
 type Context interface {
 	Identity() Identity
 	CorrelationID() string
-	Host() string
-	IP() string
+	ClientIP() string
 }
 
 func init() {
@@ -54,8 +48,6 @@ func init() {
 		logger.Panicf("context package not initialized: %s", errors.ErrorStack(err))
 	}
 	nodeInfo = n
-
-	emptyContext = New("", "", "", "", "")
 }
 
 // Initialize allows to customize NodeInfo and ExtractRoleName
@@ -73,21 +65,13 @@ func Initialize(n netutil.NodeInfo, e ExtractRole) {
 func ForRequest(r *http.Request) *RequestContext {
 	v := r.Context().Value(keyContext)
 	if v == nil {
-		return emptyContext
+		return &RequestContext{
+			identity:      extractIdentityFromRequest(r),
+			correlationID: extractCorrelationID(r),
+			clientIP:      ClientIPFromRequest(r),
+		}
 	}
 	return v.(*RequestContext)
-}
-
-// NewForRole returns a new context for a task asociated with the role itself,
-// rather than a client request
-func NewForRole(role string) *RequestContext {
-	return New(role, nodeInfo.HostName(), "", nodeInfo.HostName(), nodeInfo.LocalIP())
-}
-
-// NewForClientCert returns a new context for Client's TLS cert
-func NewForClientCert(c *x509.Certificate) *RequestContext {
-	identity := NewIdentityFromCert(c)
-	return New(identity.Role(), identity.Name(), "", nodeInfo.HostName(), nodeInfo.LocalIP())
 }
 
 // NewContextHandler returns a handler that will extact the role & contextID from the request
@@ -98,8 +82,7 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 		ctx := &RequestContext{
 			identity:      extractIdentityFromRequest(r),
 			correlationID: extractCorrelationID(r),
-			hostname:      extractHostname(r),
-			ipaddr:        ClientIPFromRequest(r),
+			clientIP:      ClientIPFromRequest(r),
 		}
 
 		c := context.WithValue(r.Context(), keyContext, ctx)
@@ -113,46 +96,11 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 	return http.HandlerFunc(h)
 }
 
-// New returns a new Context with the supplied identity & request identifiers
-// typically you should be using ForRequest or Context to get a context
-// this primarily exists for tests
-func New(role, commonName, correlationID, host, ip string) *RequestContext {
-	if correlationID == "" {
-		correlationID = guid.MustCreate()
-	}
-	if host == "" {
-		host = nodeInfo.HostName()
-	}
-	if ip == "" {
-		ip = nodeInfo.LocalIP()
-	}
-	return &RequestContext{
-		identity:      NewIdentity(role, commonName),
-		correlationID: correlationID,
-		hostname:      host,
-		ipaddr:        ip,
-	}
-}
-
-// WithTestIdentity is used in unit tests to set HTTP request identity
-func WithTestIdentity(r *http.Request, identity Identity) *http.Request {
-	ctx := &RequestContext{
-		identity:      identity,
-		correlationID: extractCorrelationID(r),
-		hostname:      nodeInfo.HostName(),
-		ipaddr:        nodeInfo.LocalIP(),
-	}
-
-	c := context.WithValue(r.Context(), keyContext, ctx)
-	return r.WithContext(c)
-}
-
 func (c *RequestContext) copy() *RequestContext {
 	return &RequestContext{
 		identity:      c.identity,
 		correlationID: c.correlationID,
-		hostname:      c.hostname,
-		ipaddr:        c.ipaddr,
+		clientIP:      c.clientIP,
 	}
 }
 
@@ -167,14 +115,9 @@ func (c *RequestContext) CorrelationID() string {
 	return c.correlationID
 }
 
-// Host returns request's hoste name
-func (c *RequestContext) Host() string {
-	return c.hostname
-}
-
-// IP returns request's IP
-func (c *RequestContext) IP() string {
-	return c.ipaddr
+// ClientIP returns request's IP
+func (c *RequestContext) ClientIP() string {
+	return c.clientIP
 }
 
 // WithCorrelationID sets correlationID
@@ -191,25 +134,4 @@ func extractCorrelationID(req *http.Request) string {
 		corID = guid.MustCreate()
 	}
 	return corID
-}
-
-// extractHost extracts the client Host from req, if present.
-func extractHostname(req *http.Request) string {
-	// TODO: check headers "X-Forwarded-For"
-	rawhost := req.Header.Get(header.XHostname)
-	if rawhost == "" {
-		rawhost = req.Host
-	}
-
-	if !strings.Contains(rawhost, ":") {
-		return rawhost
-	}
-
-	host, _, err := net.SplitHostPort(rawhost)
-	if err != nil {
-		logger.Debugf("api=extractHostname, reason=SplitHostPort, host=%s, err=[%v]",
-			rawhost, err.Error())
-		return rawhost
-	}
-	return host
 }

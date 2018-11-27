@@ -53,23 +53,20 @@ func (c identity) Role() string {
 // String returns the identity as a single string value
 // in the format of role/name
 func (c identity) String() string {
-	if c.role != "" {
+	if c.role != c.name {
 		return c.role + "/" + c.name
 	}
-	return "unknown"
+	return c.role
 }
 
 func extractIdentityFromRequest(r *http.Request) Identity {
-	if r.TLS == nil {
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		return identity{
 			name: ClientIPFromRequest(r),
 			role: "guest",
 		}
 	}
 	pc := r.TLS.PeerCertificates
-	if len(pc) == 0 {
-		return identity{}
-	}
 	return identity{
 		name: pc[0].Subject.CommonName,
 		role: roleExtractor(&pc[0].Subject),
