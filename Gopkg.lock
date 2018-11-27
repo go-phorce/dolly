@@ -30,17 +30,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ac1c09b068b2d936192f544e63c1250d3eeaa7d109db4d0f35b8d6e7914760e1"
-  name = "github.com/armon/go-metrics"
-  packages = [
-    ".",
-    "datadog",
-  ]
-  pruneopts = "UT"
-  revision = "f0300d1749da6fa982027e449ec0c7a145510c3c"
-
-[[projects]]
-  branch = "master"
   digest = "1:fe11c91fc456e898be44dcfe6c2415941f2fb40e812ed0b7121c920fb7b03e1f"
   name = "github.com/cloudflare/cfssl"
   packages = [
@@ -254,8 +243,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/armon/go-metrics",
-    "github.com/armon/go-metrics/datadog",
     "github.com/cloudflare/cfssl/bundler",
     "github.com/coreos/pkg/capnslog",
     "github.com/juju/errors",

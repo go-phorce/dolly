@@ -1,4 +1,4 @@
-package metrics
+package util
 
 import (
 	"crypto/x509/pkix"
@@ -8,17 +8,16 @@ import (
 	"testing"
 	"time"
 
-	gm "github.com/armon/go-metrics"
+	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/testify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_PublishCertExpiration(t *testing.T) {
-	im := gm.NewInmemSink(time.Minute, time.Minute*5)
-	_, err := gm.NewGlobal(gm.DefaultConfig("service"), im)
+	im := metrics.NewInmemSink(time.Minute, time.Minute*5)
+	_, err := metrics.NewGlobal(metrics.DefaultConfig("service"), im)
 	require.NoError(t, err)
-	SetProvider(NewStandardProvider())
 
 	crt, _, err := testify.MakeSelfCertRSA(24)
 	require.NoError(t, err)

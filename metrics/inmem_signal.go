@@ -104,7 +104,7 @@ func (i *InmemSignal) dumpStats() {
 }
 
 // Flattens the key for formatting along with its labels, removes spaces
-func (i *InmemSignal) flattenLabels(name string, labels []Label) string {
+func (i *InmemSignal) flattenLabels(name string, labels []Tag) string {
 	buf := bytes.NewBufferString(name)
 	replacer := strings.NewReplacer(" ", "_", ":", "_")
 

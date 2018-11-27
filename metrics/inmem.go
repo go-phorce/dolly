@@ -78,7 +78,7 @@ type AggregateSample struct {
 	LastUpdated time.Time `json:"-"` // When value was last updated
 }
 
-// Computes a Stddev of the values
+// Stddev computes a Stddev of the values
 func (a *AggregateSample) Stddev() float64 {
 	num := (float64(a.Count) * a.SumSq) - math.Pow(a.Sum, 2)
 	div := float64(a.Count * (a.Count - 1))
@@ -88,7 +88,7 @@ func (a *AggregateSample) Stddev() float64 {
 	return math.Sqrt(num / div)
 }
 
-// Computes a mean of the values
+// Mean computes a mean of the values
 func (a *AggregateSample) Mean() float64 {
 	if a.Count == 0 {
 		return 0
@@ -124,7 +124,7 @@ func (a *AggregateSample) String() string {
 
 // NewInmemSinkFromURL creates an InmemSink from a URL. It is used
 // (and tested) from NewMetricSinkFromURL.
-func NewInmemSinkFromURL(u *url.URL) (MetricSink, error) {
+func NewInmemSinkFromURL(u *url.URL) (Sink, error) {
 	params := u.Query()
 
 	interval, err := time.ParseDuration(params.Get("interval"))
@@ -154,35 +154,19 @@ func NewInmemSink(interval, retain time.Duration) *InmemSink {
 	return i
 }
 
-func (i *InmemSink) SetGauge(key []string, val float32) {
-	i.SetGaugeWithLabels(key, val, nil)
-}
-
-func (i *InmemSink) SetGaugeWithLabels(key []string, val float32, labels []Label) {
-	k, name := i.flattenKeyLabels(key, labels)
+// SetGauge should retain the last value it is set to
+func (i *InmemSink) SetGauge(key []string, val float32, tags []Tag) {
+	k, name := i.flattenKeyLabels(key, tags)
 	intv := i.getInterval()
 
 	intv.Lock()
 	defer intv.Unlock()
-	intv.Gauges[k] = GaugeValue{Name: name, Value: val, Labels: labels}
+	intv.Gauges[k] = GaugeValue{Name: name, Value: val, Labels: tags}
 }
 
-func (i *InmemSink) EmitKey(key []string, val float32) {
-	k := i.flattenKey(key)
-	intv := i.getInterval()
-
-	intv.Lock()
-	defer intv.Unlock()
-	vals := intv.Points[k]
-	intv.Points[k] = append(vals, val)
-}
-
-func (i *InmemSink) IncrCounter(key []string, val float32) {
-	i.IncrCounterWithLabels(key, val, nil)
-}
-
-func (i *InmemSink) IncrCounterWithLabels(key []string, val float32, labels []Label) {
-	k, name := i.flattenKeyLabels(key, labels)
+// IncrCounter should accumulate values
+func (i *InmemSink) IncrCounter(key []string, val float32, tags []Tag) {
+	k, name := i.flattenKeyLabels(key, tags)
 	intv := i.getInterval()
 
 	intv.Lock()
@@ -193,19 +177,16 @@ func (i *InmemSink) IncrCounterWithLabels(key []string, val float32, labels []La
 		agg = SampledValue{
 			Name:            name,
 			AggregateSample: &AggregateSample{},
-			Labels:          labels,
+			Labels:          tags,
 		}
 		intv.Counters[k] = agg
 	}
 	agg.Ingest(float64(val), i.rateDenom)
 }
 
-func (i *InmemSink) AddSample(key []string, val float32) {
-	i.AddSampleWithLabels(key, val, nil)
-}
-
-func (i *InmemSink) AddSampleWithLabels(key []string, val float32, labels []Label) {
-	k, name := i.flattenKeyLabels(key, labels)
+// AddSample is for timing information, where quantiles are used
+func (i *InmemSink) AddSample(key []string, val float32, tags []Tag) {
+	k, name := i.flattenKeyLabels(key, tags)
 	intv := i.getInterval()
 
 	intv.Lock()
@@ -216,7 +197,7 @@ func (i *InmemSink) AddSampleWithLabels(key []string, val float32, labels []Labe
 		agg = SampledValue{
 			Name:            name,
 			AggregateSample: &AggregateSample{},
-			Labels:          labels,
+			Labels:          tags,
 		}
 		intv.Samples[k] = agg
 	}
@@ -242,7 +223,7 @@ func (i *InmemSink) Data() []*IntervalMetrics {
 	intervals[n-1] = &IntervalMetrics{}
 	copyCurrent := intervals[n-1]
 	current.RLock()
-	*copyCurrent = *current
+	copyCurrent.Interval = current.Interval
 
 	copyCurrent.Gauges = make(map[string]GaugeValue, len(current.Gauges))
 	for k, v := range current.Gauges {
@@ -325,8 +306,8 @@ func (i *InmemSink) flattenKey(parts []string) string {
 	return buf.String()
 }
 
-// Flattens the key for formatting along with its labels, removes spaces
-func (i *InmemSink) flattenKeyLabels(parts []string, labels []Label) (string, string) {
+// Flattens the key for formatting along with its tags, removes spaces
+func (i *InmemSink) flattenKeyLabels(parts []string, tags []Tag) (string, string) {
 	buf := &bytes.Buffer{}
 	replacer := strings.NewReplacer(" ", "_")
 
@@ -340,7 +321,7 @@ func (i *InmemSink) flattenKeyLabels(parts []string, labels []Label) (string, st
 
 	key := buf.String()
 
-	for _, label := range labels {
+	for _, label := range tags {
 		replacer.WriteString(buf, fmt.Sprintf(";%s=%s", label.Name, label.Value))
 	}
 

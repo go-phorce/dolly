@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	gm "github.com/armon/go-metrics"
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/stretchr/testify/assert"
@@ -24,11 +23,9 @@ func Test_RequestMetricsStatusCode(t *testing.T) {
 }
 
 func Test_RequestMetrics(t *testing.T) {
-	im := gm.NewInmemSink(time.Minute, time.Minute*5)
-	_, err := gm.NewGlobal(gm.DefaultConfig("test"), im)
+	im := metrics.NewInmemSink(time.Minute, time.Minute*5)
+	_, err := metrics.NewGlobal(metrics.DefaultConfig("test"), im)
 	require.NoError(t, err)
-
-	metrics.SetProvider(metrics.NewStandardProvider())
 
 	handlerStatusCode := 200
 	h := func(w http.ResponseWriter, r *http.Request) {
