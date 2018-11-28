@@ -61,6 +61,9 @@ type ClusterInfo interface {
 
 	// ClusterMembers returns the list of members in the cluster
 	ClusterMembers() ([]*ClusterMember, error)
+
+	// PeerURLs returns the list of URLs of the specific node
+	PeerURLs(nodeID string) ([]*url.URL, error)
 }
 
 // Server is an interface to provide server status
