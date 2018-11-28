@@ -65,3 +65,7 @@ required = ["github.com/coreos/pkg/capnslog", "go.uber.org/dig/internal/digrefle
 [[override]]
   name = "github.com/google/certificate-transparency-go"
   version = "v1.0.21"
+
+[[constraint]]
+  branch = "master"
+  name = "github.com/jinzhu/copier"
