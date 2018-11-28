@@ -26,6 +26,9 @@ func ClientIPFromRequest(r *http.Request) string {
 			remoteIP = r.RemoteAddr
 		}
 
+		if remoteIP == "" {
+			remoteIP, _ = netutil.GetLocalIP()
+		}
 		return remoteIP
 	}
 
