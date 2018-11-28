@@ -40,6 +40,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
+	"github.com/jinzhu/copier"
 	"github.com/juju/errors"
 )
 
@@ -52,16 +53,39 @@ var (
 	ErrNoPathsConfigured = errors.New("you must have at least one path before being able to create a http.Handler")
 )
 
+// Config contains configuration for the authorization module
+type Config struct {
+	// Allow will allow the specified roles access to this path and its children, in format: ${path}:${role},${role}
+	Allow []string
+
+	// AllowAny will allow any authenticated request access to this path and its children
+	AllowAny []string
+
+	// AllowAnyRole will allow any authenticated request that include a non empty role
+	AllowAnyRole []string
+
+	// ValidOrganizations is a list of `Organization` fields allowed in client certificates
+	ValidOrganizations []string
+
+	// ValidIssuerCommonNames is a list of Trusted Root Common Names
+	ValidIssuerCommonNames []string
+
+	// LogAllowed specifies to log allowed access
+	LogAllowed bool
+
+	// LogDenied specifies to log denied access
+	LogDenied bool
+}
+
 // Provider represents an Authorization provider,
 // You can call Allow or AllowAny to specify which roles are allowed
 // access to which path segments.
 // once configured you can create a http.Handler that enforces that
 // configuration for you by calling NewHandler
 type Provider struct {
-	roleMapper             func(r *http.Request) string
-	pathRoot               *pathNode
-	validOrganizations     []string
-	validIssuerCommonNames []string
+	roleMapper func(r *http.Request) string
+	pathRoot   *pathNode
+	cfg        *Config
 }
 
 type allowTypes int8
@@ -89,46 +113,34 @@ type pathNode struct {
 }
 
 // New returns new Authz provider
-func New(allow, allowAny, allowAnyRole, validOrganizations, validIssuerCommonNames []string) (*Provider, error) {
-	az := &Provider{
-		validOrganizations:     validOrganizations,
-		validIssuerCommonNames: validIssuerCommonNames,
+func New(cfg *Config) (*Provider, error) {
+	az := &Provider{cfg: cfg}
+
+	for _, s := range cfg.AllowAny {
+		az.AllowAny(s)
+		logger.Noticef("api=authz.New, AllowAny=%s", s)
 	}
 
-	if len(allowAny) > 0 {
-		for _, s := range allowAny {
-			az.AllowAny(s)
-			logger.Noticef("api=authz.New, AllowAny=%s", s)
-		}
+	for _, s := range cfg.AllowAnyRole {
+		az.AllowAnyRole(s)
+		logger.Noticef("api=authz.New, AllowAnyRole=%s", s)
 	}
 
-	if len(allowAnyRole) > 0 {
-		for _, s := range allowAnyRole {
-			az.AllowAnyRole(s)
-			logger.Noticef("api=authz.New, AllowAnyRole=%s", s)
+	for _, s := range cfg.Allow {
+		parts := strings.Split(s, ":")
+		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
+			return nil, errors.NotValidf("Authz allow configuration %q", s)
 		}
-	}
-
-	if len(allow) > 0 {
-		for _, s := range allow {
-			parts := strings.Split(s, ":")
-			if len(parts) != 2 {
-				return nil, errors.NotValidf("Authz allow configuration %q", s)
-			}
-			logger.Noticef("api=authz.New, Allow=%s:%s", parts[0], parts[1])
-			roles := strings.Split(parts[1], ",")
-			if len(roles) < 1 {
-				return nil, errors.NotValidf("Authz allow configuration %q", s)
-			}
-			az.Allow(parts[0], roles...)
-		}
+		logger.Noticef("api=authz.New, Allow=%s:%s", parts[0], parts[1])
+		roles := strings.Split(parts[1], ",")
+		az.Allow(parts[0], roles...)
 	}
 
 	return az, nil
 }
 
 func (c *Provider) requirePeerCert() bool {
-	return len(c.validOrganizations) > 0 || len(c.validIssuerCommonNames) > 0
+	return len(c.cfg.ValidOrganizations) > 0 || len(c.cfg.ValidIssuerCommonNames) > 0
 }
 
 // treeAtText will return a string of the current configured tree in
@@ -227,12 +239,15 @@ func (n *pathNode) allowRole(r string) bool {
 
 // Clone returns a deep copy of this Provider
 func (c *Provider) Clone() *Provider {
-	return &Provider{
-		roleMapper:             c.roleMapper,
-		pathRoot:               c.pathRoot.clone(),
-		validOrganizations:     c.validOrganizations[:],
-		validIssuerCommonNames: c.validIssuerCommonNames[:],
+	p := &Provider{
+		roleMapper: c.roleMapper,
+		pathRoot:   c.pathRoot.clone(),
+		cfg:        &Config{},
 	}
+
+	copier.Copy(p.cfg, c.cfg)
+
+	return p
 }
 
 // SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
@@ -259,6 +274,9 @@ func (c *Provider) AllowAnyRole(path string) {
 func (c *Provider) Allow(path string, roles ...string) {
 	node := c.walkPath(path, true)
 	for _, role := range roles {
+		if role == "" {
+			continue
+		}
 		node.allowedRoles[role] = true
 	}
 }
@@ -316,10 +334,12 @@ func (c *Provider) isAllowed(path, role string) bool {
 		} else {
 			reason = "Role"
 		}
-		logger.Noticef("api=Authz, status=allowed, role=%q, path=%s, reason=%q, node=%s",
-			role, path, reason, node.value)
-	} else {
-		logger.Noticef("api=Authz, status=disallowed, role=%q, path=%s, allowed_roles='%v', node=%s",
+		if c.cfg.LogAllowed {
+			logger.Noticef("api=Authz, status=allowed, role=%q, path=%s, reason=%q, node=%s",
+				role, path, reason, node.value)
+		}
+	} else if c.cfg.LogDenied {
+		logger.Noticef("api=Authz, status=denied, role=%q, path=%s, allowed_roles='%v', node=%s",
 			role, path, strings.Join(node.allowedRoleKeys(), ","), node.value)
 	}
 	return res
@@ -338,11 +358,11 @@ func (c *Provider) checkAccess(r *http.Request) error {
 		}
 
 		var org, issuer string
-		if len(c.validOrganizations) > 0 {
+		if len(c.cfg.ValidOrganizations) > 0 {
 			found := false
 			for _, peer := range peers {
 				for _, org = range peer.Subject.Organization {
-					if found = slices.ContainsString(c.validOrganizations, org); found {
+					if found = slices.ContainsString(c.cfg.ValidOrganizations, org); found {
 						break
 					}
 				}
@@ -354,11 +374,11 @@ func (c *Provider) checkAccess(r *http.Request) error {
 				return errors.Errorf("the %q organization is not allowed", peers[0].Subject.Organization[0])
 			}
 		}
-		if len(c.validIssuerCommonNames) > 0 {
+		if len(c.cfg.ValidIssuerCommonNames) > 0 {
 			found := false
 			for _, chain := range r.TLS.VerifiedChains {
 				issuer = chain[len(chain)-1].Subject.CommonName
-				if found = slices.ContainsString(c.validIssuerCommonNames, issuer); found {
+				if found = slices.ContainsString(c.cfg.ValidIssuerCommonNames, issuer); found {
 					break
 				}
 			}

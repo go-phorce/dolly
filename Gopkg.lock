@@ -100,6 +100,14 @@
 
 [[projects]]
   branch = "master"
+  digest = "1:5c3444689562053b027ef3b96372e306adbe0d7d109b6cdd48d01eb80f8bab14"
+  name = "github.com/jinzhu/copier"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7e38e58719c33e0d44d585c4ab477a30f8cb82dd"
+
+[[projects]]
+  branch = "master"
   digest = "1:cdc32003a67007f608c767cfbea5b7a07ed7418ec9aed579707e3185086a6878"
   name = "github.com/juju/errors"
   packages = ["."]
@@ -243,8 +251,11 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/DataDog/datadog-go/statsd",
     "github.com/cloudflare/cfssl/bundler",
     "github.com/coreos/pkg/capnslog",
+    "github.com/hashicorp/go-immutable-radix",
+    "github.com/jinzhu/copier",
     "github.com/juju/errors",
     "github.com/julienschmidt/httprouter",
     "github.com/miekg/pkcs11",
