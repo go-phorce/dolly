@@ -60,16 +60,29 @@ func Test_RequestMetrics(t *testing.T) {
 	req(http.MethodPost, "/", http.StatusOK)
 	req(http.MethodPost, "/", http.StatusBadRequest)
 	req(http.MethodPost, "/bar", http.StatusBadRequest)
-	id := im.Data()
-	require.NotEqual(t, 0, len(id))
+	req(http.MethodPost, "/bar", http.StatusBadRequest)
+
+	data := im.Data()
+	require.NotEqual(t, 0, len(data))
 	assertSample := func(key string, expectedCount int) {
-		s, exists := id[0].Samples[key]
+		s, exists := data[0].Samples[key]
 		require.True(t, exists, "Expected metric with key %s to exist, but it doesn't", key)
 		assert.Equal(t, expectedCount, s.Count, "Unexpected count for metric %s", key)
 	}
-	assertSample("test.http.request;method=GET;role=dolly;status=200;uri=/", 1)
-	assertSample("test.http.request;method=GET;role=dolly;status=200;uri=/foo", 1)
-	assertSample("test.http.request;method=POST;role=dolly;status=200;uri=/", 2)
-	assertSample("test.http.request;method=POST;role=dolly;status=400;uri=/", 1)
-	assertSample("test.http.request;method=POST;role=dolly;status=400;uri=/bar", 1)
+	assertSample("test.http.request.perf;method=GET;role=dolly;status=200;uri=/", 1)
+	assertSample("test.http.request.perf;method=GET;role=dolly;status=200;uri=/foo", 1)
+	assertSample("test.http.request.perf;method=POST;role=dolly;status=200;uri=/", 2)
+	assertSample("test.http.request.perf;method=POST;role=dolly;status=400;uri=/", 1)
+	assertSample("test.http.request.perf;method=POST;role=dolly;status=400;uri=/bar", 2)
+
+	assertCounter := func(key string, expectedCount int) {
+		s, exists := data[0].Counters[key]
+		require.True(t, exists, "Expected metric with key %s to exist, but it doesn't", key)
+		assert.Equal(t, expectedCount, s.Count, "Unexpected count for metric %s", key)
+	}
+	assertCounter("test.http.request.status.successful;method=GET;role=dolly;status=200;uri=/", 1)
+	assertCounter("test.http.request.status.successful;method=GET;role=dolly;status=200;uri=/foo", 1)
+	assertCounter("test.http.request.status.successful;method=POST;role=dolly;status=200;uri=/", 2)
+	assertCounter("test.http.request.status.failed;method=POST;role=dolly;status=400;uri=/", 1)
+	assertCounter("test.http.request.status.failed;method=POST;role=dolly;status=400;uri=/bar", 2)
 }

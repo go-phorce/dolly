@@ -38,7 +38,9 @@ func (rm *requestMetrics) statusCode(reqURI string, statusCode int) string {
 }
 
 var (
-	keyForHTTPStats = []string{"http", "request"}
+	keyForHTTPReqPerf       = []string{"http", "request", "perf"}
+	keyForHTTPReqSuccessful = []string{"http", "request", "status", "successful"}
+	keyForHTTPReqFailed     = []string{"http", "request", "status", "failed"}
 )
 
 func (rm *requestMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -46,13 +48,20 @@ func (rm *requestMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rc := NewResponseCapture(w)
 	rm.handler.ServeHTTP(rc, r)
 	role := identity.ForRequest(r).Identity().Role()
+	sc := rc.StatusCode()
 
-	metrics.MeasureSince(
-		keyForHTTPStats,
-		start,
-		metrics.Tag{Name: tags.Method, Value: r.Method},
-		metrics.Tag{Name: tags.Role, Value: role},
-		metrics.Tag{Name: tags.Status, Value: rm.statusCode(r.RequestURI, rc.StatusCode())},
-		metrics.Tag{Name: tags.URI, Value: r.RequestURI},
-	)
+	tags := []metrics.Tag{
+		{Name: tags.Method, Value: r.Method},
+		{Name: tags.Role, Value: role},
+		{Name: tags.Status, Value: rm.statusCode(r.RequestURI, sc)},
+		{Name: tags.URI, Value: r.RequestURI},
+	}
+
+	metrics.MeasureSince(keyForHTTPReqPerf, start, tags...)
+
+	if sc >= 400 {
+		metrics.IncrCounter(keyForHTTPReqFailed, 1, tags...)
+	} else {
+		metrics.IncrCounter(keyForHTTPReqSuccessful, 1, tags...)
+	}
 }
