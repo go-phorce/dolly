@@ -3,6 +3,7 @@ package rest_test
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
@@ -157,6 +158,10 @@ func (c *cluster) LeaderID() string {
 
 func (c *cluster) ClusterMembers() ([]*rest.ClusterMember, error) {
 	return c.members[:], nil
+}
+
+func (c *cluster) PeerURLs(nodeID string) ([]*url.URL, error) {
+	return rest.GetNodePeerURLs(c, nodeID)
 }
 
 func Test_ClusterInfo(t *testing.T) {
