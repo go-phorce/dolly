@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"net/http"
@@ -75,4 +76,15 @@ func extractIdentityFromRequest(r *http.Request) Identity {
 
 func extractRoleFromPKIX(n *pkix.Name) string {
 	return n.CommonName
+}
+
+// WithTestIdentity is used in unit tests to set HTTP request identity
+func WithTestIdentity(r *http.Request, identity Identity) *http.Request {
+	ctx := &RequestContext{
+		identity:      identity,
+		correlationID: extractCorrelationID(r),
+		clientIP:      nodeInfo.LocalIP(),
+	}
+	c := context.WithValue(r.Context(), keyContext, ctx)
+	return r.WithContext(c)
 }
