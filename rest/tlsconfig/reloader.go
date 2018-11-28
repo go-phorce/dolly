@@ -2,6 +2,7 @@ package tlsconfig
 
 import (
 	"crypto/tls"
+	"crypto/x509"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -118,6 +119,16 @@ func (k *KeypairReloader) Reload() error {
 	}
 
 	k.keypair = &newCert
+	if newCert.Leaf == nil && len(newCert.Certificate) > 0 {
+		newCert.Leaf, err = x509.ParseCertificate(newCert.Certificate[0])
+		if err != nil {
+			logger.Warning("api=Reload, reason=ParseCertificate, err=[%v]", err)
+		}
+	}
+	if newCert.Leaf != nil {
+		logger.Noticef("api=Reload, reason=loaded, cn=%q, expires=%q",
+			newCert.Leaf.Subject.CommonName, newCert.Leaf.NotAfter.Format(time.RFC3339))
+	}
 
 	certFileInfo, err := os.Stat(k.certPath)
 	if err == nil {
@@ -133,7 +144,7 @@ func (k *KeypairReloader) Reload() error {
 		logger.Warning("api=Reload, reason=stat, file=%q, err=[%v]", k.keyPath, err)
 	}
 
-	logger.Infof("api=NewKeypairReloader, count=%d, cert=%q, key=%q", k.count, k.certPath, k.keyPath)
+	logger.Infof("api=Reload, count=%d, cert=%q, key=%q", k.count, k.certPath, k.keyPath)
 	return nil
 }
 
