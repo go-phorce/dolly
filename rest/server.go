@@ -69,6 +69,7 @@ type ClusterInfo interface {
 // Server is an interface to provide server status
 type Server interface {
 	ClusterInfo
+	http.Handler
 	Name() string
 	Version() string
 	RoleName() string
@@ -530,6 +531,15 @@ func (server *server) NewMux() http.Handler {
 	// role/contextID wrapper
 	httpHandler = identity.NewContextHandler(httpHandler)
 	return httpHandler
+}
+
+// ServeHTTP should write reply headers and data to the ResponseWriter
+// and then return. Returning signals that the request is finished; it
+// is not valid to use the ResponseWriter or read from the
+// Request.Body after or concurrently with the completion of the
+// ServeHTTP call.
+func (server *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	server.httpServer.Handler.ServeHTTP(w, r)
 }
 
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
