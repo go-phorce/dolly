@@ -320,6 +320,10 @@ func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 	return server.cluster.ClusterMembers()
 }
 
+func (server *server) PeerURLs(nodeID string) ([]*url.URL, error) {
+	return GetNodePeerURLs(server, nodeID)
+}
+
 // IsReady returns true when the server is ready to serve
 func (server *server) IsReady() bool {
 	if !server.serving {
