@@ -51,6 +51,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.NodeName)
 	assert.NotNil(t, server.LeaderID)
 	assert.NotNil(t, server.NodeID)
+	assert.NotNil(t, server.PeerURLs)
 	assert.NotNil(t, server.Version)
 	assert.NotNil(t, server.RoleName)
 	assert.NotNil(t, server.HostName)
@@ -83,6 +84,11 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.Scheduler())
 	assert.NotNil(t, server.HTTPConfig())
 	assert.Equal(t, cfg, server.HTTPConfig())
+
+	peersURLs, err := server.PeerURLs(server.NodeID())
+	assert.Error(t, err)
+	assert.Equal(t, "cluster not supported", err.Error())
+	assert.Empty(t, peersURLs)
 
 	//	assert.NotNil(t, server.AddService())
 	err = server.StartHTTP()
