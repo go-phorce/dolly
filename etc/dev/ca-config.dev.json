@@ -1,0 +1,112 @@
+{
+    "signing": {
+        "default": {
+            "expiry": "8760h",
+            "usages": [
+                "signing",
+                "key encipherment"
+            ]
+        },
+        "profiles": {
+            "server": {
+                "expiry": "8760h",
+                "usages": [
+                    "signing",
+                    "key encipherment",
+                    "server auth"
+                ]
+            },
+            "client": {
+                "expiry": "8760h",
+                "usages": [
+                    "signing",
+                    "key encipherment",
+                    "client auth"
+                ]
+            },
+            "peer": {
+                "expiry": "8760h",
+                "usages": [
+                    "signing",
+                    "key encipherment",
+                    "server auth",
+                    "client auth"
+                ]
+            },
+            "CA": {
+                "expiry": "43800h",
+                "usages": [
+                    "cert sign",
+                    "crl sign"
+                ],
+                "ca_constraint": {
+                    "is_ca": true,
+                    "pathlen": 1
+                }
+            },
+            "CodesignCA": {
+                "expiry": "43800h",
+                "usages": [
+                    "cert sign",
+                    "crl sign"
+                ],
+                "ca_constraint": {
+                    "is_ca": true,
+                    "pathlen": 1
+                }
+            },
+            "TimestampCA": {
+                "expiry": "43800h",
+                "usages": [
+                    "cert sign",
+                    "crl sign"
+                ],
+                "ca_constraint": {
+                    "is_ca": true,
+                    "pathlen": 1
+                }
+            },
+            "ocsp": {
+                "expiry": "8760h",
+                "usages": [
+                    "digital signature",
+                    "ocsp signing"
+                ]
+            },
+            "timestamp": {
+                "expiry": "8760h",
+                "usages": [
+                    "digital signature",
+                    "timestamping"
+                ],
+                "allowed_extensions": [
+                    "2.5.29.37"
+                ]
+            },
+            "secure_boot": {
+                "expiry": "8760h",
+                "usages": [
+                    "digital signature",
+                    "code signing",
+                    "key encipherment"
+                ]
+            },
+            "gpg": {
+                "expiry": "8760h",
+                "usages": [
+                    "digital signature",
+                    "code signing",
+                    "key encipherment"
+                ]
+            },
+            "ecdsa": {
+                "expiry": "8760h",
+                "usages": [
+                    "digital signature",
+                    "code signing",
+                    "key encipherment"
+                ]
+            }
+        }
+    }
+}

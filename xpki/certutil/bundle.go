@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"io/ioutil"
 	"sort"
 	"strings"
 	"time"
@@ -116,6 +117,33 @@ func VerifyBundleFromPEM(certPEM, intCAPEM, rootPEM []byte) (bundle *Bundle, sta
 	}
 
 	return
+}
+
+// LoadAndVerifyBundleFromPEM constructs and verifies the cert chain
+func LoadAndVerifyBundleFromPEM(certFile, intCAFile, rootFile string) (*Bundle, *BundleStatus, error) {
+	var err error
+	var certPEM, intCAPEM, rootPEM []byte
+
+	certPEM, err = ioutil.ReadFile(certFile)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+
+	if intCAFile != "" {
+		intCAPEM, err = ioutil.ReadFile(intCAFile)
+		if err != nil {
+			return nil, nil, errors.Trace(err)
+		}
+	}
+
+	if rootFile != "" {
+		rootPEM, err = ioutil.ReadFile(rootFile)
+		if err != nil {
+			return nil, nil, errors.Trace(err)
+		}
+	}
+
+	return VerifyBundleFromPEM(certPEM, intCAPEM, rootPEM)
 }
 
 // FindIssuer returns an issuer cert

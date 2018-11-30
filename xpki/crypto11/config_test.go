@@ -8,7 +8,7 @@ import (
 )
 
 func Test_LoadConfigTwice(t *testing.T) {
-	f, err := findConfigFilePath("softhsm_unittest.json")
+	f, err := findConfigFilePath("./etc/dev/softhsm_unittest.json")
 	require.NoError(t, err)
 
 	c, err := LoadTokenConfig(f)

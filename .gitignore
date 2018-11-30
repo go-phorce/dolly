@@ -6,11 +6,14 @@
 coverage.out
 pkg/
 bin/
-.idea
+.idea/
 .tmp/
 .docker/
 .DS_Store
-softhsm_unittest.json
 
 debug
 debug.test
+
+etc/dev/softhsm*
+etc/dev/certs/rootca/test_*
+etc/dev/certs/test_*
