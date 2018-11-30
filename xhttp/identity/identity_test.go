@@ -5,9 +5,11 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/go-phorce/dolly/netutil"
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -48,7 +50,7 @@ func Test_extractIdentityFromRequest(t *testing.T) {
 	})
 }
 
-func Test_WithTestIdentity(t *testing.T) {
+func Test_WithTestIdentityDirect(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	require.NoError(t, err)
 
@@ -56,4 +58,16 @@ func Test_WithTestIdentity(t *testing.T) {
 	ctx := ForRequest(r)
 
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
+}
+func Test_WithTestIdentityServeHTTP(t *testing.T) {
+	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		caller := ForRequest(r)
+		assert.Equal(t, "role1/name2", caller.Identity().String())
+	})
+	rw := httptest.NewRecorder()
+	handler := NewContextHandler(d)
+	r, _ := http.NewRequest("GET", "/test", nil)
+	r = WithTestIdentity(r, NewIdentity("role1", "name2"))
+	handler.ServeHTTP(rw, r)
+	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
 }

@@ -3,12 +3,11 @@ package identity
 import (
 	"context"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"net/http"
 )
 
 // ExtractRole will parse out from the supplied Name the clients roleName
-type ExtractRole func(*pkix.Name) string
+type ExtractRole func(*x509.Certificate) string
 
 // Identity contains information about the identity of an API caller
 type Identity interface {
@@ -20,17 +19,6 @@ type Identity interface {
 // NewIdentity returns a new Identity instance with the indicated role & CommonName
 func NewIdentity(role string, name string) Identity {
 	return identity{role: role, name: name}
-}
-
-// NewIdentityFromCert returns a new Identity instance from client's Certificate
-func NewIdentityFromCert(c *x509.Certificate) Identity {
-	if c == nil {
-		return identity{}
-	}
-	return identity{
-		name: c.Subject.CommonName,
-		role: roleExtractor(&c.Subject),
-	}
 }
 
 type identity struct {
@@ -70,13 +58,13 @@ func extractIdentityFromRequest(r *http.Request) Identity {
 	pc := r.TLS.PeerCertificates
 	return identity{
 		name: pc[0].Subject.CommonName,
-		role: roleExtractor(&pc[0].Subject),
+		role: roleExtractor(pc[0]),
 	}
 }
 
 // defaultExtractRole always returns "guest" as role name.
 // Applications should initialize Role Mapper by calling identity.Initialize
-func defaultExtractRole(_ *pkix.Name) string {
+func defaultExtractRole(_ *x509.Certificate) string {
 	return "guest"
 }
 
