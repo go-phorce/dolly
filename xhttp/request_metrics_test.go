@@ -1,9 +1,6 @@
 package xhttp
 
 import (
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/metrics"
+	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,16 +37,7 @@ func Test_RequestMetrics(t *testing.T) {
 		r, err := http.NewRequest(method, uri, nil)
 		r.RequestURI = uri
 		require.NoError(t, err)
-		r.TLS = &tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{
-				{
-					Subject: pkix.Name{
-						CommonName:   "dolly",
-						Organization: []string{"org"},
-					},
-				},
-			},
-		}
+		r = identity.WithTestIdentity(r, identity.NewIdentity("dolly", "10.0.0.1"))
 
 		w := httptest.NewRecorder()
 		handlerStatusCode = sc

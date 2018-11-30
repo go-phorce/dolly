@@ -19,11 +19,12 @@ type contextKey int
 
 const (
 	keyContext contextKey = iota
+	keyIdentity
 )
 
 var (
 	nodeInfo      netutil.NodeInfo
-	roleExtractor ExtractRole = extractRoleFromPKIX
+	roleExtractor ExtractRole = defaultExtractRole
 )
 
 // RequestContext represents user contextual information about a request being processed by the server,
@@ -47,18 +48,23 @@ func init() {
 	if err != nil {
 		logger.Panicf("context package not initialized: %s", errors.ErrorStack(err))
 	}
+	SetGlobalNodeInfo(n)
+}
+
+// SetGlobalNodeInfo applies NodeInfo for the application
+func SetGlobalNodeInfo(n netutil.NodeInfo) {
+	if n == nil {
+		logger.Panic("NodeInfo must not be nil")
+	}
 	nodeInfo = n
 }
 
-// Initialize allows to customize NodeInfo and ExtractRoleName
-func Initialize(n netutil.NodeInfo, e ExtractRole) {
-	if n != nil {
-		nodeInfo = n
+// SetGlobalRoleExtractor applies ExtractRole for the application
+func SetGlobalRoleExtractor(e ExtractRole) {
+	if e == nil {
+		logger.Panic("ExtractRole must not be nil")
 	}
-
-	if e != nil {
-		roleExtractor = e
-	}
+	roleExtractor = e
 }
 
 // ForRequest returns the full context ascocicated with this http request.
@@ -79,19 +85,24 @@ func ForRequest(r *http.Request) *RequestContext {
 // Also adds header to indicate which host is currently servicing the request
 func NewContextHandler(delegate http.Handler) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
-		ctx := &RequestContext{
-			identity:      extractIdentityFromRequest(r),
-			correlationID: extractCorrelationID(r),
-			clientIP:      ClientIPFromRequest(r),
+		var rctx *RequestContext
+		v := r.Context().Value(keyContext)
+		if v == nil {
+			rctx = &RequestContext{
+				identity:      extractIdentityFromRequest(r),
+				correlationID: extractCorrelationID(r),
+				clientIP:      ClientIPFromRequest(r),
+			}
+			r = r.WithContext(context.WithValue(r.Context(), keyContext, rctx))
+		} else {
+			rctx = v.(*RequestContext)
 		}
-
-		c := context.WithValue(r.Context(), keyContext, ctx)
 
 		// Set XHostname on the response
 		w.Header().Set(header.XHostname, nodeInfo.HostName())
-		w.Header().Set(header.XCorrelationID, ctx.correlationID)
+		w.Header().Set(header.XCorrelationID, rctx.correlationID)
 
-		delegate.ServeHTTP(w, r.WithContext(c))
+		delegate.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(h)
 }

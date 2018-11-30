@@ -4,22 +4,18 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 
 	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
-	Initialize(nil, nil)
-
 	rc := m.Run()
 	os.Exit(rc)
 }
@@ -66,42 +62,72 @@ func Test_ClientIP(t *testing.T) {
 }
 
 func Test_RequestorIdentity(t *testing.T) {
-	h := func(w http.ResponseWriter, r *http.Request) {
-		ctx := ForRequest(r)
-		identity := ctx.Identity()
-		responseBody := fmt.Sprintf("{\"role\": \"%s\", \"name\": \"%s\" }", identity.Role(), identity.Name())
-		io.WriteString(w, responseBody)
-	}
-
-	server := httptest.NewServer(http.HandlerFunc(h))
-	defer server.Close()
-
-	r, err := http.NewRequest(http.MethodGet, "/", nil)
-	require.NoError(t, err)
-	r.TLS = &tls.ConnectionState{
-		PeerCertificates: []*x509.Certificate{
-			{
-				Subject: pkix.Name{
-					CommonName:   "dolly",
-					Organization: []string{"org"},
-				},
-			},
-		},
-	}
-
-	w := httptest.NewRecorder()
-	h(w, r)
-	require.Equal(t, http.StatusOK, w.Code)
-
-	type rt struct {
+	type roleName struct {
 		Role string `json:"role,omitempty"`
 		Name string `json:"name,omitempty"`
 	}
 
-	res := &rt{}
-	body := w.Body.Bytes()
-	s := string(body)
-	assert.NoError(t, json.Unmarshal(body, res))
-	assert.Equal(t, "dolly", res.Role, s)
-	assert.Equal(t, "dolly", res.Name, s)
+	h := func(w http.ResponseWriter, r *http.Request) {
+		ctx := ForRequest(r)
+		identity := ctx.Identity()
+		res := &roleName{
+			Role: identity.Role(),
+			Name: identity.Name(),
+		}
+		marshal.WriteJSON(w, r, res)
+	}
+
+	handler := NewContextHandler(http.HandlerFunc(h))
+
+	t.Run("default_extractor", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
+		require.NoError(t, err)
+
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{
+					Subject: pkix.Name{
+						CommonName:   "dolly",
+						Organization: []string{"org"},
+					},
+				},
+			},
+		}
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		rn := &roleName{}
+		require.NoError(t, marshal.Decode(resp.Body, rn))
+		assert.Equal(t, "guest", rn.Role)
+		assert.Equal(t, "dolly", rn.Name)
+	})
+
+	t.Run("cn_extractor", func(t *testing.T) {
+		SetGlobalRoleExtractor(func(n *pkix.Name) string {
+			return n.CommonName
+		})
+		// restore
+		defer SetGlobalRoleExtractor(defaultExtractRole)
+
+		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
+		require.NoError(t, err)
+
+		r = WithTestIdentity(r, NewIdentity("dolly", "dolly.com"))
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		rn := &roleName{}
+		require.NoError(t, marshal.Decode(resp.Body, rn))
+		assert.Equal(t, "dolly", rn.Role)
+		assert.Equal(t, "dolly.com", rn.Name)
+	})
 }

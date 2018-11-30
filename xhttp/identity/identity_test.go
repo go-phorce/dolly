@@ -31,7 +31,7 @@ func Test_extractIdentityFromRequest(t *testing.T) {
 		assert.Equal(t, "guest/10.0.1.2", idn.String())
 	})
 
-	t.Run("when TLS is set", func(t *testing.T) {
+	t.Run("when TLS is set and defaultExtractor", func(t *testing.T) {
 		r.TLS = &tls.ConnectionState{
 			PeerCertificates: []*x509.Certificate{
 				{
@@ -44,7 +44,7 @@ func Test_extractIdentityFromRequest(t *testing.T) {
 		}
 
 		idn := extractIdentityFromRequest(r)
-		assert.Equal(t, "dolly", idn.String())
+		assert.Equal(t, "guest/dolly", idn.String())
 	})
 }
 
