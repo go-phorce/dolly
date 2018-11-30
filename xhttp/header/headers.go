@@ -29,9 +29,6 @@ const (
 	TextPlain = "text/plain"
 	// UserAgent is HTTP header value for "User-Agent"
 	UserAgent = "User-Agent"
-
-	// XIdentity is HTTP header for "X-Identity" which is used for cross-role requests
-	XIdentity = "X-Identity"
 	// XHostname contains the name of the HTTP header to indicate which host requested the signature
 	XHostname = "X-HostName"
 	// XCorrelationID is HTTP header for "X-CorrelationID"

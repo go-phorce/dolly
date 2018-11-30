@@ -37,6 +37,7 @@ func (b *BundleStatus) IsUntrusted() bool {
 // to store the most widely applicable chain, with shortness an
 // explicit goal.
 type Bundle struct {
+	// Chain does not include the root anchor
 	Chain       []*x509.Certificate
 	Cert        *x509.Certificate
 	IssuerCert  *x509.Certificate

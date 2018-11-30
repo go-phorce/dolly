@@ -108,11 +108,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:cdc32003a67007f608c767cfbea5b7a07ed7418ec9aed579707e3185086a6878"
+  digest = "1:7d1a655e1f16ccaf1adb026bdeece28499ecb0ead32d32accc6ed6f2c40cacee"
   name = "github.com/juju/errors"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a4583d0a56eac4bdd939e38050d0c69abe0a9b41"
+  revision = "089d3ea4e4d597bd98acac068193d341983326a3"
 
 [[projects]]
   digest = "1:f97285a3b0a496dcf8801072622230d513f69175665d94de60eb042d03387f6c"
@@ -181,7 +181,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:09354b73037093e6f6d7eae2eb720983adf793fc287c854664e5aef922d13314"
+  digest = "1:ad63a9d557302b56fab237c00792de58024f4f09addd638929f7de891782aa26"
   name = "golang.org/x/crypto"
   packages = [
     "cryptobyte",
@@ -193,7 +193,7 @@
     "pkcs12/internal/rc2",
   ]
   pruneopts = "UT"
-  revision = "e4dc69e5b2fd71dcaf8bd5d054eb936deb78d1fa"
+  revision = "eb0de9b17e854e9b1ccd9963efafc79862359959"
 
 [[projects]]
   branch = "master"
@@ -206,7 +206,7 @@
     "idna",
   ]
   pruneopts = "UT"
-  revision = "03003ca0c849e57b6ea29a4bab8d3cb6e4d568fe"
+  revision = "fae4c4e3ad76c295c3d6d259f898136b4bf833a8"
 
 [[projects]]
   digest = "1:a2ab62866c75542dd18d2b069fec854577a20211d7c0ea6ae746072a1dccdd18"

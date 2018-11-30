@@ -74,8 +74,10 @@ func extractIdentityFromRequest(r *http.Request) Identity {
 	}
 }
 
-func extractRoleFromPKIX(n *pkix.Name) string {
-	return n.CommonName
+// defaultExtractRole always returns "guest" as role name.
+// Applications should initialize Role Mapper by calling identity.Initialize
+func defaultExtractRole(_ *pkix.Name) string {
+	return "guest"
 }
 
 // WithTestIdentity is used in unit tests to set HTTP request identity
