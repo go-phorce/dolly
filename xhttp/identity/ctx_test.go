@@ -20,18 +20,27 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
+func Test_SetGlobal(t *testing.T) {
+	assert.Panics(t, func() { SetGlobalRoleExtractor(nil) })
+	assert.Panics(t, func() { SetGlobalNodeInfo(nil) })
+}
+
 func Test_Identity(t *testing.T) {
 	i := identity{role: "netmgmt", name: "Ekspand"}
 	assert.Equal(t, "netmgmt", i.Role())
 	assert.Equal(t, "Ekspand", i.Name())
 	assert.Equal(t, "netmgmt/Ekspand", i.String())
+
+	id := NewIdentity("netmgmt", "Ekspand")
+	assert.Equal(t, "netmgmt", id.Role())
+	assert.Equal(t, "Ekspand", id.Name())
+	assert.Equal(t, "netmgmt/Ekspand", id.String())
 }
 
-func Test_NewIdentity(t *testing.T) {
-	i := NewIdentity("netmgmt", "Ekspand")
-	assert.Equal(t, "netmgmt", i.Role())
-	assert.Equal(t, "Ekspand", i.Name())
-	assert.Equal(t, "netmgmt/Ekspand", i.String())
+func Test_ForRequest(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodGet, "/", nil)
+	ctx := ForRequest(r)
+	assert.NotNil(t, ctx)
 }
 
 func Test_HostnameHeader(t *testing.T) {
@@ -43,13 +52,14 @@ func Test_HostnameHeader(t *testing.T) {
 	r, err := http.NewRequest("GET", "/test", nil)
 	assert.NoError(t, err)
 	handler.ServeHTTP(rw, r)
-	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
+	assert.NotEmpty(t, rw.Header().Get(header.XHostname))
 }
 
 func Test_ClientIP(t *testing.T) {
 	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		caller := ForRequest(r)
 		assert.Equal(t, "10.0.0.1", caller.ClientIP())
+		assert.NotEmpty(t, caller.CorrelationID())
 	})
 	rw := httptest.NewRecorder()
 	handler := NewContextHandler(d)
@@ -108,8 +118,8 @@ func Test_RequestorIdentity(t *testing.T) {
 	})
 
 	t.Run("cn_extractor", func(t *testing.T) {
-		SetGlobalRoleExtractor(func(n *pkix.Name) string {
-			return n.CommonName
+		SetGlobalRoleExtractor(func(c *x509.Certificate) string {
+			return c.Subject.CommonName
 		})
 		// restore
 		defer SetGlobalRoleExtractor(defaultExtractRole)
@@ -117,7 +127,16 @@ func Test_RequestorIdentity(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
-		r = WithTestIdentity(r, NewIdentity("dolly", "dolly.com"))
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{
+					Subject: pkix.Name{
+						CommonName:   "cn-dolly",
+						Organization: []string{"org"},
+					},
+				},
+			},
+		}
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
 		require.Equal(t, http.StatusOK, w.Code)
@@ -127,7 +146,7 @@ func Test_RequestorIdentity(t *testing.T) {
 
 		rn := &roleName{}
 		require.NoError(t, marshal.Decode(resp.Body, rn))
-		assert.Equal(t, "dolly", rn.Role)
-		assert.Equal(t, "dolly.com", rn.Name)
+		assert.Equal(t, "cn-dolly", rn.Role)
+		assert.Equal(t, "cn-dolly", rn.Name)
 	})
 }

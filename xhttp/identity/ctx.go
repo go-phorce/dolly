@@ -107,14 +107,6 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 	return http.HandlerFunc(h)
 }
 
-func (c *RequestContext) copy() *RequestContext {
-	return &RequestContext{
-		identity:      c.identity,
-		correlationID: c.correlationID,
-		clientIP:      c.clientIP,
-	}
-}
-
 // Identity returns request's identity
 func (c *RequestContext) Identity() Identity {
 	return c.identity
@@ -129,13 +121,6 @@ func (c *RequestContext) CorrelationID() string {
 // ClientIP returns request's IP
 func (c *RequestContext) ClientIP() string {
 	return c.clientIP
-}
-
-// WithCorrelationID sets correlationID
-func (c *RequestContext) WithCorrelationID(correlationID string) *RequestContext {
-	copy := c.copy()
-	copy.correlationID = correlationID
-	return copy
 }
 
 // extractCorrelationID will find or create a requestID for this http request.
