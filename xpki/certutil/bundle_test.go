@@ -107,6 +107,26 @@ func Test_VerifyBundle(t *testing.T) {
 	}
 }
 
+func Test_LoadAndVerifyBundleFromPEM(t *testing.T) {
+	bundle, status, err := LoadAndVerifyBundleFromPEM(
+		"../../etc/dev/certs/test_dolly_admin.pem",
+		"../../etc/dev/certs/test_dolly_issuer_CA.pem",
+		"../../etc/dev/certs/rootca/test_dolly_root_CA.pem")
+	require.NoError(t, err)
+	assert.False(t, status.IsUntrusted())
+	assert.Equal(t, 2, len(bundle.Chain))
+	require.NotNil(t, bundle.Cert)
+	assert.Equal(t, "dollyadmin", bundle.Cert.Subject.CommonName)
+	require.NotNil(t, bundle.IssuerCert)
+	assert.Equal(t, "[TEST] Issuing CA 1", bundle.IssuerCert.Subject.CommonName)
+	require.NotNil(t, bundle.RootCert)
+	assert.Equal(t, "[TEST] Root CA", bundle.RootCert.Subject.CommonName)
+
+	crt := FindIssuer(bundle.Cert, bundle.Chain, bundle.RootCert)
+	require.NotNil(t, crt)
+	assert.Equal(t, "[TEST] Issuing CA 1", crt.Subject.CommonName)
+}
+
 func Test_SortBundlesByExpiration(t *testing.T) {
 	bundles := []*Bundle{
 		{

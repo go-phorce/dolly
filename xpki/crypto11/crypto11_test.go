@@ -28,7 +28,7 @@ func findConfigFilePath(baseName string) (string, error) {
 }
 
 func loadConfigAndInitP11() error {
-	f, err := findConfigFilePath("softhsm_unittest.json")
+	f, err := findConfigFilePath("./etc/dev/softhsm_unittest.json")
 	if err != nil {
 		return errors.Annotate(err, "unable to find: softhsm_unittest.json")
 	}

@@ -1,0 +1,19 @@
+{
+    "CN": "[TEST] Root CA",
+    "key": {
+        "algo": "rsa",
+        "size": 4096
+    },
+    "names": [
+        {
+            "C": "US",
+            "L": "CA",
+            "O": "go-phorce",
+            "OU": "dolly-dev"
+        }
+    ],
+    "ca": {
+        "pathlen": 2,
+        "expiry": "8760h"
+    }
+}
