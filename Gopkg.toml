@@ -69,3 +69,7 @@ required = ["github.com/coreos/pkg/capnslog", "go.uber.org/dig/internal/digrefle
 [[constraint]]
   branch = "master"
   name = "github.com/jinzhu/copier"
+
+[[constraint]]
+  branch = "master"
+  name = "golang.org/x/crypto"

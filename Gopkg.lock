@@ -181,14 +181,21 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:ad63a9d557302b56fab237c00792de58024f4f09addd638929f7de891782aa26"
+  digest = "1:7f7dd8368cafbb6b4cf59d99f6776d842f8423de70d6d9e3363b94d610588f23"
   name = "golang.org/x/crypto"
   packages = [
+    "cast5",
     "cryptobyte",
     "cryptobyte/asn1",
     "ed25519",
     "ed25519/internal/edwards25519",
     "ocsp",
+    "openpgp",
+    "openpgp/armor",
+    "openpgp/elgamal",
+    "openpgp/errors",
+    "openpgp/packet",
+    "openpgp/s2k",
     "pkcs12",
     "pkcs12/internal/rc2",
   ]
@@ -266,6 +273,9 @@
     "github.com/ugorji/go/codec",
     "go.uber.org/dig",
     "go.uber.org/dig/internal/digreflect",
+    "golang.org/x/crypto/openpgp",
+    "golang.org/x/crypto/openpgp/armor",
+    "golang.org/x/crypto/openpgp/packet",
     "golang.org/x/net/http2",
     "gopkg.in/alecthomas/kingpin.v2",
     "gopkg.in/natefinch/lumberjack.v2",

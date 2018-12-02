@@ -2,6 +2,8 @@ package testify
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	crand "crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -14,6 +16,59 @@ import (
 
 	"github.com/juju/errors"
 )
+
+// MakeSelfCertECDSA creates self-signed cert
+func MakeSelfCertECDSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) {
+	// rsa key pair
+	key, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+
+	// certificate
+	certTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(rand.Int63n(math.MaxInt64)),
+		Subject: pkix.Name{
+			CommonName: "localhost",
+		},
+		NotBefore: time.Now().UTC().Add(-time.Hour),
+		NotAfter:  time.Now().UTC().Add(time.Hour * time.Duration(hours)),
+	}
+	der, err := x509.CreateCertificate(crand.Reader, certTemplate, certTemplate, &key.PublicKey, key)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+
+	crt, err := x509.ParseCertificate(der)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+
+	return crt, key, nil
+}
+
+// MakeSelfCertECDSAPem creates self-signed cert in PEM format
+func MakeSelfCertECDSAPem(hours int) (pemCert, pemKey []byte, err error) {
+	crt, key, err := MakeSelfCertECDSA(hours)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+
+	keyBytes, err := x509.MarshalECPrivateKey(key.(*ecdsa.PrivateKey))
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+
+	pemKey = pem.EncodeToMemory(&pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: keyBytes,
+	})
+	pemCert = pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: crt.Raw,
+	})
+	return
+}
 
 // MakeSelfCertRSA creates self-signed cert
 func MakeSelfCertRSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) {
