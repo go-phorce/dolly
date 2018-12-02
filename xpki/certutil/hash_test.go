@@ -1,9 +1,12 @@
-package certutil_test
+package certutil
 
 import (
+	"crypto"
+	"encoding/hex"
+	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/go-phorce/dolly/xpki/certutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,15 +52,75 @@ var golden256 = []sha256Test{
 
 func TestDigest_Hash256(t *testing.T) {
 	// regular hash
-	for i, tc := range golden256 {
-		h, err := certutil.SHA256Hex([]byte(tc.in))
-		require.NoError(t, err, "[%d] %s", i, tc.in)
-		assert.Equal(t, tc.out, h)
+	for _, tc := range golden256 {
+		assert.Equal(t, tc.out, SHA256Hex([]byte(tc.in)))
 	}
+
+	b, err := hex.DecodeString("ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb")
+	require.NoError(t, err)
+	assert.Equal(t, b, SHA256([]byte("a")))
 }
 
 func TestDigest_Hash1(t *testing.T) {
-	h, err := certutil.SHA1Hex([]byte("The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"))
-	require.NoError(t, err)
+	h := SHA1Hex([]byte("The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"))
 	assert.Equal(t, "0885aaf99b569542fd165fa44e322718f4a984e0", h)
+
+	b, err := hex.DecodeString("0885aaf99b569542fd165fa44e322718f4a984e0")
+	require.NoError(t, err)
+	assert.Equal(t, b, SHA1([]byte("The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule")))
+
+}
+
+func Test_NewHash(t *testing.T) {
+	for k, v := range strToHash {
+		t.Run(k, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				h, err := NewHash(k)
+				require.NoError(t, err)
+				_, err = h.Write(nil)
+				require.NoError(t, err)
+				assert.NotEmpty(t, h.Sum(nil))
+
+				assert.Equal(t, v, StrToHashAlgo(k))
+			})
+		})
+	}
+
+	_, err := NewHash("MD4")
+	assert.Error(t, err)
+	assert.Equal(t, `unsupported hash algorithm: "MD4"`, err.Error())
+
+	assert.Equal(t, `SHA1`, HashAlgoToStr(crypto.SHA1))
+	assert.Equal(t, `SHA256`, HashAlgoToStr(crypto.SHA256))
+}
+
+func Test_ParseHexDigestWithPrefix(t *testing.T) {
+	for k := range strToHash {
+		alg := strings.ToLower(k)
+		h, err := NewHash(alg)
+		require.NoError(t, err)
+
+		_, err = h.Write([]byte(alg))
+		require.NoError(t, err)
+		digest := fmt.Sprintf("%s:%s", alg, hex.EncodeToString(h.Sum(nil)))
+
+		h2, _, err := ParseHexDigestWithPrefix(digest)
+		require.NoError(t, err)
+		assert.Equal(t, h.Size(), h2.Size())
+	}
+
+	_, _, err := ParseHexDigestWithPrefix("")
+	assert.Error(t, err)
+	_, _, err = ParseHexDigestWithPrefix("123")
+	assert.Error(t, err)
+	_, _, err = ParseHexDigestWithPrefix("sha1")
+	assert.Error(t, err)
+	_, _, err = ParseHexDigestWithPrefix("sha1:")
+	assert.Error(t, err)
+	_, _, err = ParseHexDigestWithPrefix("sha1:qwer")
+	assert.Error(t, err)
+	_, _, err = ParseHexDigestWithPrefix("sha1:123")
+	assert.Error(t, err)
+	_, _, err = ParseHexDigestWithPrefix("md4:1234")
+	assert.Error(t, err)
 }

@@ -6,7 +6,7 @@ import (
 )
 
 // GetThumbprintStr returns hex-encoded SHA1 of the certificate
-func GetThumbprintStr(c *x509.Certificate) (string, error) {
+func GetThumbprintStr(c *x509.Certificate) string {
 	return SHA1Hex(c.Raw)
 }
 
@@ -27,8 +27,7 @@ func GetSubjectID(c *x509.Certificate) string {
 	if len(c.SubjectKeyId) > 0 {
 		return hex.EncodeToString(c.SubjectKeyId)
 	}
-	s, _ := SHA1Hex(c.RawSubject)
-	return s
+	return SHA1Hex(c.RawSubject)
 }
 
 // GetIssuerID returns ID of the issuer.
@@ -38,6 +37,5 @@ func GetIssuerID(c *x509.Certificate) string {
 	if len(c.AuthorityKeyId) > 0 {
 		return hex.EncodeToString(c.AuthorityKeyId)
 	}
-	s, _ := SHA1Hex(c.RawIssuer)
-	return s
+	return SHA1Hex(c.RawIssuer)
 }

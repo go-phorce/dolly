@@ -224,13 +224,30 @@ func (lib *PKCS11Lib) GetCryptoSigner(keyID string) (crypto.Signer, error) {
 	return s, nil
 }
 
-// GetKey creates PKCS#11 URI for specified key ID.
-// It does not return key bytes
-func (lib *PKCS11Lib) GetKey(keyID string) (string, []byte, error) {
+// GetKey returns private key handle
+func (lib *PKCS11Lib) GetKey(keyID string) (crypto.PrivateKey, error) {
+	key, err := lib.FindKeyPair(keyID, "")
+	if err != nil {
+		return nil, errors.Annotatef(err, "unable to find key %q", keyID)
+	}
+
+	return key, err
+}
+
+// ExportKey returns PKCS#11 URI for specified key ID.
+// It does not return key bytes.
+func (lib *PKCS11Lib) ExportKey(keyID string) (string, []byte, error) {
 	hi, err := lib.Ctx.GetInfo()
 	if err != nil {
 		return "", nil, errors.Annotate(err, "module info")
 	}
+
+	// ensure that key exists
+	_, err = lib.FindKeyPair(keyID, "")
+	if err != nil {
+		return "", nil, errors.Annotatef(err, "unable to find key %q", keyID)
+	}
+
 	ti, err := lib.Ctx.GetTokenInfo(lib.Slot.id)
 	if err != nil {
 		return "", nil, errors.Annotate(err, "token info")

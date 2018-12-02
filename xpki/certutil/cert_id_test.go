@@ -12,8 +12,7 @@ func Test_IDs(t *testing.T) {
 	crt, err := certutil.ParseFromPEM([]byte(GoDaddyIntermediateCert))
 	require.NoError(t, err)
 
-	str, err := certutil.GetThumbprintStr(crt)
-	require.NoError(t, err)
+	str := certutil.GetThumbprintStr(crt)
 	assert.Equal(t, "7c4656c3061f7f4c0d67b319a855f60ebc11fc44", str)
 
 	str = certutil.GetSubjectKeyID(crt)
