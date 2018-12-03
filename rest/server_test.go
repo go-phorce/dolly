@@ -1,20 +1,116 @@
 package rest_test
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/go-phorce/dolly/metrics"
+	"github.com/go-phorce/dolly/xhttp/authz"
+	"github.com/go-phorce/dolly/xhttp/identity"
+	"github.com/go-phorce/dolly/xhttp/marshal"
 
 	"github.com/go-phorce/dolly/xhttp/header"
 
 	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/rest/container"
+	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+const projectPath = "../"
+
+var tlsConnectionForAdmin = &tls.ConnectionState{
+	PeerCertificates: []*x509.Certificate{
+		{
+			Subject: pkix.Name{
+				CommonName:   "admin",
+				Organization: []string{"go-phorce"},
+			},
+		},
+	},
+	VerifiedChains: [][]*x509.Certificate{
+		{
+			{
+				Subject: pkix.Name{
+					CommonName:   "[TEST] Root CA",
+					Organization: []string{"go-phorce"},
+				},
+			},
+		},
+	},
+}
+
+var tlsConnectionForAdminUntrusted = &tls.ConnectionState{
+	PeerCertificates: []*x509.Certificate{
+		{
+			Subject: pkix.Name{
+				CommonName:   "admin",
+				Organization: []string{"go-phorce"},
+			},
+		},
+	},
+	VerifiedChains: [][]*x509.Certificate{
+		{
+			{
+				Subject: pkix.Name{
+					CommonName:   "[TEST] Untrusted Root CA",
+					Organization: []string{"go-phorce"},
+				},
+			},
+		},
+	},
+}
+
+var tlsConnectionForClient = &tls.ConnectionState{
+	PeerCertificates: []*x509.Certificate{
+		{
+			Subject: pkix.Name{
+				CommonName:   "client",
+				Organization: []string{"go-phorce"},
+			},
+		},
+	},
+	VerifiedChains: [][]*x509.Certificate{
+		{
+			{
+				Subject: pkix.Name{
+					CommonName:   "[TEST] Root CA",
+					Organization: []string{"go-phorce"},
+				},
+			},
+		},
+	},
+}
+
+var tlsConnectionForClientFromOtherOrg = &tls.ConnectionState{
+	PeerCertificates: []*x509.Certificate{
+		{
+			Subject: pkix.Name{
+				CommonName:   "client",
+				Organization: []string{"someorg"},
+			},
+		},
+	},
+	VerifiedChains: [][]*x509.Certificate{
+		{
+			{
+				Subject: pkix.Name{
+					CommonName:   "[TEST] Root CA",
+					Organization: []string{"go-phorce"},
+				},
+			},
+		},
+	},
+}
 
 func Test_NewServer(t *testing.T) {
 	cfg := &serverConfig{
@@ -202,4 +298,264 @@ func Test_ClusterInfo(t *testing.T) {
 
 	l, err = rest.GetNodePeerURLs(server, "3333")
 	require.Error(t, err)
+}
+
+type response struct {
+	Method string
+	Path   string
+}
+
+func Test_Authz(t *testing.T) {
+	im := metrics.NewInmemSink(time.Minute, time.Minute)
+	_, err := metrics.NewGlobal(metrics.DefaultConfig("authztest"), im)
+	require.NoError(t, err)
+
+	defer func() {
+		md := im.Data()
+		if len(md) > 0 {
+			for k := range md[0].Gauges {
+				t.Log("Gauge:", k)
+			}
+			for k := range md[0].Counters {
+				t.Log("Counter:", k)
+			}
+			for k := range md[0].Samples {
+				t.Log("Sample:", k)
+			}
+		}
+	}()
+
+	assertSample := func(key string) {
+		md := im.Data()
+		require.NotEqual(t, 0, len(md))
+
+		_, exists := md[0].Samples[key]
+		assert.True(t, exists, "sample metric not found: %s", key)
+	}
+	assertCounter := func(key string, expectedCount int) {
+		md := im.Data()
+		require.NotEqual(t, 0, len(md))
+
+		s, exists := md[0].Counters[key]
+		if assert.True(t, exists, "counter metric not found: %s", key) {
+			assert.Equal(t, expectedCount, s.Count, "unexpected count for metric %s", key)
+		}
+	}
+
+	tlsCfg, err := tlsconfig.NewServerTLSFromFiles(
+		projectPath+"etc/dev/certs/test_dolly_server.pem",
+		projectPath+"etc/dev/certs/test_dolly_server-key.pem",
+		projectPath+"etc/dev/certs/rootca/test_dolly_root_CA.pem",
+		tls.RequireAndVerifyClientCert,
+	)
+	require.NoError(t, err)
+
+	cfg := &serverConfig{
+		BindAddr: ":8081",
+		Services: []string{"authztest"},
+	}
+	authz, err := authz.New(&authz.Config{
+		Allow:                  []string{"/v1/allow:admin"},
+		AllowAny:               []string{"/v1/allowany"},
+		AllowAnyRole:           []string{"/v1/allowanyrole"},
+		ValidOrganizations:     []string{"go-phorce"},
+		ValidIssuerCommonNames: []string{"[TEST] Root CA"},
+		LogAllowed:             true,
+		LogDenied:              true,
+	})
+	require.NoError(t, err)
+
+	ioc := container.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+	ioc.Provide(func() *tls.Config {
+		return tlsCfg
+	})
+	ioc.Provide(func() rest.Authz {
+		return authz
+	})
+
+	ioc.Provide(func() rest.ClusterInfo {
+		return &cluster{
+			this:   0,
+			leader: 0,
+			members: []*rest.ClusterMember{
+				{ID: "0", Name: "localhost", PeerURLs: []string{"https://localhost:8081"}},
+			},
+		}
+	})
+
+	server, err := rest.New("test", "v1.0.123", ioc)
+	require.NoError(t, err)
+	require.NotNil(t, server)
+
+	service := newService(t, server, "authztest", false)
+	server.AddService(service)
+
+	err = server.StartHTTP()
+	require.NoError(t, err)
+	defer server.StopHTTP()
+	time.Sleep(time.Second)
+
+	t.Run("service not ready", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allowany", nil)
+		server.ServeHTTP(w, r)
+
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+		assert.Equal(t, `{"code":"not_ready","message":"the service is not ready yet"}`, string(w.Body.Bytes()))
+	})
+
+	service.setReady()
+
+	t.Run("connection is not over TLS", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allowany", nil)
+		server.ServeHTTP(w, r)
+
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Equal(t, `{"code":"unauthorized","message":"connection is not over TLS"}`, string(w.Body.Bytes()))
+	})
+
+	t.Run("guest_to_allow_401", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
+		r.TLS = tlsConnectionForClient
+		server.ServeHTTP(w, r)
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"guest\" role is not allowed"}`, string(w.Body.Bytes()))
+
+		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+	})
+
+	identity.SetGlobalRoleExtractor(func(c *x509.Certificate) string {
+		return c.Subject.CommonName
+	})
+
+	t.Run("admin_to_allow_200", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
+		r.TLS = tlsConnectionForAdmin
+		server.ServeHTTP(w, r)
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		assertCounter(fmt.Sprintf("authztest.http.request.status.successful;method=GET;role=admin;status=200;uri=/v1/allow"), 1)
+		assertSample(fmt.Sprintf("authztest.http.request.perf;method=GET;role=admin;status=200;uri=/v1/allow"))
+	})
+
+	t.Run("untrusted_root_admin_to_allow_401", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
+		r.TLS = tlsConnectionForAdminUntrusted
+		server.ServeHTTP(w, r)
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"[TEST] Untrusted Root CA\" root CA is not allowed"}`, string(w.Body.Bytes()))
+
+		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+	})
+
+	t.Run("client_to_allow_401", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
+		r.TLS = tlsConnectionForClient
+		server.ServeHTTP(w, r)
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"client\" role is not allowed"}`, string(w.Body.Bytes()))
+
+		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+	})
+
+	t.Run("other_org_client_to_allow_401", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
+		r.TLS = tlsConnectionForClientFromOtherOrg
+		server.ServeHTTP(w, r)
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"someorg\" organization is not allowed"}`, string(w.Body.Bytes()))
+
+		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+	})
+
+	t.Run("client_to_allowany_200", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allowany", nil)
+		r.TLS = tlsConnectionForClient
+		server.ServeHTTP(w, r)
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		assertCounter(fmt.Sprintf("authztest.http.request.status.successful;method=GET;role=client;status=200;uri=/v1/allowany"), 1)
+		assertSample(fmt.Sprintf("authztest.http.request.perf;method=GET;role=client;status=200;uri=/v1/allowany"))
+	})
+}
+
+type serviceX struct {
+	t      *testing.T
+	server rest.Server
+	name   string
+	ready  bool
+}
+
+// newService returns ane instances of the Status service
+func newService(t *testing.T, server rest.Server, name string, ready bool) *serviceX {
+	svc := &serviceX{
+		t:      t,
+		server: server,
+		name:   name,
+		ready:  ready,
+	}
+	return svc
+}
+
+func (s *serviceX) setReady() {
+	s.ready = true
+}
+
+// Name returns the service name
+func (s *serviceX) Name() string {
+	return s.name
+}
+
+// IsReady indicates that the service is ready to serve its end-points
+func (s *serviceX) IsReady() bool {
+	return s.ready
+}
+
+// Close the subservices and it's resources
+func (s *serviceX) Close() {
+}
+
+// Register adds the server Status API endpoints to the overall URL router
+func (s *serviceX) Register(r rest.Router) {
+	r.GET("/v1/allow", s.handle())
+	r.GET("/v1/allowany", s.handle())
+	r.GET("/v1/allowanyrole", s.handle())
+}
+
+func (s *serviceX) handle() rest.Handle {
+	return func(w http.ResponseWriter, r *http.Request, _ rest.Params) {
+		s.t.Logf("serviceX: %s %s", r.Method, r.URL.Path)
+		res := &response{
+			Method: r.Method,
+			Path:   r.URL.Path,
+		}
+
+		marshal.WriteJSON(w, r, res)
+	}
 }

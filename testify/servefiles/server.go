@@ -161,10 +161,11 @@ func (s *Server) LastReqHdr(uri string) map[string][]string {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.t.Logf("sfdctest.Server got request for %s", r.RequestURI)
+	requestURI := r.URL.Path
+	s.t.Logf("sfdctest.Server got request for %s", requestURI)
 
 	fileExt := ".json"
-	respInfo, exists := s.reqFiles[r.RequestURI]
+	respInfo, exists := s.reqFiles[requestURI]
 	if exists && respInfo.Accepts != "" {
 		w.Header().Set(header.ContentType, respInfo.Accepts)
 		switch respInfo.Accepts {
@@ -186,19 +187,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hasBody := false
 	if r.Method == http.MethodPost || r.Method == http.MethodPut {
 		reqBody, err = ioutil.ReadAll(r.Body)
-		assert.NoError(s.t, err, "Unable to read request body for request to %s", r.RequestURI)
+		assert.NoError(s.t, err, "Unable to read request body for request to %s", requestURI)
 		hasBody = true
 	}
 	s.lock.Lock()
 	baseDirs := append([]string(nil), s.baseDirs...)
-	count := s.reqCounts[r.RequestURI]
+	count := s.reqCounts[requestURI]
 	count++
-	s.reqCounts[r.RequestURI] = count
+	s.reqCounts[requestURI] = count
 	if r.Header != nil {
-		s.reqHdrs[r.RequestURI] = r.Header
+		s.reqHdrs[requestURI] = r.Header
 	}
 	if hasBody {
-		s.lastBodies[r.RequestURI] = reqBody
+		s.lastBodies[requestURI] = reqBody
 	}
 	s.lock.Unlock()
 	if !exists {
@@ -224,9 +225,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer f.Close()
-	s.t.Logf("Using %q to handle request to %q", f.Name(), r.RequestURI)
+	s.t.Logf("Using %q to handle request to %q", f.Name(), requestURI)
 	w.WriteHeader(respInfo.statusCode(count))
-	if strings.HasPrefix(r.RequestURI, "/services/oauth2/token") {
+	if strings.HasPrefix(requestURI, "/services/oauth2/token") {
 		handleAuthFixup(s.server.URL, w, f)
 		return
 	}
@@ -255,7 +256,7 @@ func handleAuthFixup(serverURL string, w io.Writer, f io.Reader) {
 }
 
 func (s *Server) notFound(w http.ResponseWriter, r *http.Request) {
-	s.t.Logf("No response file exists for %s, returning a 404 response", r.RequestURI)
+	s.t.Logf("No response file exists for %s, returning a 404 response", r.URL.Path)
 	notFound := `[{"errorCode": "NOT_FOUND", "message": "The requested resource does not exist"}]`
 	w.WriteHeader(http.StatusNotFound)
 	io.WriteString(w, notFound)

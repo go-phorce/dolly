@@ -28,12 +28,11 @@ func NewRequestMetrics(h http.Handler) http.Handler {
 	return &rm
 }
 
-func (rm *requestMetrics) statusCode(reqURI string, statusCode int) string {
+func (rm *requestMetrics) statusCode(statusCode int) string {
 	if (statusCode < len(rm.responseCodes)) && (statusCode > 0) {
 		return rm.responseCodes[statusCode]
 	}
-	logger.Warningf("request for %s returned unexpected status code of %d [expected to be <599]",
-		reqURI, statusCode)
+
 	return strconv.Itoa(statusCode)
 }
 
@@ -53,15 +52,14 @@ func (rm *requestMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	tags := []metrics.Tag{
 		{Name: tags.Method, Value: r.Method},
 		{Name: tags.Role, Value: role},
-		{Name: tags.Status, Value: rm.statusCode(r.RequestURI, sc)},
-		{Name: tags.URI, Value: r.RequestURI},
+		{Name: tags.Status, Value: rm.statusCode(sc)},
+		{Name: tags.URI, Value: r.URL.Path},
 	}
-
-	metrics.MeasureSince(keyForHTTPReqPerf, start, tags...)
 
 	if sc >= 400 {
 		metrics.IncrCounter(keyForHTTPReqFailed, 1, tags...)
 	} else {
+		metrics.MeasureSince(keyForHTTPReqPerf, start, tags...)
 		metrics.IncrCounter(keyForHTTPReqSuccessful, 1, tags...)
 	}
 }

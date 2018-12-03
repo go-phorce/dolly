@@ -371,7 +371,7 @@ func Test_DecodeResponse(t *testing.T) {
 
 func makeTestHandler(t *testing.T, expURI string, status int, responseBody string) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, expURI, r.RequestURI, "received wrong URI")
+		assert.Equal(t, expURI, r.URL.Path, "received wrong URI")
 		if status == 0 {
 			status = http.StatusOK
 		}
@@ -383,7 +383,7 @@ func makeTestHandler(t *testing.T, expURI string, status int, responseBody strin
 
 func makeTestHandlerSlow(t *testing.T, expURI string, status int, delay time.Duration, responseBody string) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, expURI, r.RequestURI, "received wrong URI")
+		assert.Equal(t, expURI, r.URL.Path, "received wrong URI")
 		if status == 0 {
 			status = http.StatusOK
 		}

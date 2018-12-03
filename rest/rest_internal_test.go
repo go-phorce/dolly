@@ -13,7 +13,6 @@ import (
 func Test_notFoundHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	r, err := http.NewRequest(http.MethodGet, "/blah", nil)
-	r.RequestURI = "/blah"
 	require.NoError(t, err)
 	notFoundHandler(w, r)
 	assert.Equal(t, http.StatusNotFound, w.Code)
