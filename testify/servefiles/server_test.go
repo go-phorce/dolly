@@ -152,7 +152,6 @@ func Test_HandleAuthFixup(t *testing.T) {
 func Test_NotFound(t *testing.T) {
 	req, err := http.NewRequest(http.MethodGet, "/foo", nil)
 	require.NoError(t, err)
-	req.RequestURI = "/foo"
 	res := httptest.NewRecorder()
 	ft := new(fakeT)
 	s := Server{t: ft}

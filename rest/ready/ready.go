@@ -8,8 +8,7 @@ import (
 )
 
 var (
-	errUnavailable = httperror.New(http.StatusServiceUnavailable, "Not ready",
-		"The service is not ready yet. Try again later.")
+	errUnavailable = httperror.New(http.StatusServiceUnavailable, "not_ready", "the service is not ready yet")
 )
 
 // ServiceStatus specifies an interface to check if the service is ready to serve requests

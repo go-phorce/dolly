@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xlog"
 )
 
@@ -64,7 +65,7 @@ func (l *RequestLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			extra = ":" + strings.Join(fields, ":")
 		}
 	}
-	agent := r.Header.Get("User-Agent")
+	agent := r.Header.Get(header.UserAgent)
 	if agent == "" {
 		agent = "no-agent"
 	}

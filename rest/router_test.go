@@ -13,7 +13,7 @@ import (
 )
 
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	marshal.WriteJSON(w, r, httperror.New(http.StatusNotFound, "Not found", "URL doesn't exist: %s", r.RequestURI))
+	marshal.WriteJSON(w, r, httperror.WithNotFound("URL: %s", r.URL.Path))
 }
 
 type handler struct {

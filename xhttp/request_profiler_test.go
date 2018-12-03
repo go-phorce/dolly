@@ -120,7 +120,7 @@ func checkProfileGenerated(t *testing.T, qs string, expectedProfileTypes ...Prof
 		profilesCreated++
 		consumeProfileType(t, pt, expectedProfileTypes)
 		if req.URL.Path != "/foo" {
-			t.Errorf("Expected *http.Request seems wrong, expecting URI /foo, but got %s", req.RequestURI)
+			t.Errorf("Expected *http.Request seems wrong, expecting URI /foo, but got %s", req.URL.Path)
 		}
 		_, err := os.Stat(file)
 		if err != nil {

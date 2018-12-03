@@ -392,15 +392,15 @@ func (server *server) StartHTTP() error {
 		server.httpServer.Addr = bindAddr
 	}
 
-	readyHandler := ready.NewServiceStatusVerifier(server, server.NewMux())
+	httpHandler := server.NewMux()
 
 	if server.httpConfig.GetAllowProfiling() {
-		if readyHandler, err = xhttp.NewRequestProfiler(readyHandler, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
+		if httpHandler, err = xhttp.NewRequestProfiler(httpHandler, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
 			return errors.Trace(err)
 		}
 	}
 
-	server.httpServer.Handler = readyHandler
+	server.httpServer.Handler = httpHandler
 
 	serve := func() error {
 		server.serving = true
@@ -532,6 +532,9 @@ func (server *server) NewMux() http.Handler {
 	// metrics wrapper
 	httpHandler = xhttp.NewRequestMetrics(httpHandler)
 
+	// service ready
+	httpHandler = ready.NewServiceStatusVerifier(server, httpHandler)
+
 	// role/contextID wrapper
 	httpHandler = identity.NewContextHandler(httpHandler)
 	return httpHandler
@@ -547,7 +550,7 @@ func (server *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	marshal.WriteJSON(w, r, httperror.WithNotFound(r.RequestURI))
+	marshal.WriteJSON(w, r, httperror.WithNotFound(r.URL.Path))
 }
 
 func serverExtraLogger(resp *xhttp.ResponseCapture, req *http.Request) []string {
