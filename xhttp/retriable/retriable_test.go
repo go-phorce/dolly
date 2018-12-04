@@ -10,9 +10,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
@@ -22,15 +24,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const projectPath = "../../"
+
 func Test_New(t *testing.T) {
 	p := &retriable.Policy{
 		TotalRetryLimit: 5,
 	}
 
+	// create without options
 	c := retriable.New().WithName("test")
 	assert.NotNil(t, c)
+	assert.NotNil(t, c.WithPolicy(p))
+	assert.NotNil(t, c.WithTLS(nil))
+	assert.NotNil(t, c.WithTransport(nil))
 
-	c.WithPolicy(p)
+	// create with options
+	c = retriable.New(
+		retriable.WithName("test"),
+		retriable.WithPolicy(p),
+		retriable.WithTLS(nil),
+		retriable.WithTransport(nil),
+	)
+	assert.NotNil(t, c)
+	c.AddHeader("test", "for client")
+
+	// TLS
+	clientTls, err := tlsconfig.NewClientTLSFromFiles(
+		projectPath+"etc/dev/certs/test_dolly_client.pem",
+		projectPath+"etc/dev/certs/test_dolly_client-key.pem",
+		projectPath+"etc/dev/certs/rootca/test_dolly_root_CA.pem")
+	require.NoError(t, err)
+	c = retriable.New().WithTLS(clientTls)
+	assert.NotNil(t, c)
 }
 
 func TestDefaultPolicy(t *testing.T) {
@@ -89,7 +114,14 @@ func Test_Retriable_OK(t *testing.T) {
 	server := httptest.NewServer(h)
 	defer server.Close()
 
-	client := retriable.New()
+	client := retriable.New().
+		WithHeaders(map[string]string{
+			"X-Test-Token": "token1",
+		}).
+		WithPolicy(&retriable.Policy{
+			TotalRetryLimit: 2,
+			RequestTimeout:  time.Second,
+		})
 	require.NotNil(t, client)
 
 	hosts := []string{server.URL}
@@ -99,37 +131,57 @@ func Test_Retriable_OK(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
-		status, err := client.Get(ctx, hosts, "/v1/test", w)
+		h, status, err := client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
+		assert.Equal(t, "retriable", h.Get("X-Test-Header"))
+		assert.Equal(t, "token1", h.Get("X-Test-Token"))
 	})
 
 	t.Run("PUT", func(t *testing.T) {
 		w := bytes.NewBuffer([]byte{})
-		status, err := client.PutBody(nil, hosts, "/v1/test", []byte("{}"), w)
+		_, status, err := client.ExecuteRequest(nil, http.MethodPut, hosts, "/v1/test", []byte("{}"), w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 	})
 
 	t.Run("POST", func(t *testing.T) {
 		w := bytes.NewBuffer([]byte{})
-		status, err := client.PostBody(nil, hosts, "/v1/test", []byte("{}"), w)
+		_, status, err := client.ExecuteRequest(nil, http.MethodPost, hosts, "/v1/test", []byte("{}"), w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 	})
 
 	t.Run("POST Empty body", func(t *testing.T) {
 		w := bytes.NewBuffer([]byte{})
-		status, err := client.PostBody(nil, hosts, "/v1/test", nil, w)
+		_, status, err := client.ExecuteRequest(nil, http.MethodPost, hosts, "/v1/test", nil, w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 	})
 
 	t.Run("DELETE", func(t *testing.T) {
+		// override per cal headers
+		ctx := retriable.WithHeaders(nil, map[string]string{
+			"X-Test-Token": "token2",
+		})
+
 		w := bytes.NewBuffer([]byte{})
-		status, err := client.Delete(nil, hosts, "/v1/test", w)
+		h, status, err := client.ExecuteRequest(ctx, http.MethodDelete, hosts, "/v1/test", nil, w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
+		assert.Equal(t, "token2", h.Get("X-Test-Token"))
+	})
+
+	t.Run("HEAD", func(t *testing.T) {
+		// override per cal headers
+		ctx := retriable.WithHeaders(nil, map[string]string{
+			"X-Test-Token": "token2",
+		})
+
+		h, status, err := client.Head(ctx, hosts, "/v1/test")
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, status)
+		assert.Equal(t, "token2", h.Get("X-Test-Token"))
 	})
 }
 
@@ -163,7 +215,7 @@ func Test_RetriableWithHeaders(t *testing.T) {
 	t.Run("clientHeaders", func(t *testing.T) {
 		w := bytes.NewBuffer([]byte{})
 
-		status, err := client.Get(context.Background(), []string{server.URL}, "/v1/test", w)
+		_, status, err := client.ExecuteRequest(context.Background(), http.MethodGet, []string{server.URL}, "/v1/test", nil, w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 
@@ -183,7 +235,7 @@ func Test_RetriableWithHeaders(t *testing.T) {
 			"header4": "val4",
 		}
 		ctx := retriable.WithHeaders(context.Background(), callSpecific)
-		status, err := client.Get(ctx, []string{server.URL}, "/v1/test", w)
+		_, status, err := client.ExecuteRequest(ctx, http.MethodGet, []string{server.URL}, "/v1/test", nil, w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 
@@ -206,7 +258,7 @@ func Test_RetriableWithHeaders(t *testing.T) {
 		w := bytes.NewBuffer([]byte{})
 		ctx := retriable.PropagateHeadersFromRequest(context.Background(), req, header.Accept, "header4", header.ContentType)
 
-		status, err := client.Get(ctx, []string{server.URL}, "/v1/test", w)
+		_, status, err := client.ExecuteRequest(ctx, http.MethodGet, []string{server.URL}, "/v1/test", nil, w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 
@@ -235,7 +287,7 @@ func Test_Retriable500(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	status, err := client.Get(ctx, hosts, "/v1/test", w)
+	_, status, err := client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 	require.Error(t, err)
 	assert.Equal(t, http.StatusInternalServerError, status)
 }
@@ -262,7 +314,7 @@ func Test_RetriableMulti500Error(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	status, err := client.Get(ctx, hosts, "/v1/test", w)
+	_, status, err := client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 	assert.Equal(t, http.StatusInternalServerError, status)
 	require.Error(t, err)
 	assert.Equal(t, "unexpected: internal server error", err.Error())
@@ -289,7 +341,7 @@ func Test_RetriableMulti500Custom(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	status, err := client.Get(ctx, hosts, "/v1/test", w)
+	_, status, err := client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 	assert.Equal(t, http.StatusInternalServerError, status)
 	require.Error(t, err)
 	assert.Equal(t, errResponse, err.Error())
@@ -314,13 +366,87 @@ func Test_RetriableTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 
-	status, err := client.Get(ctx, hosts, "/v1/test", w)
+	_, status, err := client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 	require.Error(t, err)
 	assert.Equal(t, 0, status)
 	exp1 := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded", server1.URL)
 	exp2 := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded", server2.URL)
 	assert.Contains(t, err.Error(), exp1)
 	assert.Contains(t, err.Error(), exp2)
+
+	// set policy on the client
+	client.WithPolicy(&retriable.Policy{
+		TotalRetryLimit: 2,
+		RequestTimeout:  100 * time.Millisecond,
+	})
+	_, status, err = client.ExecuteRequest(nil, http.MethodGet, hosts, "/v1/test", nil, w)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), exp1)
+	assert.Contains(t, err.Error(), exp2)
+}
+
+func Test_Retriable_DoWithTimeout(t *testing.T) {
+	h := makeTestHandlerSlow(t, "/v1/test/do", http.StatusInternalServerError, 1*time.Second, `{
+		"error": "bug"
+	}`)
+	server1 := httptest.NewServer(h)
+	defer server1.Close()
+
+	client := retriable.New()
+	require.NotNil(t, client)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	req, err := http.NewRequest(http.MethodPost, server1.URL+"/v1/test/do", strings.NewReader(`{"test":true}`))
+	require.NoError(t, err)
+	req = req.WithContext(ctx)
+
+	client.WithPolicy(&retriable.Policy{
+		TotalRetryLimit: 2,
+		RequestTimeout:  100 * time.Millisecond,
+	})
+	_, err = client.Do(req)
+	require.Error(t, err)
+	exp1 := fmt.Sprintf("Post %s/v1/test/do: context deadline exceeded", server1.URL)
+	assert.Contains(t, err.Error(), exp1)
+}
+
+func Test_Retriable_DoWithRetry(t *testing.T) {
+	count := 0
+	h := func(w http.ResponseWriter, r *http.Request) {
+		status := http.StatusOK
+		if 2 >= count {
+			status = http.StatusServiceUnavailable
+		}
+		count++
+		w.WriteHeader(status)
+		io.WriteString(w, fmt.Sprintf(`{"count": "%d"}`, count))
+	}
+
+	server1 := httptest.NewServer(http.HandlerFunc(h))
+	defer server1.Close()
+
+	client := retriable.New()
+	require.NotNil(t, client)
+
+	req, err := http.NewRequest(http.MethodPost, server1.URL+"/v1/test/do", strings.NewReader(`{"test":true}`))
+	require.NoError(t, err)
+
+	client.WithPolicy(&retriable.Policy{
+		TotalRetryLimit: 3,
+		RequestTimeout:  1 * time.Second,
+		Retries: map[int]retriable.ShouldRetry{
+			http.StatusServiceUnavailable: func(_ *http.Request, re_sp *http.Response, _ error, retries int) (bool, time.Duration, string) {
+				return (2 >= retries), time.Millisecond, "retry"
+			},
+		},
+	})
+
+	res, err := client.Do(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, res.StatusCode)
+	assert.Equal(t, 4, count)
 }
 
 func Test_DecodeResponse(t *testing.T) {
@@ -328,7 +454,7 @@ func Test_DecodeResponse(t *testing.T) {
 	c := retriable.New()
 
 	var body map[string]string
-	sc, err := c.DecodeResponse(&res, &body)
+	_, sc, err := c.DecodeResponse(&res, &body)
 	require.Equal(t, res.StatusCode, sc)
 	require.Error(t, err)
 
@@ -341,20 +467,20 @@ func Test_DecodeResponse(t *testing.T) {
 	// if the body isn't valid json, we should get returned a json parser error, as well as the body
 	invalidResponse := `["foo"}`
 	res.Body = ioutil.NopCloser(bytes.NewBufferString(invalidResponse))
-	sc, err = c.DecodeResponse(&res, &body)
+	_, sc, err = c.DecodeResponse(&res, &body)
 	require.Error(t, err)
 	assert.Equal(t, invalidResponse, err.Error())
 
 	// error body is valid json, but missing the error field
 	res.Body = ioutil.NopCloser(bytes.NewBufferString(`{"foo":"bar"}`))
-	sc, err = c.DecodeResponse(&res, &body)
+	_, sc, err = c.DecodeResponse(&res, &body)
 	assert.Error(t, err)
 	assert.Equal(t, "{\"foo\":\"bar\"}", err.Error())
 
 	// statusCode < 300, with a decodeable body
 	res.StatusCode = http.StatusOK
 	res.Body = ioutil.NopCloser(bytes.NewBufferString(`{"foo":"baz"}`))
-	sc, err = c.DecodeResponse(&res, &body)
+	_, sc, err = c.DecodeResponse(&res, &body)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, sc)
 	assert.Equal(t, "baz", body["foo"], "decodeResponse hasn't correctly decoded the payload, got %+v", body)
@@ -363,7 +489,7 @@ func Test_DecodeResponse(t *testing.T) {
 
 	// statusCode < 300, with a parsing error
 	res.Body = ioutil.NopCloser(bytes.NewBufferString(`[}`))
-	sc, err = c.DecodeResponse(&res, &body)
+	_, sc, err = c.DecodeResponse(&res, &body)
 	assert.Equal(t, http.StatusOK, sc, "decodeResponse returned unexpected statusCode, expecting 200")
 	assert.Error(t, err)
 	assert.Equal(t, "unable to decode body response to (*map[string]string) type: invalid character '}' looking for beginning of value", err.Error())
@@ -375,6 +501,8 @@ func makeTestHandler(t *testing.T, expURI string, status int, responseBody strin
 		if status == 0 {
 			status = http.StatusOK
 		}
+		w.Header().Add("X-Test-Header", "retriable")
+		w.Header().Add("X-Test-Token", r.Header.Get("X-Test-Token"))
 		w.WriteHeader(status)
 		io.WriteString(w, responseBody)
 	}

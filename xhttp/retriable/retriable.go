@@ -28,7 +28,9 @@ const (
 	NotFound = "not-found"
 	// LimitExceeded returned when retry limit exceeded
 	LimitExceeded = "limit-exceeded"
-	// Cancelled returned when request was cancelled or timed out
+	// DeadlineExceeded returned when request was timed out
+	DeadlineExceeded = "deadline"
+	// Cancelled returned when request was cancelled
 	Cancelled = "cancelled"
 	// NonRetriableError returned when non-retriable error occured
 	NonRetriableError = "non-retriable"
@@ -240,19 +242,20 @@ func NewDefaultPolicy() *Policy {
 	}
 }
 
-// Get fetches the specified resource from the specified hosts
+// ExecuteRequest to the specified hosts.
 // The supplied hosts are tried in order until one succeeds.
-// It will decode the response payload into the supplied
-// body parameter.
-// It returns the HTTP status code, and an optional error.
+// It will decode the response payload into the supplied body parameter.
+// It returns the HTTP headers, status code, and an optional error.
 // For responses with status codes >= 300 it will try and convert the response
 // into a Go error.
-// If configured, this call will wait & retry on rate limit and leader election errors.
+// If configured, this call will apply retry logic.
+//
 // path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) Get(ctx context.Context, hosts []string, path string, body interface{}) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil)
+// body can be io.Writer, or a struct to decode JSON into.
+func (c *Client) ExecuteRequest(ctx context.Context, method string, hosts []string, path string, reqBody []byte, body interface{}) (http.Header, int, error) {
+	resp, err := c.executeRequest(ctx, method, hosts, path, nil)
 	if err != nil {
-		return 0, errors.Trace(err)
+		return nil, 0, errors.Trace(err)
 	}
 	defer resp.Body.Close()
 
@@ -262,89 +265,15 @@ func (c *Client) Get(ctx context.Context, hosts []string, path string, body inte
 // Head makes HEAD request against the specified hosts[the supplied hosts are
 // tried in order until one succeeds, or we run out]
 // each host should include all the protocol/host/port preamble, e.g. http://foo.bar:3444
+//
 // path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) Head(ctx context.Context, hosts []string, path string) (http.Header, error) {
+func (c *Client) Head(ctx context.Context, hosts []string, path string) (http.Header, int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodHead, hosts, path, nil)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, 0, errors.Trace(err)
 	}
 	defer resp.Body.Close()
-	return resp.Header, nil
-}
-
-// Delete removes the specified resource from the specified hosts.
-// The supplied hosts are tried in order until one succeeds.
-// It will decode the response payload into the supplied
-// body parameter.
-// It returns the HTTP status code, and an optional error.
-// For responses with status codes >= 300 it will try and convert the response
-// into a Go error.
-// If configured, this call will wait & retry on rate limit and leader election errors.
-// path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) Delete(ctx context.Context, hosts []string, path string, body interface{}) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodDelete, hosts, path, nil)
-
-	if err != nil {
-		return 0, errors.Trace(err)
-	}
-	defer resp.Body.Close()
-
-	return c.DecodeResponse(resp, body)
-}
-
-// GetResponse executes a GET request against the specified hosts,
-// The supplied hosts are tried in order until one succeeds.
-// It returns the HTTP status code, and an optional error.
-// For responses with status codes >= 300 it will try and convert the response
-// into a Go error.
-// If configured, this call will wait & retry on rate limit and leader election errors.
-// path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) GetResponse(ctx context.Context, hosts []string, path string, body io.Writer) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodGet, hosts, path, nil)
-	if err != nil {
-		return 0, errors.Trace(err)
-	}
-	defer resp.Body.Close()
-
-	return c.extractResponse(resp, body)
-}
-
-// PostBody makes POST request against the specified hosts.
-// The supplied hosts are tried in order until one succeeds.
-// It will decode the response payload into the supplied
-// body parameter.
-// It returns the HTTP status code, and an optional error.
-// For responses with status codes >= 300 it will try and convert the response
-// into a Go error.
-// If configured, this call will wait & retry on rate limit and leader election errors.
-// path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) PostBody(ctx context.Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodPost, hosts, path, reqBody)
-	if err != nil {
-		return 0, errors.Trace(err)
-	}
-	defer resp.Body.Close()
-
-	return c.DecodeResponse(resp, body)
-}
-
-// PutBody makes PUT request against the specified hosts.
-// The supplied hosts are tried in order until one succeeds.
-// It will decode the response payload into the supplied
-// body parameter.
-// It returns the HTTP status code, and an optional error.
-// For responses with status codes >= 300 it will try and convert the response
-// into a Go error.
-// If configured, this call will wait & retry on rate limit and leader election errors.
-// path should be an absolute URI path, i.e. /foo/bar/baz
-func (c *Client) PutBody(ctx context.Context, hosts []string, path string, reqBody []byte, body interface{}) (int, error) {
-	resp, err := c.executeRequest(ctx, http.MethodPut, hosts, path, reqBody)
-	if err != nil {
-		return 0, errors.Trace(err)
-	}
-	defer resp.Body.Close()
-
-	return c.DecodeResponse(resp, body)
+	return resp.Header, resp.StatusCode, nil
 }
 
 var noop context.CancelFunc = func() {}
@@ -400,7 +329,7 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 			}
 		}
 
-		logger.Errorf("api=executeRequest, method=%s, host=%s, path=%s, err=[%v]", httpMethod, host, path, many.Error())
+		logger.Errorf("api=executeRequest, err=[%v]", many.Error())
 	}
 
 	if resp != nil {
@@ -436,12 +365,14 @@ func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, pat
 		for header, val := range headers {
 			req.Header.Set(header, val)
 		}
-	case map[string][]string:
-		for header, list := range headers {
-			for _, val := range list {
-				req.Header.Add(header, val)
-			}
-		}
+		/*
+			case map[string][]string:
+				for header, list := range headers {
+					for _, val := range list {
+						req.Header.Add(header, val)
+					}
+				}
+		*/
 	}
 
 	return c.Do(req)
@@ -527,6 +458,7 @@ func (c *Client) consumeResponseBody(r *http.Response) {
 	}
 }
 
+// TODO:
 func debugResponse(resp *http.Response) {
 	if logger.LevelAt(xlog.DEBUG) {
 		b := bytes.NewBuffer([]byte{})
@@ -542,7 +474,8 @@ func debugResponse(resp *http.Response) {
 // DecodeResponse will look at the http response, and map it back to either
 // the body parameters, or to an error
 // [retrying rate limit errors should be done before this]
-func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, error) {
+func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (http.Header, int, error) {
+	defer debugResponse(resp)
 	if resp.StatusCode >= http.StatusMultipleChoices { // 300
 		e := new(httperror.Error)
 		e.HTTPStatus = resp.StatusCode
@@ -551,51 +484,24 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (int, err
 		if err := json.NewDecoder(bodyTee).Decode(e); err != nil || e.Code == "" {
 			io.Copy(ioutil.Discard, bodyTee) // ensure all of body is read
 			// Unable to parse as Error, then return body as error
-			return resp.StatusCode, errors.New(string(bodyCopy.Bytes()))
+			return resp.Header, resp.StatusCode, errors.New(string(bodyCopy.Bytes()))
 		}
-		return resp.StatusCode, e
+		return resp.Header, resp.StatusCode, e
 	}
 
 	switch body.(type) {
 	case io.Writer:
 		_, err := io.Copy(body.(io.Writer), resp.Body)
 		if err != nil {
-			debugResponse(resp)
-			return resp.StatusCode, errors.Annotatef(err, "unable to read body response to (%T) type", body)
+			return resp.Header, resp.StatusCode, errors.Annotatef(err, "unable to read body response to (%T) type", body)
 		}
 	default:
 		if err := json.NewDecoder(resp.Body).Decode(body); err != nil {
-			debugResponse(resp)
-			return resp.StatusCode, errors.Annotatef(err, "unable to decode body response to (%T) type", body)
+			return resp.Header, resp.StatusCode, errors.Annotatef(err, "unable to decode body response to (%T) type", body)
 		}
 	}
 
-	return resp.StatusCode, nil
-}
-
-// extractResponse will look at the http response, and map it back to either
-// the body parameters, or to an error
-// [retrying rate limit errors should be done before this]
-func (c *Client) extractResponse(resp *http.Response, body io.Writer) (int, error) {
-	if resp.StatusCode >= http.StatusMultipleChoices { // 300
-		e := new(httperror.Error)
-		e.HTTPStatus = resp.StatusCode
-		bodyCopy := bytes.Buffer{}
-		bodyTee := io.TeeReader(resp.Body, &bodyCopy)
-		if err := json.NewDecoder(bodyTee).Decode(e); err != nil || e.Code == "" {
-			io.Copy(ioutil.Discard, bodyTee) // ensure all of body is read
-			// Unable to parse as Error, then return body as error
-			return resp.StatusCode, errors.New(string(bodyCopy.Bytes()))
-		}
-		return resp.StatusCode, e
-	}
-
-	if _, err := io.Copy(body, resp.Body); err != nil {
-		debugResponse(resp)
-		return resp.StatusCode, errors.Annotatef(err, "unable to decode body response (%T) error: %s", body, err.Error())
-	}
-
-	return resp.StatusCode, nil
+	return resp.Header, resp.StatusCode, nil
 }
 
 func shouldRetryFactory(limit int, wait time.Duration, reason string) ShouldRetry {
@@ -618,17 +524,23 @@ var nonRetriableErrors = []string{
 func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 	if err != nil {
 		errStr := err.Error()
-		logger.Errorf("api=ShouldRetry, error_type=%T, err=[%s]", err, errStr)
+		logger.Errorf("api=ShouldRetry, host=%q, path=%q, retries=%d, error_type=%T, err=[%s]",
+			r.URL.Host, r.URL.Path, retries, err, errStr)
 
 		select {
-		// If the context is finished, don't bother processing the
 		case <-r.Context().Done():
-			return false, 0, Cancelled
+			err := r.Context().Err()
+			if err == context.Canceled {
+				return false, 0, Cancelled
+			} else if err == context.DeadlineExceeded {
+				return false, 0, DeadlineExceeded
+			}
 		default:
 		}
 
 		if r.TLS != nil {
-			logger.Errorf("api=ShouldRetry, complete=%t, mutual=%t, tls_peers=%d, tls_chains=%d",
+			logger.Errorf("api=ShouldRetry, host=%q, path=%q, complete=%t, mutual=%t, tls_peers=%d, tls_chains=%d",
+				r.URL.Host, r.URL.Path,
 				resp.TLS.HandshakeComplete,
 				resp.TLS.NegotiatedProtocolIsMutual,
 				len(resp.TLS.PeerCertificates),
@@ -663,7 +575,7 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 		return false, 0, NonRetriableError
 	}
 
-	if retries >= p.TotalRetryLimit {
+	if p.TotalRetryLimit <= retries {
 		return false, 0, LimitExceeded
 	}
 
