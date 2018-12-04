@@ -1,5 +1,6 @@
 {
     "/def" :                        { "file" : "def" },
+    "/def?q=1" :                    { "file" : "def_query" },
     "/withCode" :                   { "file" : "error", "statusCode": 400 },
     "/withSeq" :                    { "file" : "seq" },
     "/withSeqAndCode" :             { "file" : "seq", "statusCode": 201 },

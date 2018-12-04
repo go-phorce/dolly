@@ -107,6 +107,11 @@ func (s *serverTestSuite) Test_LastRequestBody() {
 	s.JSONEq(`{"def":true}`, string(resp))
 	s.Equal(1, s.s.RequestCount("/def"))
 
+	resp = s.doHTTPCall(http.MethodPost, "/def?q=1", bytes.NewBufferString(reqBody), http.StatusOK)
+	s.Equal(reqBody, string(s.s.LastBody("/def?q=1")))
+	s.JSONEq(`{"def":true,"query":true}`, string(resp))
+	s.Equal(1, s.s.RequestCount("/def?q=1"))
+
 	reqBody = `{"hello":"world2"}`
 	resp = s.doHTTPCall(http.MethodPut, "/def", bytes.NewBufferString(reqBody), http.StatusOK)
 	s.Equal(reqBody, string(s.s.LastBody("/def")))

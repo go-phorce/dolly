@@ -161,7 +161,13 @@ func (s *Server) LastReqHdr(uri string) map[string][]string {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	requestURI := r.URL.Path
+	requestURI := r.RequestURI
+	if requestURI == "" {
+		requestURI = r.URL.Path
+		if r.URL.RawQuery != "" {
+			requestURI += "?" + r.URL.RawQuery
+		}
+	}
 	s.t.Logf("sfdctest.Server got request for %s", requestURI)
 
 	fileExt := ".json"
