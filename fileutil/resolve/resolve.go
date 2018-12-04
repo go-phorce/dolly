@@ -38,7 +38,7 @@ func File(file string, baseDir string) (resolved string, err error) {
 	}
 	if filepath.IsAbs(file) {
 		resolved = file
-	} else {
+	} else if baseDir != "" {
 		resolved = filepath.Join(baseDir, file)
 	}
 	if _, err := os.Stat(resolved); os.IsNotExist(err) {

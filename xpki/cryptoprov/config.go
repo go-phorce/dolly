@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/go-phorce/dolly/fileutil/resolve"
 	"github.com/juju/errors"
 )
 
@@ -95,14 +97,32 @@ func LoadTokenConfig(filename string) (TokenConfig, error) {
 	tokenConfig := new(tokenConfig)
 	err = json.NewDecoder(cfr).Decode(tokenConfig)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.Annotatef(err, "failed to decode file: %s", filename)
 	}
 
 	pin := tokenConfig.Pin()
 	if strings.HasPrefix(pin, "file:") {
-		pb, err := ioutil.ReadFile(strings.TrimLeft(pin, "file:"))
+		pinfile := pin[5:]
+
+		// try to resolve pin file
+		cwd, _ := os.Getwd()
+		folders := []string{
+			"",
+			cwd,
+			filepath.Dir(filename),
+		}
+
+		for _, folder := range folders {
+			if resolved, err := resolve.File(pinfile, folder); err == nil {
+				pinfile = resolved
+				break
+			}
+			logger.Warningf("api=LoadTokenConfig, reason=resolve, pinfile=%q, basedir=%q", pinfile, folder)
+		}
+
+		pb, err := ioutil.ReadFile(pinfile)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.Annotatef(err, "unable to load PIN for configuration: %s", filename)
 		}
 		tokenConfig.Pwd = string(pb)
 	}

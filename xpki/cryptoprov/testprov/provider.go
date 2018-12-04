@@ -119,7 +119,7 @@ func Init() (*Provider, error) {
 
 // Manufacturer return manufacturer for the provider
 func (p *Provider) Manufacturer() string {
-	return "test"
+	return "testprov"
 }
 
 // Model return model for the provider

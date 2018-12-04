@@ -263,7 +263,6 @@ func (c *Client) Get(ctx context.Context, hosts []string, path string, body inte
 // tried in order until one succeeds, or we run out]
 // each host should include all the protocol/host/port preamble, e.g. http://foo.bar:3444
 // path should be an absolute URI path, i.e. /foo/bar/baz
-// if set, the callers identity will be passed to Raphty via the X-Raphty-Identity header
 func (c *Client) Head(ctx context.Context, hosts []string, path string) (http.Header, error) {
 	resp, err := c.executeRequest(ctx, http.MethodHead, hosts, path, nil)
 	if err != nil {
