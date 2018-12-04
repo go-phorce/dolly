@@ -20,7 +20,9 @@ func run(p metrics.Provider, times int) {
 
 func Test_SetProvider(t *testing.T) {
 	im := metrics.NewInmemSink(time.Second, time.Minute)
-	prov, err := metrics.New(&metrics.Config{}, im)
+	prov, err := metrics.New(&metrics.Config{
+		FilterDefault: true,
+	}, im)
 	require.NoError(t, err)
 	run(prov, 10)
 }
@@ -29,7 +31,9 @@ func Test_SetProviderDatadog(t *testing.T) {
 	d, err := metrics.NewDogStatsdSink("127.0.0.1:8125", "dolly")
 	require.NoError(t, err)
 
-	prov, err := metrics.New(&metrics.Config{}, d)
+	prov, err := metrics.New(&metrics.Config{
+		FilterDefault: true,
+	}, d)
 	require.NoError(t, err)
 	run(prov, 10)
 }

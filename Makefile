@@ -35,7 +35,8 @@ version:
 	gofmt -r '"GIT_VERSION" -> "$(GIT_VERSION)"' version/current.template > version/current.go
 
 build:
-	echo "Build skipped for pkg"
+	echo "*** running build"
+	cd ${TEST_DIR} && go build -o ${PROJ_ROOT}/bin/dollypki ./cmd/dollypki
 
 hsmconfig:
 	echo "*** Running hsmconfig"
