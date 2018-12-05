@@ -196,7 +196,7 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
-		_, status, err := client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
+		_, status, err := client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, status)
 		res := string(w.Bytes())
@@ -219,7 +219,7 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
-		_, _, err = client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
+		_, _, err = client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
 	})
@@ -291,7 +291,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
-		_, _, err = client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
+		_, _, err = client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "tls: bad certificate")
 	})
@@ -313,7 +313,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
-		_, _, err = client.ExecuteRequest(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
+		_, _, err = client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "certificate signed by unknown authority")
 	})
