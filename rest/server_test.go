@@ -11,17 +11,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/metrics"
-	"github.com/go-phorce/dolly/xhttp/authz"
-	"github.com/go-phorce/dolly/xhttp/identity"
-	"github.com/go-phorce/dolly/xhttp/marshal"
-
-	"github.com/go-phorce/dolly/xhttp/header"
-
 	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/testify/auditor"
+	"github.com/go-phorce/dolly/xhttp/authz"
+	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xhttp/identity"
+	"github.com/go-phorce/dolly/xhttp/marshal"
+	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -144,6 +144,8 @@ func Test_NewServer(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	assert.NotNil(t, server.AddNode)
+	assert.NotNil(t, server.RemoveNode)
 	assert.NotNil(t, server.NodeName)
 	assert.NotNil(t, server.LeaderID)
 	assert.NotNil(t, server.NodeID)
@@ -180,6 +182,14 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.Scheduler())
 	assert.NotNil(t, server.HTTPConfig())
 	assert.Equal(t, cfg, server.HTTPConfig())
+
+	_, _, err = server.AddNode([]string{"https://localhost:9443"})
+	assert.Error(t, err)
+	assert.Equal(t, "cluster not supported", err.Error())
+
+	_, err = server.RemoveNode("https://localhost:9443")
+	assert.Error(t, err)
+	assert.Equal(t, "cluster not supported", err.Error())
 
 	peersURLs, err := server.PeerURLs(server.NodeID())
 	assert.Error(t, err)
@@ -246,6 +256,34 @@ type cluster struct {
 	members []*rest.ClusterMember
 }
 
+// AddNode returns created node and a list of peers after adding the node to the cluster.
+func (c *cluster) AddNode(peerAddrs []string) (*rest.ClusterMember, []*rest.ClusterMember, error) {
+	member := &rest.ClusterMember{
+		ID:       guid.MustCreate(),
+		Name:     fmt.Sprintf("node%d", 1+len(c.members)),
+		PeerURLs: peerAddrs,
+	}
+	c.members = append(c.members, member)
+	return member, c.members, nil
+}
+
+// RemoveNode returns a list of peers after removing the node from the cluster.
+func (c *cluster) RemoveNode(nodeID string) ([]*rest.ClusterMember, error) {
+	members := c.members
+	for i, n := range c.members {
+		if n.ID == nodeID {
+			last := len(members) - 1
+			members[i] = members[last]
+			members[last] = nil
+			c.members = members[:last]
+
+			return c.members[:], nil
+		}
+	}
+
+	return nil, errors.NotFoundf("node %s", nodeID)
+}
+
 func (c *cluster) NodeID() string {
 	return c.members[c.this].ID
 }
@@ -276,18 +314,21 @@ func Test_ClusterInfo(t *testing.T) {
 		return cfg
 	})
 
+	clstr := &cluster{
+		this:   0,
+		leader: 0,
+		members: []*rest.ClusterMember{
+			{ID: "0000", Name: "node0", PeerURLs: []string{"https://host0:8080", "https://127.0.0.1:8080"}},
+			{ID: "1111", Name: "node1", PeerURLs: []string{"https://host1:8081"}},
+			{ID: "2222", Name: "node2", PeerURLs: []string{"https://host2:8082"}},
+		},
+	}
 	ioc.Provide(func() rest.ClusterInfo {
-		return &cluster{
-			this:   0,
-			leader: 0,
-			members: []*rest.ClusterMember{
-				{ID: "0000", Name: "node0", PeerURLs: []string{"https://host0:8080", "https://127.0.0.1:8080"}},
-				{ID: "1111", Name: "node1", PeerURLs: []string{"https://host1:8081"}},
-				{ID: "2222", Name: "node2", PeerURLs: []string{"https://host2:8082"}},
-			},
-		}
+		return clstr
 	})
-
+	ioc.Provide(func() rest.ClusterManager {
+		return clstr
+	})
 	server, err := rest.New("test", "v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
@@ -297,6 +338,19 @@ func Test_ClusterInfo(t *testing.T) {
 	assert.Equal(t, 2, len(l))
 
 	l, err = rest.GetNodePeerURLs(server, "3333")
+	require.Error(t, err)
+
+	m, p, err := server.AddNode([]string{"https://host2:8083"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"https://host2:8083"}, m.PeerURLs)
+	assert.Equal(t, 4, len(p))
+	_, err = rest.GetNodePeerURLs(server, m.ID)
+	require.NoError(t, err)
+
+	p, err = server.RemoveNode("2222")
+	require.NoError(t, err)
+	assert.Equal(t, 3, len(p))
+	_, err = rest.GetNodePeerURLs(server, "2222")
 	require.Error(t, err)
 }
 
