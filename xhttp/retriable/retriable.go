@@ -44,6 +44,29 @@ const (
 	contextValueForHTTPHeader = contextValueName("HTTP-Header")
 )
 
+// GenericHTTP defines a number of generalized HTTP request handling wrappers
+type GenericHTTP interface {
+	// Request sends request to the specified hosts.
+	// The supplied hosts are tried in order until one succeeds.
+	// It will decode the response payload into the supplied body parameter.
+	// It returns the HTTP headers, status code, and an optional error.
+	// For responses with status codes >= 300 it will try and convert the response
+	// into a Go error.
+	// If configured, this call will apply retry logic.
+	//
+	// hosts should include all the protocol/host/port preamble, e.g. https://foo.bar:3444
+	// path should be an absolute URI path, i.e. /foo/bar/baz
+	// body can be io.Writer, or a struct to decode JSON into.
+	Request(ctx context.Context, method string, hosts []string, path string, reqBody []byte, body interface{}) (http.Header, int, error)
+
+	// Head makes HEAD request against the specified hosts.
+	// The supplied hosts are tried in order until one succeeds.
+	//
+	// hosts should include all the protocol/host/port preamble, e.g. https://foo.bar:3444
+	// path should be an absolute URI path, i.e. /foo/bar/baz
+	Head(ctx context.Context, hosts []string, path string) (http.Header, int, error)
+}
+
 // ShouldRetry specifies a policy for handling retries. It is called
 // following each request with the response, error values returned by
 // the http.Client and the number of already made retries.
@@ -242,7 +265,7 @@ func NewDefaultPolicy() *Policy {
 	}
 }
 
-// ExecuteRequest to the specified hosts.
+// Request sends request to the specified hosts.
 // The supplied hosts are tried in order until one succeeds.
 // It will decode the response payload into the supplied body parameter.
 // It returns the HTTP headers, status code, and an optional error.
@@ -250,9 +273,10 @@ func NewDefaultPolicy() *Policy {
 // into a Go error.
 // If configured, this call will apply retry logic.
 //
+// hosts should include all the protocol/host/port preamble, e.g. https://foo.bar:3444
 // path should be an absolute URI path, i.e. /foo/bar/baz
 // body can be io.Writer, or a struct to decode JSON into.
-func (c *Client) ExecuteRequest(ctx context.Context, method string, hosts []string, path string, reqBody []byte, body interface{}) (http.Header, int, error) {
+func (c *Client) Request(ctx context.Context, method string, hosts []string, path string, reqBody []byte, body interface{}) (http.Header, int, error) {
 	resp, err := c.executeRequest(ctx, method, hosts, path, nil)
 	if err != nil {
 		return nil, 0, errors.Trace(err)
@@ -262,10 +286,10 @@ func (c *Client) ExecuteRequest(ctx context.Context, method string, hosts []stri
 	return c.DecodeResponse(resp, body)
 }
 
-// Head makes HEAD request against the specified hosts[the supplied hosts are
-// tried in order until one succeeds, or we run out]
-// each host should include all the protocol/host/port preamble, e.g. http://foo.bar:3444
+// Head makes HEAD request against the specified hosts.
+// The supplied hosts are tried in order until one succeeds.
 //
+// hosts should include all the protocol/host/port preamble, e.g. https://foo.bar:3444
 // path should be an absolute URI path, i.e. /foo/bar/baz
 func (c *Client) Head(ctx context.Context, hosts []string, path string) (http.Header, int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodHead, hosts, path, nil)
