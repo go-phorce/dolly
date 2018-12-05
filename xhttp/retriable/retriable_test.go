@@ -449,6 +449,95 @@ func Test_Retriable_DoWithRetry(t *testing.T) {
 	assert.Equal(t, 4, count)
 }
 
+func Test_RetriableBody(t *testing.T) {
+	h := func(w http.ResponseWriter, r *http.Request) {
+		q, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			marshal.WriteJSON(w, r, httperror.WithUnexpected(err.Error()))
+			return
+		}
+		// write request back
+		w.Write(q)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(h))
+	defer server.Close()
+
+	client := retriable.New()
+	require.NotNil(t, client)
+
+	type response struct {
+		Name  string
+		Value string
+	}
+
+	var resBytes response
+
+	tcases := []struct {
+		name string
+		req  interface{}
+		res  interface{}
+	}{
+		{
+			name: "bytes",
+			req:  []byte(`{"Name":"bytes","Value":"obj"}`),
+			res:  &resBytes,
+		},
+		{
+			name: "string",
+			req:  `{"Name":"string","Value":"obj"}`,
+			res:  &resBytes,
+		},
+		{
+			name: "readersekker",
+			req:  strings.NewReader(`{"Name":"readersekker","Value":"obj"}`),
+			res:  &resBytes,
+		},
+		{
+			name: "reader",
+			req:  &reader{s: []byte(`{"Name":"reader","Value":"obj"}`)},
+			res:  &resBytes,
+		},
+		{
+			name: "buffer",
+			req:  &response{Name: "buffer", Value: "body"},
+			res:  bytes.NewBuffer([]byte{}),
+		},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, _, err := client.Request(nil, http.MethodPost, []string{server.URL}, "/", tc.req, tc.res)
+			require.NoError(t, err)
+			switch val := tc.res.(type) {
+			case *response:
+				assert.Equal(t, tc.name, resBytes.Name)
+			case io.Reader:
+				err = marshal.Decode(val, &resBytes)
+				require.NoError(t, err)
+				assert.Equal(t, tc.name, resBytes.Name)
+			}
+		})
+	}
+}
+
+type reader struct {
+	s        []byte
+	i        int64 // current reading index
+	prevRune int   // index of previous rune; or < 0
+}
+
+// Read implements the io.Reader interface.
+func (r *reader) Read(b []byte) (n int, err error) {
+	if r.i >= int64(len(r.s)) {
+		return 0, io.EOF
+	}
+	r.prevRune = -1
+	n = copy(b, r.s[r.i:])
+	r.i += int64(n)
+	return
+}
+
 func Test_DecodeResponse(t *testing.T) {
 	res := http.Response{StatusCode: http.StatusNotFound, Body: ioutil.NopCloser(bytes.NewBufferString(`{"code":"MY_CODE","message":"doesn't exist"}`))}
 	c := retriable.New()

@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -56,8 +57,9 @@ type GenericHTTP interface {
 	//
 	// hosts should include all the protocol/host/port preamble, e.g. https://foo.bar:3444
 	// path should be an absolute URI path, i.e. /foo/bar/baz
-	// body can be io.Writer, or a struct to decode JSON into.
-	Request(ctx context.Context, method string, hosts []string, path string, reqBody []byte, body interface{}) (http.Header, int, error)
+	// requestBody can be io.Reader, []byte, or an object to be JSON encoded
+	// responseBody can be io.Writer, or a struct to decode JSON into.
+	Request(ctx context.Context, method string, hosts []string, path string, requestBody interface{}, responseBody interface{}) (http.Header, int, error)
 
 	// Head makes HEAD request against the specified hosts.
 	// The supplied hosts are tried in order until one succeeds.
@@ -275,15 +277,39 @@ func NewDefaultPolicy() *Policy {
 //
 // hosts should include all the protocol/host/port preamble, e.g. https://foo.bar:3444
 // path should be an absolute URI path, i.e. /foo/bar/baz
-// body can be io.Writer, or a struct to decode JSON into.
-func (c *Client) Request(ctx context.Context, method string, hosts []string, path string, reqBody []byte, body interface{}) (http.Header, int, error) {
-	resp, err := c.executeRequest(ctx, method, hosts, path, nil)
+// requestBody can be io.Reader, []byte, or an object to be JSON encoded
+// responseBody can be io.Writer, or a struct to decode JSON into.
+func (c *Client) Request(ctx context.Context, method string, hosts []string, path string, requestBody interface{}, responseBody interface{}) (http.Header, int, error) {
+	var body io.ReadSeeker
+
+	switch val := requestBody.(type) {
+	case io.ReadSeeker:
+		body = val
+	case io.Reader:
+		b, err := ioutil.ReadAll(val)
+		if err != nil {
+			return nil, 0, errors.Trace(err)
+		}
+		body = bytes.NewReader(b)
+	case []byte:
+		body = bytes.NewReader(val)
+	case string:
+		body = strings.NewReader(val)
+	default:
+		js, err := json.Marshal(requestBody)
+		if err != nil {
+			return nil, 0, errors.Trace(err)
+		}
+		body = bytes.NewReader(js)
+	}
+
+	resp, err := c.executeRequest(ctx, method, hosts, path, body)
 	if err != nil {
 		return nil, 0, errors.Trace(err)
 	}
 	defer resp.Body.Close()
 
-	return c.DecodeResponse(resp, body)
+	return c.DecodeResponse(resp, responseBody)
 }
 
 // Head makes HEAD request against the specified hosts.
@@ -315,7 +341,7 @@ func (c *Client) ensureContext(ctx context.Context, httpMethod, path string) (co
 	return ctx, noop
 }
 
-func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []string, path string, reqBody []byte) (*http.Response, error) {
+func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []string, path string, body io.ReadSeeker) (*http.Response, error) {
 	var many *httperror.ManyError
 	var err error
 	var resp *http.Response
@@ -325,7 +351,7 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 	ctx, _ = c.ensureContext(ctx, httpMethod, path)
 
 	for i, host := range hosts {
-		resp, err = c.doHTTP(ctx, httpMethod, host, path, reqBody)
+		resp, err = c.doHTTP(ctx, httpMethod, host, path, body)
 		if err != nil {
 			logger.Errorf("api=doHTTP, httpMethod=%q, host=%q, path=%q, err=[%v]",
 				httpMethod, host, path, errors.ErrorStack(err))
@@ -354,6 +380,9 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 		}
 
 		logger.Errorf("api=executeRequest, err=[%v]", many.Error())
+
+		// rewind the reader
+		body.Seek(0, 0)
 	}
 
 	if resp != nil {
@@ -364,16 +393,10 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 }
 
 // doHTTP wraps calling an HTTP method with retries.
-// TODO: convert reqBody to reader
-func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, path string, reqBody []byte) (*http.Response, error) {
+func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, path string, body io.Reader) (*http.Response, error) {
 	uri := host + path
 
-	var reader io.Reader
-	if httpMethod == http.MethodPost && reqBody != nil {
-		reader = bytes.NewReader(reqBody)
-	}
-
-	req, err := http.NewRequest(httpMethod, uri, reader)
+	req, err := http.NewRequest(httpMethod, uri, body)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
