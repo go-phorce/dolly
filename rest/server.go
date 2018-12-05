@@ -66,9 +66,18 @@ type ClusterInfo interface {
 	PeerURLs(nodeID string) ([]*url.URL, error)
 }
 
+// ClusterManager is an interface to provide basic cluster management
+type ClusterManager interface {
+	// AddNode returns created node and a list of peers after adding the node to the cluster.
+	AddNode(peerAddrs []string) (member *ClusterMember, peers []*ClusterMember, err error)
+	// RemoveNode returns a list of peers after removing the node from the cluster.
+	RemoveNode(nodeID string) (peers []*ClusterMember, err error)
+}
+
 // Server is an interface to provide server status
 type Server interface {
 	ClusterInfo
+	ClusterManager
 	http.Handler
 	Name() string
 	Version() string
@@ -124,7 +133,8 @@ type server struct {
 	container      container.Container
 	auditor        Auditor
 	authz          Authz
-	cluster        ClusterInfo
+	clusterInfo    ClusterInfo
+	clusterManager ClusterManager
 	httpConfig     HTTPServerConfig
 	tlsConfig      *tls.Config
 	httpServer     *http.Server
@@ -178,31 +188,37 @@ func New(
 		s.port = GetPort(baddr)
 	})
 	if err != nil {
-		return nil, errors.Errorf("HTTPServerConfig not provided, rolename=%s, err=%q",
-			rolename, err.Error())
+		return nil, errors.Errorf("HTTPServerConfig not provided, rolename=%s", rolename)
 	}
 
 	err = container.Invoke(func(authz Authz) {
 		s.authz = authz
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='failed to initialize Authz', service=%s, err=%q",
+		logger.Warningf("api=rest.New, reason='failed to initialize Authz', service=%s, err=[%s]",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
-	err = container.Invoke(func(cluster ClusterInfo) {
-		s.cluster = cluster
+	err = container.Invoke(func(clusterInfo ClusterInfo) {
+		s.clusterInfo = clusterInfo
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err=%q",
+		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err=[%s]",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
+	err = container.Invoke(func(clusterManager ClusterManager) {
+		s.clusterManager = clusterManager
+	})
+	if err != nil {
+		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err=[%s]",
+			s.httpConfig.GetServiceName(), err.Error())
+	}
 	err = container.Invoke(func(auditor Auditor) {
 		s.auditor = auditor
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s, err=%q",
+		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s, err=[%s]",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
@@ -213,7 +229,7 @@ func New(
 		}
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s, err=%q",
+		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s, err=[%s]",
 			s.httpConfig.GetServiceName(), err.Error())
 	}
 
@@ -251,8 +267,8 @@ func (server *server) HostName() string {
 
 // NodeName returns the node name in the cluster
 func (server *server) NodeName() string {
-	if server.cluster != nil {
-		return server.cluster.NodeName()
+	if server.clusterInfo != nil {
+		return server.clusterInfo.NodeName()
 	}
 	return server.HostName()
 }
@@ -299,25 +315,41 @@ func (server *server) HTTPConfig() HTTPServerConfig {
 	return server.httpConfig
 }
 
+// AddNode returns created node and a list of peers after adding the node to the cluster.
+func (server *server) AddNode(peerAddrs []string) (*ClusterMember, []*ClusterMember, error) {
+	if server.clusterManager == nil {
+		return nil, nil, errors.NotSupportedf("cluster")
+	}
+	return server.clusterManager.AddNode(peerAddrs)
+}
+
+// RemoveNode returns a list of peers after removing the node from the cluster.
+func (server *server) RemoveNode(nodeID string) (peers []*ClusterMember, err error) {
+	if server.clusterManager == nil {
+		return nil, errors.NotSupportedf("cluster")
+	}
+	return server.clusterManager.RemoveNode(nodeID)
+}
+
 func (server *server) NodeID() string {
-	if server.cluster == nil {
+	if server.clusterInfo == nil {
 		return ""
 	}
-	return server.cluster.NodeID()
+	return server.clusterInfo.NodeID()
 }
 
 func (server *server) LeaderID() string {
-	if server.cluster == nil {
+	if server.clusterInfo == nil {
 		return ""
 	}
-	return server.cluster.LeaderID()
+	return server.clusterInfo.LeaderID()
 }
 
 func (server *server) ClusterMembers() ([]*ClusterMember, error) {
-	if server.cluster == nil {
+	if server.clusterInfo == nil {
 		return nil, errors.NotSupportedf("cluster")
 	}
-	return server.cluster.ClusterMembers()
+	return server.clusterInfo.ClusterMembers()
 }
 
 func (server *server) PeerURLs(nodeID string) ([]*url.URL, error) {
