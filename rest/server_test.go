@@ -1,6 +1,7 @@
 package rest_test
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -183,11 +184,11 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.HTTPConfig())
 	assert.Equal(t, cfg, server.HTTPConfig())
 
-	_, _, err = server.AddNode([]string{"https://localhost:9443"})
+	_, _, err = server.AddNode(nil, []string{"https://localhost:9443"})
 	assert.Error(t, err)
 	assert.Equal(t, "cluster not supported", err.Error())
 
-	_, err = server.RemoveNode("https://localhost:9443")
+	_, err = server.RemoveNode(nil, "https://localhost:9443")
 	assert.Error(t, err)
 	assert.Equal(t, "cluster not supported", err.Error())
 
@@ -257,7 +258,7 @@ type cluster struct {
 }
 
 // AddNode returns created node and a list of peers after adding the node to the cluster.
-func (c *cluster) AddNode(peerAddrs []string) (*rest.ClusterMember, []*rest.ClusterMember, error) {
+func (c *cluster) AddNode(_ context.Context, peerAddrs []string) (*rest.ClusterMember, []*rest.ClusterMember, error) {
 	member := &rest.ClusterMember{
 		ID:       guid.MustCreate(),
 		Name:     fmt.Sprintf("node%d", 1+len(c.members)),
@@ -268,7 +269,7 @@ func (c *cluster) AddNode(peerAddrs []string) (*rest.ClusterMember, []*rest.Clus
 }
 
 // RemoveNode returns a list of peers after removing the node from the cluster.
-func (c *cluster) RemoveNode(nodeID string) ([]*rest.ClusterMember, error) {
+func (c *cluster) RemoveNode(_ context.Context, nodeID string) ([]*rest.ClusterMember, error) {
 	members := c.members
 	for i, n := range c.members {
 		if n.ID == nodeID {
@@ -340,14 +341,14 @@ func Test_ClusterInfo(t *testing.T) {
 	l, err = rest.GetNodePeerURLs(server, "3333")
 	require.Error(t, err)
 
-	m, p, err := server.AddNode([]string{"https://host2:8083"})
+	m, p, err := server.AddNode(nil, []string{"https://host2:8083"})
 	require.NoError(t, err)
 	assert.Equal(t, []string{"https://host2:8083"}, m.PeerURLs)
 	assert.Equal(t, 4, len(p))
 	_, err = rest.GetNodePeerURLs(server, m.ID)
 	require.NoError(t, err)
 
-	p, err = server.RemoveNode("2222")
+	p, err = server.RemoveNode(nil, "2222")
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(p))
 	_, err = rest.GetNodePeerURLs(server, "2222")

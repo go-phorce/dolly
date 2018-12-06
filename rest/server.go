@@ -69,9 +69,9 @@ type ClusterInfo interface {
 // ClusterManager is an interface to provide basic cluster management
 type ClusterManager interface {
 	// AddNode returns created node and a list of peers after adding the node to the cluster.
-	AddNode(peerAddrs []string) (member *ClusterMember, peers []*ClusterMember, err error)
+	AddNode(ctx context.Context, peerAddrs []string) (member *ClusterMember, peers []*ClusterMember, err error)
 	// RemoveNode returns a list of peers after removing the node from the cluster.
-	RemoveNode(nodeID string) (peers []*ClusterMember, err error)
+	RemoveNode(ctx context.Context, nodeID string) (peers []*ClusterMember, err error)
 }
 
 // Server is an interface to provide server status
@@ -316,19 +316,19 @@ func (server *server) HTTPConfig() HTTPServerConfig {
 }
 
 // AddNode returns created node and a list of peers after adding the node to the cluster.
-func (server *server) AddNode(peerAddrs []string) (*ClusterMember, []*ClusterMember, error) {
+func (server *server) AddNode(ctx context.Context, peerAddrs []string) (*ClusterMember, []*ClusterMember, error) {
 	if server.clusterManager == nil {
 		return nil, nil, errors.NotSupportedf("cluster")
 	}
-	return server.clusterManager.AddNode(peerAddrs)
+	return server.clusterManager.AddNode(ctx, peerAddrs)
 }
 
 // RemoveNode returns a list of peers after removing the node from the cluster.
-func (server *server) RemoveNode(nodeID string) (peers []*ClusterMember, err error) {
+func (server *server) RemoveNode(ctx context.Context, nodeID string) (peers []*ClusterMember, err error) {
 	if server.clusterManager == nil {
 		return nil, errors.NotSupportedf("cluster")
 	}
-	return server.clusterManager.RemoveNode(nodeID)
+	return server.clusterManager.RemoveNode(ctx, nodeID)
 }
 
 func (server *server) NodeID() string {
