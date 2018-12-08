@@ -25,8 +25,18 @@ func (s *testSuite) run(additionalFlags ...string) ctl.ReturnCode {
 
 // hasText is a helper method to assert that the out stream contains the supplied
 // text somewhere
-func (s *testSuite) hasText(t string) {
-	s.True(strings.Index(s.out.String(), t) >= 0, "Expecting to find text %q in value %q", t, s.out.String())
+func (s *testSuite) hasText(texts ...string) {
+	outStr := s.out.String()
+	for _, t := range texts {
+		s.True(strings.Index(outStr, t) >= 0, "Expecting to find text %q in value %q", t, outStr)
+	}
+}
+
+func (s *testSuite) hasNoText(texts ...string) {
+	outStr := s.out.String()
+	for _, t := range texts {
+		s.True(strings.Index(outStr, t) < 0, "Expecting to NOT find text %q in value %q", t, outStr)
+	}
 }
 
 func Test_RaphtyCtlSuite(t *testing.T) {

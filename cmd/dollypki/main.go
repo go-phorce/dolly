@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
+	"github.com/go-phorce/dolly/cmd/dollypki/csr"
 	"github.com/go-phorce/dolly/cmd/dollypki/hsm"
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xlog"
@@ -61,7 +62,6 @@ func realMain(args []string, out io.Writer) ctl.ReturnCode {
 	hsmKeyInfoFlags.ID = cmdKeyInfo.Flag("id", "key ID").Required().String()
 	hsmKeyInfoFlags.Public = cmdKeyInfo.Flag("public", "include public key").Bool()
 
-	/* TODO:
 	// PKI related command
 	genkeyFlags := new(csr.GenKeyFlags)
 	cmdGenkey := app.Command("genkey", "Generate key and CSR profile").
@@ -99,7 +99,6 @@ func realMain(args []string, out io.Writer) ctl.ReturnCode {
 	signcertFlags.CA = cmdSigncert.Flag("ca", "file name with CA cert").Required().String()
 	signcertFlags.CAKey = cmdSigncert.Flag("ca-key", "file name with CA key").Required().String()
 	signcertFlags.Output = cmdSigncert.Flag("output", "optional prefix for output files").String()
-	*/
 
 	cryptoprov.Register("SoftHSM", cryptoprov.Crypto11Loader)
 

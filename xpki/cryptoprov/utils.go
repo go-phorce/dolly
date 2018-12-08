@@ -50,31 +50,33 @@ func (c *Crypto) LoadGPGPrivateKey(creationTime time.Time, key []byte) (*packet.
 
 // LoadSigner returns crypto.Signer.
 // The input key can be in PEM encoded format, or PKCS11 URI.
-func (c *Crypto) LoadSigner(key []byte) (crypto.Signer, error) {
+func (c *Crypto) LoadSigner(key []byte) (Provider, crypto.Signer, error) {
 	var s crypto.Signer
 	var err error
+	var provider Provider
+
 	keyPem := string(key)
 	if strings.HasPrefix(keyPem, "pkcs11") {
 		pkuri, err := ParsePrivateKeyURI(keyPem)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, nil, errors.Trace(err)
 		}
 
-		provider, err := c.ByManufacturer(pkuri.Manufacturer())
+		provider, err = c.ByManufacturer(pkuri.Manufacturer())
 		if err != nil {
-			return nil, errors.Annotate(err, "api=CreateCryptoSignerFromPEM, reason=ByManufacturer")
+			return nil, nil, errors.Annotate(err, "api=CreateCryptoSignerFromPEM, reason=ByManufacturer")
 		}
 
 		s, err = provider.GetCryptoSigner(pkuri.ID())
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, nil, errors.Trace(err)
 		}
 	} else {
 		s, err = helpers.ParsePrivateKeyPEM(key)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, nil, errors.Trace(err)
 		}
 	}
 
-	return s, nil
+	return provider, s, nil
 }

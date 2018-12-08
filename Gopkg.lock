@@ -30,15 +30,29 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fe11c91fc456e898be44dcfe6c2415941f2fb40e812ed0b7121c920fb7b03e1f"
+  digest = "1:9af9f61a27a937f0edcb0f30da277f409e25eed69ccea9834a1011fde4de970f"
   name = "github.com/cloudflare/cfssl"
   packages = [
+    "api",
+    "api/client",
+    "auth",
     "bundler",
+    "certdb",
+    "cli",
+    "config",
     "crypto/pkcs7",
+    "csr",
     "errors",
     "helpers",
     "helpers/derhelpers",
+    "info",
+    "initca",
     "log",
+    "ocsp/config",
+    "signer",
+    "signer/local",
+    "signer/remote",
+    "signer/universal",
     "ubiquity",
   ]
   pruneopts = "UT"
@@ -69,11 +83,28 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:0f1010da61da43ef23bae5c43a619abda82e04f409ec642e6bdeee0d7736530d"
+  digest = "1:4c0989ca0bcd10799064318923b9bc2db6b4d6338dd75f3f2d86c3511aaaf5cf"
+  name = "github.com/golang/protobuf"
+  packages = [
+    "proto",
+    "ptypes",
+    "ptypes/any",
+    "ptypes/duration",
+    "ptypes/timestamp",
+  ]
+  pruneopts = "UT"
+  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
+  version = "v1.2.0"
+
+[[projects]]
+  digest = "1:31f4817f638536811d1b92f08135483f8da2f9a9b75995d732c078638b388136"
   name = "github.com/google/certificate-transparency-go"
   packages = [
     ".",
     "asn1",
+    "client",
+    "client/configpb",
+    "jsonclient",
     "tls",
     "x509",
     "x509/pkix",
@@ -204,9 +235,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:67c2a615ba674115933f3ee56daa132974de340a9573937a97d14039f8544e8b"
+  digest = "1:f7171db635740bd80e33845acf90ca909ff7ecb89967ec1272d8cd01f3f8d1d7"
   name = "golang.org/x/net"
   packages = [
+    "context",
+    "context/ctxhttp",
     "http/httpguts",
     "http2",
     "http2/hpack",
@@ -260,6 +293,12 @@
   input-imports = [
     "github.com/DataDog/datadog-go/statsd",
     "github.com/cloudflare/cfssl/bundler",
+    "github.com/cloudflare/cfssl/cli",
+    "github.com/cloudflare/cfssl/config",
+    "github.com/cloudflare/cfssl/csr",
+    "github.com/cloudflare/cfssl/helpers",
+    "github.com/cloudflare/cfssl/initca",
+    "github.com/cloudflare/cfssl/signer",
     "github.com/coreos/pkg/capnslog",
     "github.com/hashicorp/go-immutable-radix",
     "github.com/jinzhu/copier",

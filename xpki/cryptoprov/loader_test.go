@@ -40,7 +40,7 @@ func Test_Load(t *testing.T) {
 	_ = cryptoprov.Register("SoftHSM", cryptoprov.Crypto11Loader)
 	defer cryptoprov.Unregister("SoftHSM")
 	_ = cryptoprov.Register("inmem", inmemloader)
-	defer cryptoprov.Unregister("SoftHSM")
+	defer cryptoprov.Unregister("inmem")
 
 	cp, err := cryptoprov.Load(
 		filepath.Join(projFolder, "etc/dev/softhsm_unittest.json"),
