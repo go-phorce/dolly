@@ -84,7 +84,7 @@ func Test_P11(t *testing.T) {
 		_, err = cp.LoadGPGPrivateKey(time.Now(), []byte(keyURI))
 		require.NoError(t, err)
 
-		_, err = cp.LoadSigner([]byte(keyURI))
+		_, _, err = cp.LoadSigner([]byte(keyURI))
 		require.NoError(t, err)
 	})
 
@@ -111,7 +111,7 @@ func Test_P11(t *testing.T) {
 		_, err = cp.LoadGPGPrivateKey(time.Now(), []byte(keyURI))
 		require.NoError(t, err)
 
-		_, err = cp.LoadSigner([]byte(keyURI))
+		_, _, err = cp.LoadSigner([]byte(keyURI))
 		require.NoError(t, err)
 	})
 }

@@ -2,6 +2,10 @@
 package cli
 
 import (
+	"encoding/json"
+	"io/ioutil"
+	"os"
+
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
 	"github.com/juju/errors"
@@ -71,7 +75,6 @@ func (cli *Cli) EnsureCryptoProvider() error {
 	return nil
 }
 
-/*
 // ReadStdin reads from stdin if the file is "-"
 func ReadStdin(filename string) ([]byte, error) {
 	if filename == "-" {
@@ -84,4 +87,26 @@ func ReadStdin(filename string) ([]byte, error) {
 func WriteFile(filespec string, contents []byte, perms os.FileMode) error {
 	return ioutil.WriteFile(filespec, contents, perms)
 }
-*/
+
+// PrintCert outputs a cert, key and csr to stdout
+func (cli *Cli) PrintCert(key, csrBytes, cert []byte) {
+	out := map[string]string{}
+	if cert != nil {
+		out["cert"] = string(cert)
+	}
+
+	if key != nil {
+		out["key"] = string(key)
+	}
+
+	if csrBytes != nil {
+		out["csr"] = string(csrBytes)
+	}
+
+	jsonOut, err := json.Marshal(out)
+	if err != nil {
+		cli.Printf("unable to encode output: %s", err.Error())
+		return
+	}
+	cli.Printf("%s\n", jsonOut)
+}

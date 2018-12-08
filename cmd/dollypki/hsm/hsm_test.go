@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
 	"github.com/go-phorce/dolly/cmd/dollypki/hsm"
 	"github.com/go-phorce/dolly/ctl"
@@ -23,8 +24,18 @@ type testSuite struct {
 
 // hasText is a helper method to assert that the out stream contains the supplied
 // text somewhere
-func (s *testSuite) hasText(t string) {
-	s.True(strings.Index(s.out.String(), t) >= 0, "Expecting to find text %q in value %q", t, s.out.String())
+func (s *testSuite) hasText(texts ...string) {
+	outStr := s.out.String()
+	for _, t := range texts {
+		s.True(strings.Index(outStr, t) >= 0, "Expecting to find text %q in value %q", t, outStr)
+	}
+}
+
+func (s *testSuite) hasNoText(texts ...string) {
+	outStr := s.out.String()
+	for _, t := range texts {
+		s.True(strings.Index(outStr, t) < 0, "Expecting to NOT find text %q in value %q", t, outStr)
+	}
 }
 
 func (s *testSuite) run(action ctl.ControlAction, p interface{}) error {
@@ -95,12 +106,12 @@ func (s *testSuite) Test_HsmKeyDel() {
 	s.Error(err)
 	s.Equal("either of --prefix and --id must be specified", err.Error())
 
-	id := "123"
+	id := guid.MustCreate()
 	err = s.run(hsm.RmKey, &hsm.RmKeyFlags{
 		Prefix: &id,
 	})
 	s.Require().NoError(err)
-	s.hasText("no keys found with prefix: 123")
+	s.hasText("no keys found with prefix: " + id)
 
 	err = s.run(hsm.RmKey, &hsm.RmKeyFlags{
 		ID: &id,
