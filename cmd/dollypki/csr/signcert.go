@@ -67,7 +67,7 @@ func SignCert(c ctl.Control, p interface{}) error {
 	// Load CSR
 	csrPEM, err := cli.ReadStdin(*flags.Csr)
 	if err != nil {
-		return errors.Annotate(err, "read CSR profile")
+		return errors.Annotate(err, "read CSR")
 	}
 
 	// Load ca-config

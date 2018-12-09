@@ -237,7 +237,14 @@ func (s *testSuite) Test_GenCert() {
 	})
 	s.Require().NoError(err)
 	s.hasTextInFile(output+".csr", `-----BEGIN CERTIFICATE REQUEST-----`)
+	s.hasTextInFile(output+".pem", `-----BEGIN CERTIFICATE-----`)
 	s.hasTextInFile(output+"-key.pem", `pkcs11:`)
+
+	// Ensure TLS with HSM
+	cryptoprov := s.cli.CryptoProv()
+
+	_, err = cryptoprov.LoadTLSKeyPair(output+".pem", output+"-key.pem")
+	s.Require().NoError(err)
 }
 
 func (s *testSuite) Test_SignCert() {
@@ -253,7 +260,7 @@ func (s *testSuite) Test_SignCert() {
 		CAKey: &caKeyFile,
 	})
 	s.Require().Error(err)
-	s.Equal(`read CSR profile: open : no such file or directory`, err.Error())
+	s.Equal(`read CSR: open : no such file or directory`, err.Error())
 
 	missingcsr := "testdata/missing.json"
 	err = s.run(csr.SignCert, &csr.SignCertFlags{
@@ -262,7 +269,7 @@ func (s *testSuite) Test_SignCert() {
 		CAKey: &caKeyFile,
 	})
 	s.Require().Error(err)
-	s.Equal(`read CSR profile: open testdata/missing.json: no such file or directory`, err.Error())
+	s.Equal(`read CSR: open testdata/missing.json: no such file or directory`, err.Error())
 
 	//
 	// Generate key and CSR
