@@ -102,3 +102,15 @@ func Test_LoadSigner(t *testing.T) {
 		assert.Error(t, err)
 	})
 }
+
+func Test_LoadTLSKeyPair(t *testing.T) {
+	prov := loadP11Provider(t)
+	cp, err := cryptoprov.New(prov, nil)
+	require.NoError(t, err)
+
+	tls, err := cp.LoadTLSKeyPair("testdata/test-cert.pem", "testdata/test-key.pem")
+	require.NoError(t, err)
+	assert.NotNil(t, tls.Certificate)
+	assert.NotNil(t, tls.Leaf)
+	assert.NotNil(t, tls.PrivateKey)
+}

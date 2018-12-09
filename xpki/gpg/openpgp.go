@@ -299,8 +299,13 @@ func ConvertPemToPgpPrivateKey(creationTime time.Time, privateKeyPem []byte) (*p
 	if block == nil {
 		return nil, errors.Errorf("Invalid PRIVATE KEY PEM format: %q", privateKeyPem)
 	}
+
 	switch block.Type {
 	case "RSA PRIVATE KEY":
+		// TODO: Attempt to parse the given private key DER block. OpenSSL 0.9.8 generates
+		// PKCS#1 private keys by default, while OpenSSL 1.0.0 generates PKCS#8 keys.
+		// OpenSSL ecparam generates SEC1 EC private keys for ECDSA.
+
 		rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 		if err != nil {
 			return nil, errors.Annotate(err, "failed to parse RSA private key")
