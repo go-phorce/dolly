@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	nodeInfo      netutil.NodeInfo
-	roleExtractor ExtractRole = defaultExtractRole
+	nodeInfo       netutil.NodeInfo
+	identityMapper Mapper = defaultIdentityMapper
 )
 
 // RequestContext represents user contextual information about a request being processed by the server,
@@ -59,12 +59,12 @@ func SetGlobalNodeInfo(n netutil.NodeInfo) {
 	nodeInfo = n
 }
 
-// SetGlobalRoleExtractor applies ExtractRole for the application
-func SetGlobalRoleExtractor(e ExtractRole) {
+// SetGlobalIdentityMapper applies global IdentityMapper for the application
+func SetGlobalIdentityMapper(e Mapper) {
 	if e == nil {
-		logger.Panic("ExtractRole must not be nil")
+		logger.Panic("IdentityMapper must not be nil")
 	}
-	roleExtractor = e
+	identityMapper = e
 }
 
 // ForRequest returns the full context ascocicated with this http request.
@@ -72,7 +72,7 @@ func ForRequest(r *http.Request) *RequestContext {
 	v := r.Context().Value(keyContext)
 	if v == nil {
 		return &RequestContext{
-			identity:      extractIdentityFromRequest(r),
+			identity:      identityMapper(r),
 			correlationID: extractCorrelationID(r),
 			clientIP:      ClientIPFromRequest(r),
 		}
@@ -89,7 +89,7 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 		v := r.Context().Value(keyContext)
 		if v == nil {
 			rctx = &RequestContext{
-				identity:      extractIdentityFromRequest(r),
+				identity:      identityMapper(r),
 				correlationID: extractCorrelationID(r),
 				clientIP:      ClientIPFromRequest(r),
 			}

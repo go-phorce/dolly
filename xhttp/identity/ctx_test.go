@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 }
 
 func Test_SetGlobal(t *testing.T) {
-	assert.Panics(t, func() { SetGlobalRoleExtractor(nil) })
+	assert.Panics(t, func() { SetGlobalIdentityMapper(nil) })
 	assert.Panics(t, func() { SetGlobalNodeInfo(nil) })
 }
 
@@ -118,12 +118,9 @@ func Test_RequestorIdentity(t *testing.T) {
 	})
 
 	t.Run("cn_extractor", func(t *testing.T) {
-		SetGlobalRoleExtractor(func(c *x509.Certificate) string {
-			return c.Subject.CommonName
-		})
+		SetGlobalIdentityMapper(identityMapperFromCN)
 		// restore
-		defer SetGlobalRoleExtractor(defaultExtractRole)
-
+		defer SetGlobalIdentityMapper(defaultIdentityMapper)
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
@@ -149,4 +146,18 @@ func Test_RequestorIdentity(t *testing.T) {
 		assert.Equal(t, "cn-dolly", rn.Role)
 		assert.Equal(t, "cn-dolly", rn.Name)
 	})
+}
+
+func identityMapperFromCN(r *http.Request) Identity {
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return identity{
+			name: ClientIPFromRequest(r),
+			role: "guest",
+		}
+	}
+	pc := r.TLS.PeerCertificates
+	return identity{
+		name: pc[0].Subject.CommonName,
+		role: pc[0].Subject.CommonName,
+	}
 }

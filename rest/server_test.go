@@ -490,9 +490,7 @@ func Test_Authz(t *testing.T) {
 		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
 	})
 
-	identity.SetGlobalRoleExtractor(func(c *x509.Certificate) string {
-		return c.Subject.CommonName
-	})
+	identity.SetGlobalIdentityMapper(identityMapperFromCN)
 
 	t.Run("admin_to_allow_200", func(t *testing.T) {
 		w := httptest.NewRecorder()
@@ -558,6 +556,14 @@ func Test_Authz(t *testing.T) {
 		assertCounter(fmt.Sprintf("authztest.http.request.status.successful;method=GET;role=client;status=200;uri=/v1/allowany"), 1)
 		assertSample(fmt.Sprintf("authztest.http.request.perf;method=GET;role=client;status=200;uri=/v1/allowany"))
 	})
+}
+
+func identityMapperFromCN(r *http.Request) identity.Identity {
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return identity.NewIdentity("guest", identity.ClientIPFromRequest(r))
+	}
+	pc := r.TLS.PeerCertificates
+	return identity.NewIdentity(pc[0].Subject.CommonName, pc[0].Subject.CommonName)
 }
 
 type serviceX struct {
