@@ -13,7 +13,7 @@ type Identity interface {
 }
 
 // Mapper returns Identity from supplied HTTP request
-type Mapper func(*http.Request) Identity
+type Mapper func(*http.Request) (Identity, error)
 
 // NewIdentity returns a new Identity instance with the indicated role & CommonName
 func NewIdentity(role string, name string) Identity {
@@ -48,18 +48,14 @@ func (c identity) String() string {
 }
 
 // default mapper always returns "guest" for the role
-func defaultIdentityMapper(r *http.Request) Identity {
+func defaultIdentityMapper(r *http.Request) (Identity, error) {
+	var name string
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-		return identity{
-			name: ClientIPFromRequest(r),
-			role: "guest",
-		}
+		name = ClientIPFromRequest(r)
+	} else {
+		name = r.TLS.PeerCertificates[0].Subject.CommonName
 	}
-	pc := r.TLS.PeerCertificates
-	return identity{
-		name: pc[0].Subject.CommonName,
-		role: "guest",
-	}
+	return NewIdentity("guest", name), nil
 }
 
 // WithTestIdentity is used in unit tests to set HTTP request identity

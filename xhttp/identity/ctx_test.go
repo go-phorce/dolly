@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -146,18 +147,48 @@ func Test_RequestorIdentity(t *testing.T) {
 		assert.Equal(t, "cn-dolly", rn.Role)
 		assert.Equal(t, "cn-dolly", rn.Name)
 	})
+
+	t.Run("cn_extractor_must", func(t *testing.T) {
+		SetGlobalIdentityMapper(identityMapperFromCNMust)
+		// restore
+		defer SetGlobalIdentityMapper(defaultIdentityMapper)
+		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+
+		assert.Equal(t, `{"code":"unauthorized","message":"missing client certificate"}`, string(w.Body.Bytes()))
+	})
+	t.Run("cn_extractor_must_ForRequest", func(t *testing.T) {
+		SetGlobalIdentityMapper(identityMapperFromCNMust)
+		// restore
+		defer SetGlobalIdentityMapper(defaultIdentityMapper)
+		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
+		require.NoError(t, err)
+
+		ctx := ForRequest(r)
+		assert.Equal(t, "guest", ctx.Identity().Role())
+	})
 }
 
-func identityMapperFromCN(r *http.Request) Identity {
+func identityMapperFromCN(r *http.Request) (Identity, error) {
+	var role string
+	var name string
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-		return identity{
-			name: ClientIPFromRequest(r),
-			role: "guest",
-		}
+		name = ClientIPFromRequest(r)
+		role = "guest"
+	} else {
+		name = r.TLS.PeerCertificates[0].Subject.CommonName
+		role = r.TLS.PeerCertificates[0].Subject.CommonName
 	}
-	pc := r.TLS.PeerCertificates
-	return identity{
-		name: pc[0].Subject.CommonName,
-		role: pc[0].Subject.CommonName,
+	return identity{name: name, role: role}, nil
+}
+
+func identityMapperFromCNMust(r *http.Request) (Identity, error) {
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return nil, errors.New("missing client certificate")
 	}
+	return identity{name: r.TLS.PeerCertificates[0].Subject.CommonName, role: r.TLS.PeerCertificates[0].Subject.CommonName}, nil
 }
