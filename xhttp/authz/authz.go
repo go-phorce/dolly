@@ -231,7 +231,7 @@ func (n *pathNode) allowAny() bool {
 }
 
 func (n *pathNode) allowRole(r string) bool {
-	if r == "" {
+	if r == "" || r == "guest" || r == "unknown" {
 		return false
 	}
 	return ((n.allow & allowAnyRole) != 0) || n.allowedRoles[r]
