@@ -145,7 +145,7 @@ type server struct {
 	version        string
 	serving        bool
 	startedAt      time.Time
-	withClientAuth bool
+	clientAuth     string
 	scheduler      tasks.Scheduler
 	services       map[string]Service
 	lock           sync.RWMutex
@@ -172,13 +172,14 @@ func New(
 	}
 
 	s := &server{
-		services:  map[string]Service{},
-		scheduler: tasks.NewScheduler(),
-		rolename:  rolename,
-		startedAt: time.Now().UTC(),
-		version:   version,
-		ipaddr:    ipaddr,
-		container: container,
+		services:   map[string]Service{},
+		scheduler:  tasks.NewScheduler(),
+		rolename:   rolename,
+		startedAt:  time.Now().UTC(),
+		version:    version,
+		ipaddr:     ipaddr,
+		container:  container,
+		clientAuth: tlsClientAuthToStrMap[tls.NoClientCert],
 	}
 
 	err = container.Invoke(func(httpConfig HTTPServerConfig) {
@@ -225,7 +226,7 @@ func New(
 	err = container.Invoke(func(tlsConfig *tls.Config) {
 		s.tlsConfig = tlsConfig
 		if tlsConfig != nil {
-			s.withClientAuth = tlsConfig.ClientAuth == tls.RequireAndVerifyClientCert
+			s.clientAuth = tlsClientAuthToStrMap[tlsConfig.ClientAuth]
 		}
 	})
 	if err != nil {
@@ -234,6 +235,14 @@ func New(
 	}
 
 	return s, nil
+}
+
+var tlsClientAuthToStrMap = map[tls.ClientAuthType]string{
+	tls.NoClientCert:               "NoClientCert",
+	tls.RequestClientCert:          "RequestClientCert",
+	tls.RequireAnyClientCert:       "RequireAnyClientCert",
+	tls.VerifyClientCertIfGiven:    "VerifyClientCertIfGiven",
+	tls.RequireAndVerifyClientCert: "RequireAndVerifyClientCert",
 }
 
 // AddService provides a service registration for the server
@@ -475,8 +484,8 @@ func (server *server) StartHTTP() error {
 		server.NodeName(),
 		server.NodeID(),
 		0,
-		fmt.Sprintf("node=%q, address=%q, ClientAuth=%t",
-			server.NodeName(), strings.TrimPrefix(bindAddr, ":"), server.withClientAuth),
+		fmt.Sprintf("node=%q, address=%q, ClientAuth=%s",
+			server.NodeName(), strings.TrimPrefix(bindAddr, ":"), server.clientAuth),
 	)
 
 	return nil
@@ -544,7 +553,7 @@ func (server *server) NewMux() http.Handler {
 	var err error
 	httpHandler := router.Handler()
 
-	logger.Infof("api=NewMux, service=%s, withClientAuth=%t", server.Name(), server.withClientAuth)
+	logger.Infof("api=NewMux, service=%s, ClientAuth=%s", server.Name(), server.clientAuth)
 
 	if server.authz != nil {
 		// authz wrapper

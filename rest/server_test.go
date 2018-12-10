@@ -202,7 +202,7 @@ func Test_NewServer(t *testing.T) {
 	require.NoError(t, err)
 	e := audit.Find(rest.EvtSourceStatus, rest.EvtServiceStarted)
 	require.NotNil(t, e)
-	assert.Contains(t, e.Message, "ClientAuth=false")
+	assert.Contains(t, e.Message, "ClientAuth=NoClientCert")
 
 	for i := 0; i < 10 && !server.IsReady(); i++ {
 		time.Sleep(100 * time.Millisecond)
@@ -473,8 +473,7 @@ func Test_Authz(t *testing.T) {
 
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Equal(t, `{"code":"unauthorized","message":"connection is not over TLS"}`, string(w.Body.Bytes()))
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("guest_to_allow_401", func(t *testing.T) {

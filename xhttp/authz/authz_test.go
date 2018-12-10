@@ -323,7 +323,7 @@ func TestConfig_checkAccess_WithLS(t *testing.T) {
 		r, _ := http.NewRequest(http.MethodGet, "/", nil)
 		err = c.checkAccess(r)
 		require.Error(t, err)
-		assert.Equal(t, "connection is not over TLS", err.Error())
+		assert.Equal(t, `the "bob" role is not allowed`, err.Error())
 
 		r, _ = http.NewRequest(http.MethodGet, "/", nil)
 		r.TLS = &tls.ConnectionState{
@@ -331,7 +331,7 @@ func TestConfig_checkAccess_WithLS(t *testing.T) {
 		}
 		err = c.checkAccess(r)
 		require.Error(t, err)
-		assert.Equal(t, "missing client certificate", err.Error())
+		assert.Equal(t, `the "bob" role is not allowed`, err.Error())
 
 		r, _ = http.NewRequest(http.MethodGet, "/", nil)
 		r.TLS = &tls.ConnectionState{
