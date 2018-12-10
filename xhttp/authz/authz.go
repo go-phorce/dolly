@@ -139,10 +139,6 @@ func New(cfg *Config) (*Provider, error) {
 	return az, nil
 }
 
-func (c *Provider) requirePeerCert() bool {
-	return len(c.cfg.ValidOrganizations) > 0 || len(c.cfg.ValidIssuerCommonNames) > 0
-}
-
 // treeAtText will return a string of the current configured tree in
 // human readable text format.
 func (c *Provider) treeAsText() string {
@@ -347,15 +343,10 @@ func (c *Provider) isAllowed(path, role string) bool {
 
 // checkAccess ensures that access to the supplied http.request is allowed
 func (c *Provider) checkAccess(r *http.Request) error {
-	if c.requirePeerCert() {
-		if r.TLS == nil {
-			return errors.Errorf("connection is not over TLS")
-		}
-
+	// The TLS layer already should handle tls.ClientAuthType.
+	// If the service came to this point, the TLS connection settings should be already validated.
+	if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
 		peers := r.TLS.PeerCertificates
-		if len(peers) == 0 {
-			return errors.Errorf("missing client certificate")
-		}
 
 		var org, issuer string
 		if len(c.cfg.ValidOrganizations) > 0 {
