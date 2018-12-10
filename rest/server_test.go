@@ -490,6 +490,19 @@ func Test_Authz(t *testing.T) {
 		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
 	})
 
+	identity.SetGlobalIdentityMapper(identityMapperFromCNMust)
+
+	t.Run("must_have_TLS", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
+		server.ServeHTTP(w, r)
+		assert.NotEmpty(t, w.Header().Get(header.XHostname))
+		assert.Empty(t, w.Header().Get(header.XCorrelationID))
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+	})
+
 	identity.SetGlobalIdentityMapper(identityMapperFromCN)
 
 	t.Run("admin_to_allow_200", func(t *testing.T) {
@@ -558,12 +571,24 @@ func Test_Authz(t *testing.T) {
 	})
 }
 
-func identityMapperFromCN(r *http.Request) identity.Identity {
+func identityMapperFromCN(r *http.Request) (identity.Identity, error) {
+	var role string
+	var name string
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
-		return identity.NewIdentity("guest", identity.ClientIPFromRequest(r))
+		name = identity.ClientIPFromRequest(r)
+		role = "guest"
+	} else {
+		name = r.TLS.PeerCertificates[0].Subject.CommonName
+		role = r.TLS.PeerCertificates[0].Subject.CommonName
 	}
-	pc := r.TLS.PeerCertificates
-	return identity.NewIdentity(pc[0].Subject.CommonName, pc[0].Subject.CommonName)
+	return identity.NewIdentity(role, name), nil
+}
+
+func identityMapperFromCNMust(r *http.Request) (identity.Identity, error) {
+	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
+		return nil, errors.New("missing client certificate")
+	}
+	return identity.NewIdentity(r.TLS.PeerCertificates[0].Subject.CommonName, r.TLS.PeerCertificates[0].Subject.CommonName), nil
 }
 
 type serviceX struct {

@@ -9,6 +9,8 @@ import (
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/netutil"
 	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 )
@@ -71,10 +73,17 @@ func SetGlobalIdentityMapper(e Mapper) {
 func ForRequest(r *http.Request) *RequestContext {
 	v := r.Context().Value(keyContext)
 	if v == nil {
+		clientIP := ClientIPFromRequest(r)
+		identity, err := identityMapper(r)
+		if err != nil {
+			logger.Errorf("api=ForRequest, reason=identityMapper, ip=%q, err=[%v]", clientIP, err.Error())
+			identity = NewIdentity("guest", clientIP)
+		}
+
 		return &RequestContext{
-			identity:      identityMapper(r),
+			identity:      identity,
 			correlationID: extractCorrelationID(r),
-			clientIP:      ClientIPFromRequest(r),
+			clientIP:      clientIP,
 		}
 	}
 	return v.(*RequestContext)
@@ -85,21 +94,30 @@ func ForRequest(r *http.Request) *RequestContext {
 // Also adds header to indicate which host is currently servicing the request
 func NewContextHandler(delegate http.Handler) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
+		// Set XHostname on the response
+		w.Header().Set(header.XHostname, nodeInfo.HostName())
+
 		var rctx *RequestContext
 		v := r.Context().Value(keyContext)
 		if v == nil {
+			clientIP := ClientIPFromRequest(r)
+			identity, err := identityMapper(r)
+			if err != nil {
+				logger.Errorf("api=ForRequest, reason=identityMapper, ip=%q, err=[%v]", clientIP, err.Error())
+				marshal.WriteJSON(w, r, httperror.WithUnauthorized(err.Error()))
+				return
+			}
+
 			rctx = &RequestContext{
-				identity:      identityMapper(r),
+				identity:      identity,
 				correlationID: extractCorrelationID(r),
-				clientIP:      ClientIPFromRequest(r),
+				clientIP:      clientIP,
 			}
 			r = r.WithContext(context.WithValue(r.Context(), keyContext, rctx))
 		} else {
 			rctx = v.(*RequestContext)
 		}
 
-		// Set XHostname on the response
-		w.Header().Set(header.XHostname, nodeInfo.HostName())
 		w.Header().Set(header.XCorrelationID, rctx.correlationID)
 
 		delegate.ServeHTTP(w, r)

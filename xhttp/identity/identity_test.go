@@ -22,14 +22,14 @@ func Test_extractIdentityFromRequest(t *testing.T) {
 		ip, err := netutil.GetLocalIP()
 		require.NoError(t, err)
 
-		idn := identityMapper(r)
+		idn, _ := identityMapper(r)
 		assert.Equal(t, "guest/"+ip, idn.String())
 	})
 
 	t.Run("when IP is set", func(t *testing.T) {
 		r.RemoteAddr = "10.0.1.2:443"
 
-		idn := identityMapper(r)
+		idn, _ := identityMapper(r)
 		assert.Equal(t, "guest/10.0.1.2", idn.String())
 	})
 
@@ -45,7 +45,7 @@ func Test_extractIdentityFromRequest(t *testing.T) {
 			},
 		}
 
-		idn := identityMapper(r)
+		idn, _ := identityMapper(r)
 		assert.Equal(t, "guest/dolly", idn.String())
 	})
 }
