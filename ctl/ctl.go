@@ -297,6 +297,9 @@ func (ctl *Ctl) PopulateControl() error {
 	if isDebug {
 		sink = os.Stderr
 		xlog.SetFormatter(xlog.NewColorFormatter(sink, true))
+		xlog.SetGlobalLogLevel(xlog.DEBUG)
+	} else {
+		xlog.SetGlobalLogLevel(xlog.TRACE)
 	}
 	logRotator, err := logrotate.Initialize(logFolder, appName, 7, 10, false, sink)
 	if err != nil {
@@ -304,7 +307,6 @@ func (ctl *Ctl) PopulateControl() error {
 	} else {
 		logger.Infof("log file: %s/%s.log", logFolder, appName)
 	}
-	xlog.SetGlobalLogLevel(xlog.TRACE)
 
 	ctl.logRotator = logRotator
 
