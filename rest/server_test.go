@@ -150,7 +150,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.NodeName)
 	assert.NotNil(t, server.LeaderID)
 	assert.NotNil(t, server.NodeID)
-	assert.NotNil(t, server.PeerURLs)
+	assert.NotNil(t, server.ListenPeerURLs)
 	assert.NotNil(t, server.Version)
 	assert.NotNil(t, server.RoleName)
 	assert.NotNil(t, server.HostName)
@@ -192,7 +192,7 @@ func Test_NewServer(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "cluster not supported", err.Error())
 
-	peersURLs, err := server.PeerURLs(server.NodeID())
+	peersURLs, err := server.ListenPeerURLs(server.NodeID())
 	assert.Error(t, err)
 	assert.Equal(t, "cluster not supported", err.Error())
 	assert.Empty(t, peersURLs)
@@ -260,9 +260,9 @@ type cluster struct {
 // AddNode returns created node and a list of peers after adding the node to the cluster.
 func (c *cluster) AddNode(_ context.Context, peerAddrs []string) (*rest.ClusterMember, []*rest.ClusterMember, error) {
 	member := &rest.ClusterMember{
-		ID:       guid.MustCreate(),
-		Name:     fmt.Sprintf("node%d", 1+len(c.members)),
-		PeerURLs: peerAddrs,
+		ID:             guid.MustCreate(),
+		Name:           fmt.Sprintf("node%d", 1+len(c.members)),
+		ListenPeerURLs: peerAddrs,
 	}
 	c.members = append(c.members, member)
 	return member, c.members, nil
@@ -301,8 +301,8 @@ func (c *cluster) ClusterMembers() ([]*rest.ClusterMember, error) {
 	return c.members[:], nil
 }
 
-func (c *cluster) PeerURLs(nodeID string) ([]*url.URL, error) {
-	return rest.GetNodePeerURLs(c, nodeID)
+func (c *cluster) ListenPeerURLs(nodeID string) ([]*url.URL, error) {
+	return rest.GetNodeListenPeerURLs(c, nodeID)
 }
 
 func Test_ClusterInfo(t *testing.T) {
@@ -319,9 +319,9 @@ func Test_ClusterInfo(t *testing.T) {
 		this:   0,
 		leader: 0,
 		members: []*rest.ClusterMember{
-			{ID: "0000", Name: "node0", PeerURLs: []string{"https://host0:8080", "https://127.0.0.1:8080"}},
-			{ID: "1111", Name: "node1", PeerURLs: []string{"https://host1:8081"}},
-			{ID: "2222", Name: "node2", PeerURLs: []string{"https://host2:8082"}},
+			{ID: "0000", Name: "node0", ListenPeerURLs: []string{"https://host0:8080", "https://127.0.0.1:8080"}},
+			{ID: "1111", Name: "node1", ListenPeerURLs: []string{"https://host1:8081"}},
+			{ID: "2222", Name: "node2", ListenPeerURLs: []string{"https://host2:8082"}},
 		},
 	}
 	ioc.Provide(func() rest.ClusterInfo {
@@ -334,24 +334,24 @@ func Test_ClusterInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
-	l, err := rest.GetNodePeerURLs(server, "0000")
+	l, err := rest.GetNodeListenPeerURLs(server, "0000")
 	require.NoError(t, err)
 	assert.Equal(t, 2, len(l))
 
-	l, err = rest.GetNodePeerURLs(server, "3333")
+	l, err = rest.GetNodeListenPeerURLs(server, "3333")
 	require.Error(t, err)
 
 	m, p, err := server.AddNode(nil, []string{"https://host2:8083"})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"https://host2:8083"}, m.PeerURLs)
+	assert.Equal(t, []string{"https://host2:8083"}, m.ListenPeerURLs)
 	assert.Equal(t, 4, len(p))
-	_, err = rest.GetNodePeerURLs(server, m.ID)
+	_, err = rest.GetNodeListenPeerURLs(server, m.ID)
 	require.NoError(t, err)
 
 	p, err = server.RemoveNode(nil, "2222")
 	require.NoError(t, err)
 	assert.Equal(t, 3, len(p))
-	_, err = rest.GetNodePeerURLs(server, "2222")
+	_, err = rest.GetNodeListenPeerURLs(server, "2222")
 	require.Error(t, err)
 }
 
@@ -436,7 +436,7 @@ func Test_Authz(t *testing.T) {
 			this:   0,
 			leader: 0,
 			members: []*rest.ClusterMember{
-				{ID: "0", Name: "localhost", PeerURLs: []string{"https://localhost:8081"}},
+				{ID: "0", Name: "localhost", ListenPeerURLs: []string{"https://localhost:8081"}},
 			},
 		}
 	})

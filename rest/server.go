@@ -45,8 +45,9 @@ type ClusterMember struct {
 	ID string `protobuf:"bytes,1,opt,name=ID,proto3" json:"id,omitempty"`
 	// Name is the human-readable name of the member. If the member is not started, the name will be an empty string.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// PeerURLs is the list of URLs the member exposes to the cluster for communication.
-	PeerURLs []string `protobuf:"bytes,3,rep,name=peers" json:"peers,omitempty"`
+	// ListenPeerURLs is the list of URLs the member exposes to the cluster for communication,
+	// the node accepts incoming requests from its peers on the specified scheme://IP:port combinations.
+	ListenPeerURLs []string `protobuf:"bytes,3,rep,name=listen_peer_urls" json:"listen_peer_urls,omitempty"`
 }
 
 // ClusterInfo is an interface to provide basic info about the cluster
@@ -62,8 +63,9 @@ type ClusterInfo interface {
 	// ClusterMembers returns the list of members in the cluster
 	ClusterMembers() ([]*ClusterMember, error)
 
-	// PeerURLs returns the list of URLs of the specific node
-	PeerURLs(nodeID string) ([]*url.URL, error)
+	// ListenPeerURLs returns the list of URLs of the specific node,
+	// that accepts incoming requests from its peers on the specified scheme://IP:port combinations.
+	ListenPeerURLs(nodeID string) ([]*url.URL, error)
 }
 
 // ClusterManager is an interface to provide basic cluster management
@@ -361,8 +363,8 @@ func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 	return server.clusterInfo.ClusterMembers()
 }
 
-func (server *server) PeerURLs(nodeID string) ([]*url.URL, error) {
-	return GetNodePeerURLs(server, nodeID)
+func (server *server) ListenPeerURLs(nodeID string) ([]*url.URL, error) {
+	return GetNodeListenPeerURLs(server, nodeID)
 }
 
 // IsReady returns true when the server is ready to serve
@@ -620,8 +622,8 @@ func GetServerURL(s Server, r *http.Request, relativeEndpoint string) *url.URL {
 	}
 }
 
-// GetNodePeerURLs returns a list of URLs to listen on for peer traffic.
-func GetNodePeerURLs(c ClusterInfo, nodeID string) ([]*url.URL, error) {
+// GetNodeListenPeerURLs returns a list of URLs to listen on for peer traffic.
+func GetNodeListenPeerURLs(c ClusterInfo, nodeID string) ([]*url.URL, error) {
 	members, err := c.ClusterMembers()
 	if err != nil {
 		return nil, errors.Trace(err)
@@ -630,12 +632,12 @@ func GetNodePeerURLs(c ClusterInfo, nodeID string) ([]*url.URL, error) {
 	list := make([]*url.URL, 0, len(members))
 	for _, m := range members {
 		if m.ID == nodeID {
-			for _, peerURL := range m.PeerURLs {
+			for _, peerURL := range m.ListenPeerURLs {
 				u, err := url.Parse(peerURL)
 				if err == nil {
 					list = append(list, u)
 				} else {
-					logger.Errorf("api=GetNodePeerURLs, nodeID=%s, url=%q, err=[%v]",
+					logger.Errorf("api=GetNodeListenPeerURLs, nodeID=%s, url=%q, err=[%v]",
 						nodeID, peerURL, err)
 				}
 			}
