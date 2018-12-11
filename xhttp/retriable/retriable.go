@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"sync"
 	"time"
@@ -282,27 +283,28 @@ func NewDefaultPolicy() *Policy {
 func (c *Client) Request(ctx context.Context, method string, hosts []string, path string, requestBody interface{}, responseBody interface{}) (http.Header, int, error) {
 	var body io.ReadSeeker
 
-	switch val := requestBody.(type) {
-	case io.ReadSeeker:
-		body = val
-	case io.Reader:
-		b, err := ioutil.ReadAll(val)
-		if err != nil {
-			return nil, 0, errors.Trace(err)
+	if requestBody != nil {
+		switch val := requestBody.(type) {
+		case io.ReadSeeker:
+			body = val
+		case io.Reader:
+			b, err := ioutil.ReadAll(val)
+			if err != nil {
+				return nil, 0, errors.Trace(err)
+			}
+			body = bytes.NewReader(b)
+		case []byte:
+			body = bytes.NewReader(val)
+		case string:
+			body = strings.NewReader(val)
+		default:
+			js, err := json.Marshal(requestBody)
+			if err != nil {
+				return nil, 0, errors.Trace(err)
+			}
+			body = bytes.NewReader(js)
 		}
-		body = bytes.NewReader(b)
-	case []byte:
-		body = bytes.NewReader(val)
-	case string:
-		body = strings.NewReader(val)
-	default:
-		js, err := json.Marshal(requestBody)
-		if err != nil {
-			return nil, 0, errors.Trace(err)
-		}
-		body = bytes.NewReader(js)
 	}
-
 	resp, err := c.executeRequest(ctx, method, hosts, path, body)
 	if err != nil {
 		return nil, 0, errors.Trace(err)
@@ -382,7 +384,9 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 		logger.Errorf("api=executeRequest, err=[%v]", many.Error())
 
 		// rewind the reader
-		body.Seek(0, 0)
+		if body != nil {
+			body.Seek(0, 0)
+		}
 	}
 
 	if resp != nil {
@@ -472,6 +476,8 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 		time.Sleep(sleepDuration)
 	}
 
+	debugRequest(req.Request, err != nil)
+
 	return resp, err
 }
 
@@ -505,15 +511,24 @@ func (c *Client) consumeResponseBody(r *http.Response) {
 	}
 }
 
-// TODO:
-func debugResponse(resp *http.Response) {
+func debugRequest(r *http.Request, body bool) {
 	if logger.LevelAt(xlog.DEBUG) {
-		b := bytes.NewBuffer([]byte{})
-		err := resp.Write(b)
+		b, err := httputil.DumpRequestOut(r, body)
 		if err != nil {
-			logger.Debugf("api=debugResponse, err=[%v]", err.Error())
+			logger.Errorf("api=debugResponse, err=[%v]", err.Error())
 		} else {
-			logger.Debug(string(b.Bytes()))
+			logger.Debug(string(b))
+		}
+	}
+}
+
+func debugResponse(w *http.Response, body bool) {
+	if logger.LevelAt(xlog.DEBUG) {
+		b, err := httputil.DumpResponse(w, body)
+		if err != nil {
+			logger.Errorf("api=debugResponse, err=[%v]", err.Error())
+		} else {
+			logger.Debug(string(b))
 		}
 	}
 }
@@ -522,7 +537,7 @@ func debugResponse(resp *http.Response) {
 // the body parameters, or to an error
 // [retrying rate limit errors should be done before this]
 func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (http.Header, int, error) {
-	defer debugResponse(resp)
+	debugResponse(resp, resp.StatusCode >= 300)
 	if resp.StatusCode >= http.StatusMultipleChoices { // 300
 		e := new(httperror.Error)
 		e.HTTPStatus = resp.StatusCode
