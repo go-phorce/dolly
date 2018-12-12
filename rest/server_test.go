@@ -247,7 +247,7 @@ func Test_GetServerURL(t *testing.T) {
 		u := rest.GetServerURL(server, r, "/another/location")
 		require.NotNil(t, u)
 
-		assert.Equal(t, "https://localhost/another/location", u.String())
+		assert.Equal(t, "https://hostname:8081/another/location", u.String())
 	})
 }
 

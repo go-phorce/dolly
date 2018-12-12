@@ -610,7 +610,7 @@ func GetServerURL(s Server, r *http.Request, relativeEndpoint string) *url.URL {
 		proto = specifiedProto
 	}
 
-	host := r.Host
+	host := r.URL.Host
 	if host == "" {
 		host = s.HostName() + ":" + s.Port()
 	}
