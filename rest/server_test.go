@@ -242,12 +242,23 @@ func Test_GetServerURL(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "/get/GET", nil)
 		require.NoError(t, err)
 		r.Header.Set(header.XForwardedProto, "https")
-		r.Host = "localhost"
 
 		u := rest.GetServerURL(server, r, "/another/location")
 		require.NotNil(t, u)
 
 		assert.Equal(t, "https://hostname:8081/another/location", u.String())
+	})
+
+	t.Run("with XForwardedProto", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/get/GET", nil)
+		require.NoError(t, err)
+		r.Header.Set(header.XForwardedProto, "https")
+		r.Host = "localhost"
+
+		u := rest.GetServerURL(server, r, "/another/location")
+		require.NotNil(t, u)
+
+		assert.Equal(t, "https://localhost/another/location", u.String())
 	})
 }
 

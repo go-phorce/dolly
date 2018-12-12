@@ -612,6 +612,9 @@ func GetServerURL(s Server, r *http.Request, relativeEndpoint string) *url.URL {
 
 	host := r.URL.Host
 	if host == "" {
+		host = r.Host
+	}
+	if host == "" {
 		host = s.HostName() + ":" + s.Port()
 	}
 
