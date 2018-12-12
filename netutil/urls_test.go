@@ -70,3 +70,23 @@ func Test_ParseURLsFromString(t *testing.T) {
 		})
 	}
 }
+
+func Test_JoinURLs(t *testing.T) {
+	tcases := []struct {
+		in  string
+		out string
+	}{
+		{in: "localhost,123.74.56.18,http://ekspand.com", out: "localhost,123.74.56.18,http://ekspand.com"},
+		{in: "https://123.74.56.18,unix://localhost:123456", out: "https://123.74.56.18,unix://localhost:123456"},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.in, func(t *testing.T) {
+			l, err := ParseURLsFromString(tc.in)
+			require.NoError(t, err)
+
+			str := JoinURLs(l)
+			assert.Equal(t, tc.out, str)
+		})
+	}
+}
