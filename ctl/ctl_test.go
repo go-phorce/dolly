@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xhttp/header"
@@ -34,6 +35,11 @@ func Test_ParseCore(t *testing.T) {
 	app.Command("foo", "foo description").PreAction(cli.PopulateControl)
 	app.Command("bar", "bar description").PreAction(cli.PopulateControl)
 
+	assert.Equal(t, app, cli.App())
+	assert.Equal(t, os.Stderr, cli.Writer())
+	assert.Empty(t, cli.ServerURL())
+	assert.Nil(t, cli.ServerURLs())
+
 	foobar := app.Command("foobar", "foobar description").PreAction(cli.PopulateControl)
 	foobarflag := foobar.Flag("foobarflag", "foobarflag description").Required().String()
 
@@ -42,6 +48,11 @@ func Test_ParseCore(t *testing.T) {
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foo", cmd)
 	assert.True(t, cli.Verbose())
+	assert.Empty(t, cli.ServerURL())
+	assert.Nil(t, cli.ServerURLs())
+
+	assert.Equal(t, 0, cli.RetryLimit())
+	assert.Equal(t, time.Duration(0), cli.RetryTimeout())
 
 	cmd, _ = parse(cli, []string{"test", "foo"})
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
@@ -65,19 +76,27 @@ func Test_ParseCore(t *testing.T) {
 	assert.Empty(t, cmd)
 	assert.Equal(t, "ERROR: expected command but got \"bob\"\n", out)
 
-	cmd, out = parse(cli, []string{"test"})
+	cmd, _ = parse(cli, []string{"test"})
 	assert.Empty(t, cmd)
 	require.Equal(t, ctl.RCUsage, cli.ReturnCode())
 }
 
 func Test_ParseCoreWithServer(t *testing.T) {
+	outw := &bytes.Buffer{}
+
 	app := ctl.NewApplication("test", "A test command-line tool with Server").Terminate(nil)
 	//app.UsageWriter(os.Stderr)
 	cli := ctl.NewControl(&ctl.ControlDefinition{
 		App:        app,
-		Output:     os.Stderr,
+		Output:     outw,
 		WithServer: true,
 	})
+
+	cli.Print("1-1")
+	cli.Printf("2-%d", 2)
+	cli.Println("3")
+	cli.PrintJSON(struct{}{})
+	assert.Equal(t, "1-12-23\n{}\n", string(outw.Bytes()))
 
 	app.Command("foo", "foo description").PreAction(cli.PopulateControl)
 	app.Command("bar", "bar description").PreAction(cli.PopulateControl)
@@ -91,10 +110,32 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	assert.Equal(t, "bar", cmd)
 	assert.False(t, cli.Verbose())
 	assert.Equal(t, header.ApplicationJSON, cli.ContentType())
+	assert.NotEmpty(t, cli.ServerURL())
+	assert.Equal(t, 1, len(cli.ServerURLs()))
+	assert.Equal(t, 0, cli.RetryLimit())
+	assert.Equal(t, time.Duration(6*time.Second), cli.RetryTimeout())
 
 	hn, err := os.Hostname()
 	assert.NoError(t, err)
 	assert.Equal(t, fmt.Sprintf("https://%s", hn), cli.ServerURL())
+
+	var res string
+	cmd, res = parse(cli, []string{"test", "--server", "foo:80", "--server", "bar:8080", "foo"})
+	require.Equal(t, ctl.RCUsage, cli.ReturnCode())
+	assert.Equal(t, "ERROR: unsupported URL scheme \"foo\", use http:// or https://\n", res)
+
+	cmd, res = parse(cli, []string{"test", "--server", "http://foo:80", "--server", "bar:8080", "foo"})
+	require.Equal(t, ctl.RCUsage, cli.ReturnCode())
+	assert.Equal(t, "ERROR: unsupported URL scheme \"bar\", use http:// or https://\n", res)
+
+	cmd, _ = parse(cli, []string{"test", "--server", "http://foo:80", "--server", "http://bar:8080", "foo"})
+	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
+	assert.NotEmpty(t, cmd)
+	assert.Equal(t, "foo", cmd)
+	assert.Equal(t, "http://foo:80", cli.ServerURL())
+	require.Equal(t, 2, len(cli.ServerURLs()))
+	assert.Equal(t, "http://foo:80", cli.ServerURLs()[0].String())
+	assert.Equal(t, "http://bar:8080", cli.ServerURLs()[1].String())
 
 	cmd, _ = parse(cli, []string{"test", "--server", "https://foo:9999", "foo"})
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
@@ -102,6 +143,17 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	assert.Equal(t, "foo", cmd)
 	assert.Equal(t, "https://foo:9999", cli.ServerURL())
 	assert.Equal(t, header.TextPlain, cli.ContentType())
+	assert.Equal(t, 1, len(cli.ServerURLs()))
+
+	cmd, _ = parse(cli, []string{"test", "--server", "https://foo:9999", "-s", "http://bar:9999", "foo"})
+	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
+	assert.NotEmpty(t, cmd)
+	assert.Equal(t, "foo", cmd)
+	assert.Equal(t, header.TextPlain, cli.ContentType())
+	assert.Equal(t, "https://foo:9999", cli.ServerURL())
+	require.Equal(t, 2, len(cli.ServerURLs()))
+	assert.Equal(t, "https://foo:9999", cli.ServerURLs()[0].String())
+	assert.Equal(t, "http://bar:9999", cli.ServerURLs()[1].String())
 
 	cmd, _ = parse(cli, []string{"test", "--ct", "text/html", "foo"})
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
@@ -143,6 +195,16 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	cmd, out = parse(cli, []string{"test"})
 	assert.Empty(t, cmd)
 	require.Equal(t, ctl.RCUsage, cli.ReturnCode())
+
+	cli = ctl.NewControl(&ctl.ControlDefinition{
+		App:              app,
+		Output:           outw,
+		WithServer:       true,
+		DefaultServerURL: "https://ekspand.com:80",
+	})
+	cmd, _ = parse(cli, []string{"test"})
+	assert.Empty(t, cmd)
+	assert.Equal(t, "https://ekspand.com:80", cli.ServerURL())
 }
 
 func Test_Action(t *testing.T) {
