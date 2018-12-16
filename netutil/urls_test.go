@@ -1,11 +1,40 @@
 package netutil
 
 import (
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_ParseURL(t *testing.T) {
+	tcases := []struct {
+		in     string
+		scheme string
+		host   string
+		port   string
+		path   string
+		err    string
+	}{
+		{"localhost", "", "", "", "localhost", ""},
+		{"localhost.com:8080", "localhost.com", "", "", "", ""},
+	}
+
+	for _, tc := range tcases {
+		t.Run(tc.in, func(t *testing.T) {
+			u, err := url.Parse(tc.in)
+			if tc.err == "" {
+				require.NoError(t, err)
+				assert.Equal(t, tc.scheme, u.Scheme)
+				assert.Equal(t, tc.host, u.Host)
+				assert.Equal(t, tc.port, u.Port())
+			} else {
+				assert.Error(t, err)
+			}
+		})
+	}
+}
 
 func Test_ParseURLs(t *testing.T) {
 	tcases := []struct {
@@ -15,7 +44,7 @@ func Test_ParseURLs(t *testing.T) {
 	}{
 		{"from nil", nil, ""},
 		{"from_empty", nil, ""},
-		{"valid", []string{"localhost", "123.74.56.18", "ekspand.com"}, ""},
+		{"valid", []string{"localhost", "123.74.56.18", "ekspand.com", "ekspand.com:80"}, ""},
 		{"valid with path", []string{"../dir/"}, ""},
 		{"valid1 with page", []string{"foo.html"}, ""},
 		{"invalid with ip", []string{"http://192.168.0.%31/"}, "error"},

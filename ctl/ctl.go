@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -77,7 +78,7 @@ type Ctl struct {
 		verbose *bool
 
 		// server URL
-		url *string
+		urls *[]*url.URL
 		// specify Content-Type in Accepts header, by default "text/plain"
 		contentType *string
 		// shortcut for --ct=application/json
@@ -129,12 +130,26 @@ func (ctl *Ctl) Verbose() bool {
 
 // ServerURL is the URL for the server to control
 func (ctl *Ctl) ServerURL() string {
-	return *ctl.flags.url
+	if ctl.flags.urls != nil && len(*ctl.flags.urls) > 0 {
+		return (*ctl.flags.urls)[0].String()
+	}
+	return ""
+}
+
+// ServerURLs is the list of URLs for the server to control
+func (ctl *Ctl) ServerURLs() []*url.URL {
+	if ctl.flags.urls != nil {
+		return *ctl.flags.urls
+	}
+	return nil
 }
 
 // RetryLimit returns retries limit
 func (ctl *Ctl) RetryLimit() int {
-	return *ctl.flags.retries
+	if ctl.flags.retries != nil {
+		return *ctl.flags.retries
+	}
+	return 0
 }
 
 // RetryTimeout returns retries timeout
@@ -191,7 +206,7 @@ func (ctl *Ctl) Reset(w io.Writer) {
 	if ctl.params.WithServer {
 		*ctl.flags.ctJSON = false
 		*ctl.flags.contentType = ""
-		*ctl.flags.url = ""
+		*ctl.flags.urls = []*url.URL{}
 	}
 
 	*ctl.flags.debug = false
@@ -259,7 +274,7 @@ func (ctl *Ctl) initGlobalFlags() {
 			hn, _ := os.Hostname()
 			defURL = fmt.Sprintf("https://%s", hn)
 		}
-		ctl.flags.url = app.Flag("server", "Url to server to connect to").Default(defURL).Short('s').String()
+		ctl.flags.urls = app.Flag("server", "URL to server to connect to").Default(defURL).Short('s').URLList()
 		ctl.flags.contentType = app.Flag("ct", "Content-Type in Accepts header, by default 'text/plain'").String()
 		ctl.flags.ctJSON = app.Flag("json", "Use JSON Content-Type in Accepts header and printed response").Bool()
 
@@ -326,14 +341,27 @@ func (ctl *Ctl) PopulateControl() error {
 			}
 		}
 
-		url := *ctl.flags.url
-		if url == "" {
-			url = ctl.params.DefaultServerURL
+		if len(*ctl.flags.urls) == 0 && ctl.params.DefaultServerURL != "" {
+			u, err := url.Parse(ctl.params.DefaultServerURL)
+			if err != nil {
+				return errors.Annotatef(err, "invalid DefaultServerURL")
+			}
+			*ctl.flags.urls = append(*ctl.flags.urls, u)
 		}
-		if !strings.HasPrefix(url, "http") {
-			url = fmt.Sprintf("https://%s", url)
+
+		for _, u := range *ctl.flags.urls {
+			if u.Scheme != "" && u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "unix" {
+				return errors.Errorf("unsupported URL scheme %q, use http:// or https://", u.Scheme)
+			}
+			if u.Scheme == "" {
+				port := u.Port()
+				if port == "80" || port == "8080" || port == "8888" {
+					u.Scheme = "http"
+				} else {
+					u.Scheme = "https"
+				}
+			}
 		}
-		*ctl.flags.url = url
 	}
 
 	return nil
@@ -343,7 +371,7 @@ func (ctl *Ctl) PopulateControl() error {
 func WriteJSON(out io.Writer, value interface{}) error {
 	json, err := marshal.EncodeBytes(marshal.PrettyPrint, value)
 	if err != nil {
-		return errors.Annotate(err, "failed to encode respose")
+		return errors.Annotate(err, "failed to encode")
 	}
 	out.Write([]byte(json))
 	out.Write(newLine)
