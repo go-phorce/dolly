@@ -579,7 +579,9 @@ var nonRetriableErrors = []string{
 	"client didn't provide a certificate",
 	"tls: bad certificate",
 	"x509: certificate",
+	"x509: cannot validate certificate",
 	"server gave HTTP response to HTTPS client",
+	"dial tcp: lookup",
 }
 
 // ShouldRetry returns if connection should be retried
