@@ -41,7 +41,8 @@ type Control interface {
 	App() Application
 	Writer() io.Writer
 	Verbose() bool
-	ServerURL() string
+	ServerDefaultURL() string
+	ServerURLs() []string
 	ContentType() string
 
 	Print(value string)
@@ -77,8 +78,8 @@ type Ctl struct {
 		// verbose flag allows for vebose output
 		verbose *bool
 
-		// server URL
-		urls *[]*url.URL
+		// server URLs
+		servers *[]string
 		// specify Content-Type in Accepts header, by default "text/plain"
 		contentType *string
 		// shortcut for --ct=application/json
@@ -128,18 +129,18 @@ func (ctl *Ctl) Verbose() bool {
 	return *ctl.flags.verbose
 }
 
-// ServerURL is the URL for the server to control
-func (ctl *Ctl) ServerURL() string {
-	if ctl.flags.urls != nil && len(*ctl.flags.urls) > 0 {
-		return (*ctl.flags.urls)[0].String()
+// ServerDefaultURL is the URL for the server to control
+func (ctl *Ctl) ServerDefaultURL() string {
+	if ctl.flags.servers != nil && len(*ctl.flags.servers) > 0 {
+		return (*ctl.flags.servers)[0]
 	}
 	return ""
 }
 
 // ServerURLs is the list of URLs for the server to control
-func (ctl *Ctl) ServerURLs() []*url.URL {
-	if ctl.flags.urls != nil {
-		return *ctl.flags.urls
+func (ctl *Ctl) ServerURLs() []string {
+	if ctl.flags.servers != nil {
+		return *ctl.flags.servers
 	}
 	return nil
 }
@@ -206,7 +207,7 @@ func (ctl *Ctl) Reset(w io.Writer) {
 	if ctl.params.WithServer {
 		*ctl.flags.ctJSON = false
 		*ctl.flags.contentType = ""
-		*ctl.flags.urls = []*url.URL{}
+		*ctl.flags.servers = []string{}
 	}
 
 	*ctl.flags.debug = false
@@ -274,7 +275,7 @@ func (ctl *Ctl) initGlobalFlags() {
 			hn, _ := os.Hostname()
 			defURL = fmt.Sprintf("https://%s", hn)
 		}
-		ctl.flags.urls = app.Flag("server", "URL to server to connect to").Default(defURL).Short('s').URLList()
+		ctl.flags.servers = app.Flag("server", "URL od the server to control").Default(defURL).Short('s').Strings()
 		ctl.flags.contentType = app.Flag("ct", "Content-Type in Accepts header, by default 'text/plain'").String()
 		ctl.flags.ctJSON = app.Flag("json", "Use JSON Content-Type in Accepts header and printed response").Bool()
 
@@ -341,15 +342,16 @@ func (ctl *Ctl) PopulateControl() error {
 			}
 		}
 
-		if len(*ctl.flags.urls) == 0 && ctl.params.DefaultServerURL != "" {
-			u, err := url.Parse(ctl.params.DefaultServerURL)
-			if err != nil {
-				return errors.Annotatef(err, "invalid DefaultServerURL")
-			}
-			*ctl.flags.urls = append(*ctl.flags.urls, u)
+		if len(*ctl.flags.servers) == 0 && ctl.params.DefaultServerURL != "" {
+			*ctl.flags.servers = append(*ctl.flags.servers, ctl.params.DefaultServerURL)
 		}
 
-		for _, u := range *ctl.flags.urls {
+		for i, server := range *ctl.flags.servers {
+			u, err := url.Parse(server)
+			if err != nil {
+				return errors.Annotatef(err, "invalid URL: %q", server)
+			}
+
 			if u.Scheme != "" && u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "unix" {
 				return errors.Errorf("unsupported URL scheme %q, use http:// or https://", u.Scheme)
 			}
@@ -361,6 +363,8 @@ func (ctl *Ctl) PopulateControl() error {
 					u.Scheme = "https"
 				}
 			}
+
+			(*ctl.flags.servers)[i] = u.String()
 		}
 	}
 
