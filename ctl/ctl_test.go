@@ -37,7 +37,7 @@ func Test_ParseCore(t *testing.T) {
 
 	assert.Equal(t, app, cli.App())
 	assert.Equal(t, os.Stderr, cli.Writer())
-	assert.Empty(t, cli.ServerURL())
+	assert.Empty(t, cli.ServerDefaultURL())
 	assert.Nil(t, cli.ServerURLs())
 
 	foobar := app.Command("foobar", "foobar description").PreAction(cli.PopulateControl)
@@ -48,7 +48,7 @@ func Test_ParseCore(t *testing.T) {
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foo", cmd)
 	assert.True(t, cli.Verbose())
-	assert.Empty(t, cli.ServerURL())
+	assert.Empty(t, cli.ServerDefaultURL())
 	assert.Nil(t, cli.ServerURLs())
 
 	assert.Equal(t, 0, cli.RetryLimit())
@@ -110,14 +110,14 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	assert.Equal(t, "bar", cmd)
 	assert.False(t, cli.Verbose())
 	assert.Equal(t, header.ApplicationJSON, cli.ContentType())
-	assert.NotEmpty(t, cli.ServerURL())
+	assert.NotEmpty(t, cli.ServerDefaultURL())
 	assert.Equal(t, 1, len(cli.ServerURLs()))
 	assert.Equal(t, 0, cli.RetryLimit())
 	assert.Equal(t, time.Duration(6*time.Second), cli.RetryTimeout())
 
 	hn, err := os.Hostname()
 	assert.NoError(t, err)
-	assert.Equal(t, fmt.Sprintf("https://%s", hn), cli.ServerURL())
+	assert.Equal(t, fmt.Sprintf("https://%s", hn), cli.ServerDefaultURL())
 
 	var res string
 	cmd, res = parse(cli, []string{"test", "--server", "foo:80", "--server", "bar:8080", "foo"})
@@ -132,16 +132,16 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foo", cmd)
-	assert.Equal(t, "http://foo:80", cli.ServerURL())
+	assert.Equal(t, "http://foo:80", cli.ServerDefaultURL())
 	require.Equal(t, 2, len(cli.ServerURLs()))
-	assert.Equal(t, "http://foo:80", cli.ServerURLs()[0].String())
-	assert.Equal(t, "http://bar:8080", cli.ServerURLs()[1].String())
+	assert.Equal(t, "http://foo:80", cli.ServerURLs()[0])
+	assert.Equal(t, "http://bar:8080", cli.ServerURLs()[1])
 
 	cmd, _ = parse(cli, []string{"test", "--server", "https://foo:9999", "foo"})
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foo", cmd)
-	assert.Equal(t, "https://foo:9999", cli.ServerURL())
+	assert.Equal(t, "https://foo:9999", cli.ServerDefaultURL())
 	assert.Equal(t, header.TextPlain, cli.ContentType())
 	assert.Equal(t, 1, len(cli.ServerURLs()))
 
@@ -150,10 +150,10 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foo", cmd)
 	assert.Equal(t, header.TextPlain, cli.ContentType())
-	assert.Equal(t, "https://foo:9999", cli.ServerURL())
+	assert.Equal(t, "https://foo:9999", cli.ServerDefaultURL())
 	require.Equal(t, 2, len(cli.ServerURLs()))
-	assert.Equal(t, "https://foo:9999", cli.ServerURLs()[0].String())
-	assert.Equal(t, "http://bar:9999", cli.ServerURLs()[1].String())
+	assert.Equal(t, "https://foo:9999", cli.ServerURLs()[0])
+	assert.Equal(t, "http://bar:9999", cli.ServerURLs()[1])
 
 	cmd, _ = parse(cli, []string{"test", "--ct", "text/html", "foo"})
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
@@ -173,14 +173,14 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foobar", cmd)
-	assert.Equal(t, "https://foo:9999", cli.ServerURL())
+	assert.Equal(t, "https://foo:9999", cli.ServerDefaultURL())
 	assert.Equal(t, "test", *foobarflag)
 
 	cmd, _ = parse(cli, []string{"test", "-s", "ekspander", "foo"})
 	require.Equal(t, ctl.RCOkay, cli.ReturnCode())
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "foo", cmd)
-	assert.Equal(t, "https://ekspander", cli.ServerURL())
+	assert.Equal(t, "https://ekspander", cli.ServerDefaultURL())
 
 	cmd, out := parse(cli, []string{"test", "--bogus", "foo"})
 	require.Equal(t, ctl.RCUsage, cli.ReturnCode())
@@ -204,7 +204,7 @@ func Test_ParseCoreWithServer(t *testing.T) {
 	})
 	cmd, _ = parse(cli, []string{"test"})
 	assert.Empty(t, cmd)
-	assert.Equal(t, "https://ekspand.com:80", cli.ServerURL())
+	assert.Equal(t, "https://ekspand.com:80", cli.ServerDefaultURL())
 }
 
 func Test_Action(t *testing.T) {
