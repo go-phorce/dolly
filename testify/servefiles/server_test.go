@@ -130,6 +130,35 @@ func (s *serverTestSuite) Test_SequencedStatusCodes() {
 	s.doHTTPCall(http.MethodGet, "/statusCodes", nil, http.StatusOK)
 }
 
+func (s *serverTestSuite) Test_VerbPrefix() {
+	resp := s.doHTTPCall(http.MethodGet, "/v1/verb", nil, http.StatusOK)
+	s.JSONEq(`{"verb":"get"}`, string(resp))
+	resp = s.doHTTPCall(http.MethodDelete, "/v1/verb", nil, http.StatusOK)
+	s.JSONEq(`{"verb":"delete"}`, string(resp))
+	resp = s.doHTTPCall(http.MethodPut, "/v1/verb", nil, http.StatusOK)
+	s.JSONEq(`{"verb":"any"}`, string(resp))
+}
+
+func (s *serverTestSuite) Test_ContentType() {
+	resp := s.doHTTPCall(http.MethodGet, "/v1/ct?ct=text", nil, http.StatusOK)
+	s.Equal(`text.plain`, string(resp))
+	resp = s.doHTTPCall(http.MethodGet, "/v1/ct?ct=tsq", nil, http.StatusOK)
+	s.Equal(`application/timestamp-query`, string(resp))
+	resp = s.doHTTPCall(http.MethodGet, "/v1/ct?ct=tsr", nil, http.StatusOK)
+	s.Equal(`application/timestamp-reply`, string(resp))
+	resp = s.doHTTPCall(http.MethodPut, "/v1/ct", nil, http.StatusOK)
+	s.JSONEq(`{"ct":"application/json"}`, string(resp))
+
+	h := s.s.LastReqHdr("/v1/ct?ct=text")
+	s.True(len(h) > 0)
+	h = s.s.LastReqHdr("/v1/ct?ct=tsq")
+	s.True(len(h) > 0)
+	h = s.s.LastReqHdr("/v1/ct?ct=tsr")
+	s.True(len(h) > 0)
+	h = s.s.LastReqHdr("/v1/ct")
+	s.True(len(h) > 0)
+}
+
 func Test_StatusCode(t *testing.T) {
 	r := requestSettings{}
 	assert.Equal(t, 200, r.statusCode(1))
