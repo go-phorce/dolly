@@ -1,10 +1,17 @@
 {
-    "/def" :                        { "file" : "def" },
-    "/def?q=1" :                    { "file" : "def_query" },
-    "/withCode" :                   { "file" : "error", "statusCode": 400 },
-    "/withSeq" :                    { "file" : "seq" },
-    "/withSeqAndCode" :             { "file" : "seq", "statusCode": 201 },
-    "/services/oauth2/token" :      { "file": "token" },
-    "/services/not_oauth/token" :   { "file": "token" },
-    "/statusCodes":                 { "file": "error", "statusCodes":[400,404,200]}
+    "/def" :                      { "file" : "def" },
+    "/def?q=1" :                  { "file" : "def_query" },
+    "/withCode" :                 { "file" : "error", "statusCode": 400 },
+    "/withSeq" :                  { "file" : "seq" },
+    "/withSeqAndCode" :           { "file" : "seq", "statusCode": 201 },
+    "/services/oauth2/token" :    { "file": "token" },
+    "/services/not_oauth/token" : { "file": "token" },
+    "/statusCodes":               { "file": "error", "statusCodes":[400,404,200]},
+    "get:/v1/verb" :              { "file": "verb_get" },
+    "delete:/v1/verb" :           { "file": "verb_del" },
+    "/v1/verb" :                  { "file": "verb_any" },
+    "/v1/ct?ct=text" :            { "file": "ct", "contentType": "text/plain" },
+    "/v1/ct?ct=tsq" :             { "file": "ct", "contentType": "application/timestamp-query" },
+    "/v1/ct?ct=tsr" :             { "file": "ct.tsr", "contentType": "application/timestamp-reply" },
+    "/v1/ct" :                    { "file": "ct", "contentType": "other" }
 }

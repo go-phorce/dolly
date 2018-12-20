@@ -67,7 +67,8 @@ func New(t MinimalTestingT, baseDirs ...string) *Server {
 // file that provides the mapping from request URI to file with the response
 // data in it. e.g.
 // {
-//    "/v1/status" : "status"
+//    "/v1/status" : "status",
+//    "get:/v1/status" : "getstatus"
 // }
 // the actual file used will be status.json, if this doesn't exist
 // then it'll look for a file based on the number of requests to this URI
@@ -102,7 +103,7 @@ func (s *Server) SetBaseDirs(newBaseDirs ...string) {
 }
 
 type requestSettings struct {
-	Accepts     string `json:"accepts"`
+	ContentType string `json:"contentType"`
 	Filename    string `json:"file"`
 	StatusCode  int    `json:"statusCode"`
 	StatusCodes []int  `json:"statusCodes"`
@@ -170,11 +171,18 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.t.Logf("sfdctest.Server got request for %s", requestURI)
 
+	verb := strings.ToLower(r.Method)
+	// first, try "get:/v1/resource"
+	respInfo, exists := s.reqFiles[verb+":"+requestURI]
+	if !exists {
+		// then, try "/v1/resource"
+		respInfo, exists = s.reqFiles[requestURI]
+	}
+
 	fileExt := ".json"
-	respInfo, exists := s.reqFiles[requestURI]
-	if exists && respInfo.Accepts != "" {
-		w.Header().Set(header.ContentType, respInfo.Accepts)
-		switch respInfo.Accepts {
+	if exists && respInfo.ContentType != "" {
+		w.Header().Set(header.ContentType, respInfo.ContentType)
+		switch respInfo.ContentType {
 		case header.TextPlain:
 			fileExt = ".txt"
 		case header.ApplicationTimestampQuery:
