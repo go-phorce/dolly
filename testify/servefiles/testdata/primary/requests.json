@@ -10,8 +10,8 @@
     "get:/v1/verb" :              { "file": "verb_get" },
     "delete:/v1/verb" :           { "file": "verb_del" },
     "/v1/verb" :                  { "file": "verb_any" },
-    "/v1/ct?ct=text" :            { "file": "ct", "contentType": "text/plain" },
-    "/v1/ct?ct=tsq" :             { "file": "ct", "contentType": "application/timestamp-query" },
-    "/v1/ct?ct=tsr" :             { "file": "ct.tsr", "contentType": "application/timestamp-reply" },
-    "/v1/ct" :                    { "file": "ct", "contentType": "other" }
+    "/v1/ct?ct=text" :            { "file": "ct", "contentType": "text/plain", "headers": {"custom": "text/plain"} },
+    "/v1/ct?ct=tsq" :             { "file": "ct", "contentType": "application/timestamp-query", "headers": {"custom": "application/timestamp-query"} },
+    "/v1/ct?ct=tsr" :             { "file": "ct.tsr", "contentType": "application/timestamp-reply", "headers": {"custom": "application/timestamp-reply"} },
+    "/v1/ct" :                    { "file": "ct", "contentType": "other", "headers": {"custom": "application/json"} }
 }

@@ -34,7 +34,7 @@ func (s *serverTestSuite) TearDownTest() {
 	s.s.Close()
 }
 
-func (s *serverTestSuite) doHTTPCall(method, path string, body io.Reader, expStatusCode int) []byte {
+func (s *serverTestSuite) doHTTPCall(method, path string, body io.Reader, expStatusCode int) ([]byte, map[string][]string) {
 	req, err := http.NewRequest(method, s.s.URL()+path, body)
 	s.Require().NoError(err)
 	res, err := http.DefaultClient.Do(req)
@@ -43,18 +43,18 @@ func (s *serverTestSuite) doHTTPCall(method, path string, body io.Reader, expSta
 	resBody, err := ioutil.ReadAll(res.Body)
 	s.Require().NoError(err)
 	s.Require().Equal(expStatusCode, res.StatusCode)
-	return resBody
+	return resBody, res.Header
 }
 
 func (s *serverTestSuite) Test_Default() {
-	resp := s.doHTTPCall(http.MethodGet, "/def", nil, http.StatusOK)
+	resp, _ := s.doHTTPCall(http.MethodGet, "/def", nil, http.StatusOK)
 	s.JSONEq(`{"def":true}`, string(resp))
 	s.Equal(1, s.s.RequestCount("/def"))
 	s.Equal(map[string]int{"/def": 1}, s.s.RequestCounts())
 }
 
 func (s *serverTestSuite) Test_WithStatusCode() {
-	resp := s.doHTTPCall(http.MethodGet, "/withCode", nil, http.StatusBadRequest)
+	resp, _ := s.doHTTPCall(http.MethodGet, "/withCode", nil, http.StatusBadRequest)
 	s.JSONEq(`{"code":"BOOM"}`, string(resp))
 	s.Equal(1, s.s.RequestCount("/withCode"))
 	s.Equal(map[string]int{"/withCode": 1}, s.s.RequestCounts())
@@ -69,19 +69,19 @@ func (s *serverTestSuite) Test_SequenceWithCode() {
 }
 
 func (s *serverTestSuite) testSequence(reqPath string, expStatusCode int) {
-	resp := s.doHTTPCall(http.MethodGet, reqPath, nil, expStatusCode)
+	resp, _ := s.doHTTPCall(http.MethodGet, reqPath, nil, expStatusCode)
 	s.JSONEq(`{"seq":1}`, string(resp))
 	s.Equal(1, s.s.RequestCount(reqPath))
-	resp = s.doHTTPCall(http.MethodGet, reqPath, nil, expStatusCode)
+	resp, _ = s.doHTTPCall(http.MethodGet, reqPath, nil, expStatusCode)
 	s.JSONEq(`{"seq":2}`, string(resp))
 	s.Equal(2, s.s.RequestCount(reqPath))
 	s.Equal(map[string]int{reqPath: 2}, s.s.RequestCounts())
 	// run off the end of supplied sequences, get a 404
-	resp = s.doHTTPCall(http.MethodGet, reqPath, nil, http.StatusNotFound)
+	_, _ = s.doHTTPCall(http.MethodGet, reqPath, nil, http.StatusNotFound)
 }
 
 func (s *serverTestSuite) Test_Token() {
-	resp := s.doHTTPCall(http.MethodGet, "/services/oauth2/token", nil, http.StatusOK)
+	resp, _ := s.doHTTPCall(http.MethodGet, "/services/oauth2/token", nil, http.StatusOK)
 	var d map[string]interface{}
 	s.Require().NoError(json.Unmarshal(resp, &d))
 	s.Equal(s.s.URL(), d["instance_url"])
@@ -92,7 +92,7 @@ func (s *serverTestSuite) Test_Token() {
 func (s *serverTestSuite) Test_NotAuthToken() {
 	// verify that something that looks like the auth token, but is at a different
 	// url is not modified.
-	resp := s.doHTTPCall(http.MethodGet, "/services/not_oauth/token", nil, http.StatusOK)
+	resp, _ := s.doHTTPCall(http.MethodGet, "/services/not_oauth/token", nil, http.StatusOK)
 	var d map[string]interface{}
 	s.Require().NoError(json.Unmarshal(resp, &d))
 	s.Equal("https://login.acme.com/id/00DT0000000DpvcMAC/005B0000001JwvAIAS", d["id"])
@@ -102,25 +102,25 @@ func (s *serverTestSuite) Test_NotAuthToken() {
 
 func (s *serverTestSuite) Test_LastRequestBody() {
 	reqBody := `{"hello":"world"}`
-	resp := s.doHTTPCall(http.MethodPost, "/def", bytes.NewBufferString(reqBody), http.StatusOK)
+	resp, _ := s.doHTTPCall(http.MethodPost, "/def", bytes.NewBufferString(reqBody), http.StatusOK)
 	s.Equal(reqBody, string(s.s.LastBody("/def")))
 	s.JSONEq(`{"def":true}`, string(resp))
 	s.Equal(1, s.s.RequestCount("/def"))
 
-	resp = s.doHTTPCall(http.MethodPost, "/def?q=1", bytes.NewBufferString(reqBody), http.StatusOK)
+	resp, _ = s.doHTTPCall(http.MethodPost, "/def?q=1", bytes.NewBufferString(reqBody), http.StatusOK)
 	s.Equal(reqBody, string(s.s.LastBody("/def?q=1")))
 	s.JSONEq(`{"def":true,"query":true}`, string(resp))
 	s.Equal(1, s.s.RequestCount("/def?q=1"))
 
 	reqBody = `{"hello":"world2"}`
-	resp = s.doHTTPCall(http.MethodPut, "/def", bytes.NewBufferString(reqBody), http.StatusOK)
+	resp, _ = s.doHTTPCall(http.MethodPut, "/def", bytes.NewBufferString(reqBody), http.StatusOK)
 	s.Equal(reqBody, string(s.s.LastBody("/def")))
 	s.JSONEq(`{"def":true}`, string(resp))
 	s.Equal(2, s.s.RequestCount("/def"))
 }
 
 func (s *serverTestSuite) Test_Missing() {
-	resp := s.doHTTPCall(http.MethodGet, "/missing", nil, http.StatusNotFound)
+	resp, _ := s.doHTTPCall(http.MethodGet, "/missing", nil, http.StatusNotFound)
 	s.JSONEq(`[{"errorCode": "NOT_FOUND", "message": "The requested resource does not exist"}]`, string(resp))
 }
 
@@ -131,23 +131,30 @@ func (s *serverTestSuite) Test_SequencedStatusCodes() {
 }
 
 func (s *serverTestSuite) Test_VerbPrefix() {
-	resp := s.doHTTPCall(http.MethodGet, "/v1/verb", nil, http.StatusOK)
+	resp, _ := s.doHTTPCall(http.MethodGet, "/v1/verb", nil, http.StatusOK)
 	s.JSONEq(`{"verb":"get"}`, string(resp))
-	resp = s.doHTTPCall(http.MethodDelete, "/v1/verb", nil, http.StatusOK)
+	resp, _ = s.doHTTPCall(http.MethodDelete, "/v1/verb", nil, http.StatusOK)
 	s.JSONEq(`{"verb":"delete"}`, string(resp))
-	resp = s.doHTTPCall(http.MethodPut, "/v1/verb", nil, http.StatusOK)
+	resp, _ = s.doHTTPCall(http.MethodPut, "/v1/verb", nil, http.StatusOK)
 	s.JSONEq(`{"verb":"any"}`, string(resp))
 }
 
 func (s *serverTestSuite) Test_ContentType() {
-	resp := s.doHTTPCall(http.MethodGet, "/v1/ct?ct=text", nil, http.StatusOK)
+	resp, headers := s.doHTTPCall(http.MethodGet, "/v1/ct?ct=text", nil, http.StatusOK)
 	s.Equal(`text.plain`, string(resp))
-	resp = s.doHTTPCall(http.MethodGet, "/v1/ct?ct=tsq", nil, http.StatusOK)
+	s.Equal("text/plain", headers["Custom"][0])
+
+	resp, headers = s.doHTTPCall(http.MethodGet, "/v1/ct?ct=tsq", nil, http.StatusOK)
 	s.Equal(`application/timestamp-query`, string(resp))
-	resp = s.doHTTPCall(http.MethodGet, "/v1/ct?ct=tsr", nil, http.StatusOK)
+	s.Equal("application/timestamp-query", headers["Custom"][0])
+
+	resp, headers = s.doHTTPCall(http.MethodGet, "/v1/ct?ct=tsr", nil, http.StatusOK)
 	s.Equal(`application/timestamp-reply`, string(resp))
-	resp = s.doHTTPCall(http.MethodPut, "/v1/ct", nil, http.StatusOK)
+	s.Equal("application/timestamp-reply", headers["Custom"][0])
+
+	resp, headers = s.doHTTPCall(http.MethodPut, "/v1/ct", nil, http.StatusOK)
 	s.JSONEq(`{"ct":"application/json"}`, string(resp))
+	s.Equal("application/json", headers["Custom"][0])
 
 	h := s.s.LastReqHdr("/v1/ct?ct=text")
 	s.True(len(h) > 0)

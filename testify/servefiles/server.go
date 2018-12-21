@@ -103,10 +103,11 @@ func (s *Server) SetBaseDirs(newBaseDirs ...string) {
 }
 
 type requestSettings struct {
-	ContentType string `json:"contentType"`
-	Filename    string `json:"file"`
-	StatusCode  int    `json:"statusCode"`
-	StatusCodes []int  `json:"statusCodes"`
+	ContentType string            `json:"contentType"`
+	Filename    string            `json:"file"`
+	StatusCode  int               `json:"statusCode"`
+	StatusCodes []int             `json:"statusCodes"`
+	Headers     map[string]string `json:"headers"`
 }
 
 func (r *requestSettings) statusCode(reqCount int) int {
@@ -240,6 +241,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 	s.t.Logf("Using %q to handle request to %q", f.Name(), requestURI)
+	for header, val := range respInfo.Headers {
+		w.Header().Set(header, val)
+	}
+
 	w.WriteHeader(respInfo.statusCode(count))
 	if strings.HasPrefix(requestURI, "/services/oauth2/token") {
 		handleAuthFixup(s.server.URL, w, f)
