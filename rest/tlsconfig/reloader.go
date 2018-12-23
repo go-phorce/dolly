@@ -61,14 +61,14 @@ func NewKeypairReloader(certPath, keyPath string, checkInterval time.Duration) (
 				if err == nil {
 					modified = fi.ModTime().After(result.certModifiedAt)
 				} else {
-					logger.Warning("api=NewKeypairReloader, reason=stat, file=%q, err=[%v]", certPath, err)
+					logger.Warningf("api=NewKeypairReloader, reason=stat, file=%q, err=[%v]", certPath, err)
 				}
 				if !modified {
 					fi, err = os.Stat(keyPath)
 					if err == nil {
 						modified = fi.ModTime().After(result.keyModifiedAt)
 					} else {
-						logger.Warning("api=NewKeypairReloader, reason=stat, file=%q, err=[%v]", keyPath, err)
+						logger.Warningf("api=NewKeypairReloader, reason=stat, file=%q, err=[%v]", keyPath, err)
 					}
 				}
 				if modified {
@@ -112,7 +112,7 @@ func (k *KeypairReloader) Reload() error {
 		if err == nil {
 			break
 		}
-		logger.Warning("api=Reload, reason=LoadX509KeyPair, err=[%v]", err)
+		logger.Warningf("api=Reload, reason=LoadX509KeyPair, file=%q, err=[%v]", k.certPath, err)
 	}
 	if err != nil {
 		return errors.Annotatef(err, "count: %d", k.count)
@@ -122,7 +122,7 @@ func (k *KeypairReloader) Reload() error {
 	if newCert.Leaf == nil && len(newCert.Certificate) > 0 {
 		newCert.Leaf, err = x509.ParseCertificate(newCert.Certificate[0])
 		if err != nil {
-			logger.Warning("api=Reload, reason=ParseCertificate, err=[%v]", err)
+			logger.Warningf("api=Reload, reason=ParseCertificate, err=[%v]", err)
 		}
 	}
 	if newCert.Leaf != nil {
@@ -134,14 +134,14 @@ func (k *KeypairReloader) Reload() error {
 	if err == nil {
 		k.certModifiedAt = certFileInfo.ModTime()
 	} else {
-		logger.Warning("api=Reload, reason=stat, file=%q, err=[%v]", k.certPath, err)
+		logger.Warningf("api=Reload, reason=stat, file=%q, err=[%v]", k.certPath, err)
 	}
 
 	keyFileInfo, err := os.Stat(k.keyPath)
 	if err == nil {
 		k.keyModifiedAt = keyFileInfo.ModTime()
 	} else {
-		logger.Warning("api=Reload, reason=stat, file=%q, err=[%v]", k.keyPath, err)
+		logger.Warningf("api=Reload, reason=stat, file=%q, err=[%v]", k.keyPath, err)
 	}
 
 	logger.Infof("api=Reload, count=%d, cert=%q, key=%q", k.count, k.certPath, k.keyPath)
