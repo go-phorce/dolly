@@ -38,7 +38,7 @@ func ExampleServer() {
 	defer tlsloader.Close()
 
 	cfg := &serverConfig{
-		BindAddr: ":8080",
+		BindAddr: ":8181",
 	}
 
 	ioc := container.New()
@@ -66,7 +66,7 @@ func ExampleServer() {
 	fmt.Println("starting server")
 	err = server.StartHTTP()
 	if err != nil {
-		panic("unable to start the server")
+		panic("unable to start the server: " + errors.ErrorStack(err))
 	}
 
 	go func() {
