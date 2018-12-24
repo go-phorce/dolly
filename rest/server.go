@@ -39,6 +39,19 @@ const (
 	EvtServiceStopped = "service stopped"
 )
 
+// ServerEvent specifies server event type
+type ServerEvent int
+
+const (
+	// ServerStartedEvent is fired on server start
+	ServerStartedEvent ServerEvent = iota
+	// ServerStoppedEvent is fired after server stopped
+	ServerStoppedEvent
+)
+
+// ServerEventFunc is a callback to handle server events
+type ServerEventFunc func(evt ServerEvent)
+
 // ClusterMember provides information about cluster member
 type ClusterMember struct {
 	// ID is the member ID for this member.
@@ -62,10 +75,6 @@ type ClusterInfo interface {
 
 	// ClusterMembers returns the list of members in the cluster
 	ClusterMembers() ([]*ClusterMember, error)
-
-	// ListenPeerURLs returns the list of URLs of the specific node,
-	// that accepts incoming requests from its peers on the specified scheme://IP:port combinations.
-	ListenPeerURLs(nodeID string) ([]*url.URL, error)
 }
 
 // ClusterManager is an interface to provide basic cluster management
@@ -83,7 +92,6 @@ type Server interface {
 	http.Handler
 	Name() string
 	Version() string
-	RoleName() string
 	HostName() string
 	LocalIP() string
 	Port() string
@@ -126,6 +134,8 @@ type Server interface {
 	// The function may return an error to indicate failure. The error will be
 	// returned to the caller as-is.
 	Invoke(function interface{}) error
+
+	OnEvent(evt ServerEvent, handler ServerEventFunc)
 }
 
 // server is responsible for exposing the collection of the services
@@ -140,7 +150,6 @@ type server struct {
 	httpConfig     HTTPServerConfig
 	tlsConfig      *tls.Config
 	httpServer     *http.Server
-	rolename       string
 	hostname       string
 	port           string
 	ipaddr         string
@@ -150,6 +159,7 @@ type server struct {
 	clientAuth     string
 	scheduler      tasks.Scheduler
 	services       map[string]Service
+	evtHandlers    map[ServerEvent][]ServerEventFunc
 	lock           sync.RWMutex
 }
 
@@ -158,7 +168,6 @@ var _ Server = &server{}
 
 // New creates a new instance of the server
 func New(
-	rolename string,
 	version string,
 	container container.Container,
 ) (Server, error) {
@@ -174,14 +183,14 @@ func New(
 	}
 
 	s := &server{
-		services:   map[string]Service{},
-		scheduler:  tasks.NewScheduler(),
-		rolename:   rolename,
-		startedAt:  time.Now().UTC(),
-		version:    version,
-		ipaddr:     ipaddr,
-		container:  container,
-		clientAuth: tlsClientAuthToStrMap[tls.NoClientCert],
+		services:    map[string]Service{},
+		scheduler:   tasks.NewScheduler(),
+		startedAt:   time.Now().UTC(),
+		version:     version,
+		ipaddr:      ipaddr,
+		container:   container,
+		evtHandlers: make(map[ServerEvent][]ServerEventFunc),
+		clientAuth:  tlsClientAuthToStrMap[tls.NoClientCert],
 	}
 
 	err = container.Invoke(func(httpConfig HTTPServerConfig) {
@@ -191,38 +200,38 @@ func New(
 		s.port = GetPort(baddr)
 	})
 	if err != nil {
-		return nil, errors.Errorf("HTTPServerConfig not provided, rolename=%s", rolename)
+		return nil, errors.Errorf("HTTPServerConfig not provided")
 	}
 
 	err = container.Invoke(func(authz Authz) {
 		s.authz = authz
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='failed to initialize Authz', service=%s, err=[%s]",
-			s.httpConfig.GetServiceName(), err.Error())
+		logger.Warningf("api=rest.New, reason='Authz not provided', service=%s",
+			s.httpConfig.GetServiceName())
 	}
 
 	err = container.Invoke(func(clusterInfo ClusterInfo) {
 		s.clusterInfo = clusterInfo
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err=[%s]",
-			s.httpConfig.GetServiceName(), err.Error())
+		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s",
+			s.httpConfig.GetServiceName())
 	}
 
 	err = container.Invoke(func(clusterManager ClusterManager) {
 		s.clusterManager = clusterManager
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s, err=[%s]",
-			s.httpConfig.GetServiceName(), err.Error())
+		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s",
+			s.httpConfig.GetServiceName())
 	}
 	err = container.Invoke(func(auditor Auditor) {
 		s.auditor = auditor
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s, err=[%s]",
-			s.httpConfig.GetServiceName(), err.Error())
+		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s",
+			s.httpConfig.GetServiceName())
 	}
 
 	err = container.Invoke(func(tlsConfig *tls.Config) {
@@ -232,8 +241,8 @@ func New(
 		}
 	})
 	if err != nil {
-		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s, err=[%s]",
-			s.httpConfig.GetServiceName(), err.Error())
+		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s",
+			s.httpConfig.GetServiceName())
 	}
 
 	return s, nil
@@ -254,6 +263,13 @@ func (server *server) AddService(s Service) {
 	server.services[s.Name()] = s
 }
 
+func (server *server) OnEvent(evt ServerEvent, handler ServerEventFunc) {
+	server.lock.Lock()
+	defer server.lock.Unlock()
+
+	server.evtHandlers[evt] = append(server.evtHandlers[evt], handler)
+}
+
 // Scheduler returns task scheduler for the server
 func (server *server) Scheduler() tasks.Scheduler {
 	return server.scheduler
@@ -264,11 +280,6 @@ func (server *server) Service(name string) Service {
 	server.lock.Lock()
 	defer server.lock.Unlock()
 	return server.services[name]
-}
-
-// RoleName returns the name of the server role
-func (server *server) RoleName() string {
-	return server.rolename
 }
 
 // HostName returns the host name of the server
@@ -363,9 +374,11 @@ func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 	return server.clusterInfo.ClusterMembers()
 }
 
+/*
 func (server *server) ListenPeerURLs(nodeID string) ([]*url.URL, error) {
 	return GetNodeListenPeerURLs(server, nodeID)
 }
+*/
 
 // IsReady returns true when the server is ready to serve
 func (server *server) IsReady() bool {
@@ -411,7 +424,7 @@ func (server *server) StartHTTP() error {
 
 	// Main server
 	if _, err = net.ResolveTCPAddr("tcp", bindAddr); err != nil {
-		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, service=%s, addr=%q",
+		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, service=%s, bind=%q",
 			server.Name(), bindAddr)
 	}
 
@@ -454,6 +467,10 @@ func (server *server) StartHTTP() error {
 	}
 
 	go func() {
+		for _, handler := range server.evtHandlers[ServerStartedEvent] {
+			handler(ServerStartedEvent)
+		}
+
 		logger.Infof("api=StartHTTP, service=%s, port=%v, status=starting, protocol=%s",
 			server.Name(), bindAddr, server.Protocol())
 
@@ -470,11 +487,11 @@ func (server *server) StartHTTP() error {
 
 	if server.httpConfig.GetHeartbeatSecs() > 0 {
 		task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).
-			Do("hearbeat", hearbeatTask, server)
+			Do("hearbeat", hearbeatMetricsTask, server)
 		server.Scheduler().Add(task)
 		task.Run()
 
-		task = tasks.NewTaskAtIntervals(60, tasks.Seconds).Do("uptime", uptimeTask, server)
+		task = tasks.NewTaskAtIntervals(60, tasks.Seconds).Do("uptime", uptimeMetricsTask, server)
 		server.Scheduler().Add(task)
 		task.Run()
 	}
@@ -493,11 +510,11 @@ func (server *server) StartHTTP() error {
 	return nil
 }
 
-func hearbeatTask(server *server) {
+func hearbeatMetricsTask(server *server) {
 	metricsutil.PublishHeartbeat(server.httpConfig.GetServiceName())
 }
 
-func uptimeTask(server *server) {
+func uptimeMetricsTask(server *server) {
 	metricsutil.PublishUptime(server.httpConfig.GetServiceName(), server.Uptime())
 }
 
@@ -528,6 +545,10 @@ func (server *server) StopHTTP() {
 	err := server.httpServer.Shutdown(ctx)
 	if err != nil {
 		logger.Errorf("api=StopHTTP, reason=Shutdown, err=[%v]", errors.ErrorStack(err))
+	}
+
+	for _, handler := range server.evtHandlers[ServerStoppedEvent] {
+		handler(ServerStoppedEvent)
 	}
 
 	ut := server.Uptime() / time.Second * time.Second
@@ -570,7 +591,7 @@ func (server *server) NewMux() http.Handler {
 	}
 
 	// logging wrapper
-	httpHandler = xhttp.NewRequestLogger(httpHandler, server.rolename, serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
+	httpHandler = xhttp.NewRequestLogger(httpHandler, server.Name(), serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
 
 	// metrics wrapper
 	httpHandler = xhttp.NewRequestMetrics(httpHandler)
@@ -622,6 +643,14 @@ func GetServerURL(s Server, r *http.Request, relativeEndpoint string) *url.URL {
 		Scheme: proto,
 		Host:   host,
 		Path:   relativeEndpoint,
+	}
+}
+
+// GetServerBaseURL returns server base URL
+func GetServerBaseURL(s Server) *url.URL {
+	return &url.URL{
+		Scheme: s.Protocol(),
+		Host:   s.HostName() + ":" + s.Port(),
 	}
 }
 

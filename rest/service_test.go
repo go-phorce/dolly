@@ -97,9 +97,21 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 		return cfg
 	})
 
-	server, err := rest.New("test", "v1.0.123", ioc)
+	startedCount := 0
+	stoppedCount := 0
+
+	server, err := rest.New("v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
+
+	server.OnEvent(rest.ServerStartedEvent, func(evt rest.ServerEvent) {
+		assert.Equal(t, rest.ServerStartedEvent, evt)
+		startedCount++
+	})
+	server.OnEvent(rest.ServerStoppedEvent, func(evt rest.ServerEvent) {
+		assert.Equal(t, rest.ServerStoppedEvent, evt)
+		stoppedCount++
+	})
 
 	svc := NewService(server)
 	server.AddService(svc)
@@ -116,6 +128,9 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 	testHTTPService(t, server)
 
 	server.StopHTTP()
+
+	assert.Equal(t, 1, startedCount)
+	assert.Equal(t, 1, stoppedCount)
 }
 
 func testHTTPService(t *testing.T, server rest.Server) {
@@ -155,7 +170,7 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		return tlsInfo
 	})
 
-	server, err := rest.New("test", "v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", ioc)
 	s.Require().NoError(err)
 	s.Require().NotNil(server)
 	s.Equal("https", server.Protocol())
@@ -249,7 +264,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		return tlsInfo
 	})
 
-	server, err := rest.New("test", "v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", ioc)
 	s.Require().NoError(err)
 	s.Require().NotNil(server)
 	s.Equal("https", server.Protocol())
