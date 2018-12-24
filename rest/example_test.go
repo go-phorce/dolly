@@ -51,7 +51,7 @@ func ExampleServer() {
 	ioc.Provide(func() *tls.Config {
 		return tlsInfo
 	})
-	server, err := rest.New("test", "v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", ioc)
 	if err != nil {
 		panic("unable to create the server")
 	}

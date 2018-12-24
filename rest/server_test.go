@@ -121,7 +121,7 @@ func Test_NewServer(t *testing.T) {
 	ioc := container.New()
 
 	t.Run("IoC without HTTPConfig should fail", func(t *testing.T) {
-		server, err := rest.New("test", "v1.0.123", ioc)
+		server, err := rest.New("v1.0.123", ioc)
 		assert.Error(t, err)
 		assert.Nil(t, server)
 	})
@@ -135,7 +135,7 @@ func Test_NewServer(t *testing.T) {
 		return audit
 	})
 
-	server, err := rest.New("test", "v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -150,9 +150,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.NodeName)
 	assert.NotNil(t, server.LeaderID)
 	assert.NotNil(t, server.NodeID)
-	assert.NotNil(t, server.ListenPeerURLs)
 	assert.NotNil(t, server.Version)
-	assert.NotNil(t, server.RoleName)
 	assert.NotNil(t, server.HostName)
 	assert.NotNil(t, server.LocalIP)
 	assert.NotNil(t, server.Port)
@@ -167,12 +165,11 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.StopHTTP)
 	assert.NotNil(t, server.Scheduler)
 	assert.NotNil(t, server.HTTPConfig)
-
+	assert.NotNil(t, server.OnEvent)
 	assert.NotEmpty(t, server.NodeName())
 	assert.Empty(t, server.LeaderID())
 	assert.Empty(t, server.NodeID())
 	assert.NotEmpty(t, server.Version())
-	assert.NotEmpty(t, server.RoleName())
 	assert.NotEmpty(t, server.HostName())
 	assert.NotEmpty(t, server.LocalIP())
 	assert.NotEmpty(t, server.Port())
@@ -192,10 +189,12 @@ func Test_NewServer(t *testing.T) {
 	assert.Error(t, err)
 	assert.Equal(t, "cluster not supported", err.Error())
 
-	peersURLs, err := server.ListenPeerURLs(server.NodeID())
+	peersURLs, err := rest.GetNodeListenPeerURLs(server, server.NodeID())
 	assert.Error(t, err)
 	assert.Equal(t, "cluster not supported", err.Error())
 	assert.Empty(t, peersURLs)
+
+	assert.Equal(t, fmt.Sprintf("http://%s:8081", server.HostName()), rest.GetServerBaseURL(server).String())
 
 	//	assert.NotNil(t, server.AddService())
 	err = server.StartHTTP()
@@ -214,6 +213,27 @@ func Test_NewServer(t *testing.T) {
 	require.NotNil(t, e)
 }
 
+func Test_ResolveTCPAddr(t *testing.T) {
+	cfg := &serverConfig{
+		ServiceName: "invalid",
+		BindAddr:    "0-0-0-0",
+	}
+
+	ioc := container.New()
+	ioc.Provide(func() rest.HTTPServerConfig {
+		return cfg
+	})
+
+	server, err := rest.New("wrong", ioc)
+	require.NoError(t, err)
+	require.NotNil(t, server)
+
+	err = server.StartHTTP()
+	require.Error(t, err)
+
+	assert.Equal(t, `api=StartHTTP, reason=ResolveTCPAddr, service=invalid, bind="0-0-0-0": address 0-0-0-0: missing port in address`, err.Error())
+}
+
 func Test_GetServerURL(t *testing.T) {
 	cfg := &serverConfig{
 		BindAddr: "hostname:8081",
@@ -224,7 +244,7 @@ func Test_GetServerURL(t *testing.T) {
 		return cfg
 	})
 
-	server, err := rest.New("test", "v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -341,9 +361,11 @@ func Test_ClusterInfo(t *testing.T) {
 	ioc.Provide(func() rest.ClusterManager {
 		return clstr
 	})
-	server, err := rest.New("test", "v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
+
+	assert.Equal(t, "0000", server.LeaderID())
 
 	l, err := rest.GetNodeListenPeerURLs(server, "0000")
 	require.NoError(t, err)
@@ -452,7 +474,7 @@ func Test_Authz(t *testing.T) {
 		}
 	})
 
-	server, err := rest.New("test", "v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", ioc)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
