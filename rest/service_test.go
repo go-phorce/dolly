@@ -3,7 +3,6 @@ package rest_test
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/rest"
-	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/go-phorce/dolly/xhttp/header"
@@ -92,15 +90,10 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 		BindAddr: ":8088",
 	}
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-
 	startedCount := 0
 	stoppedCount := 0
 
-	server, err := rest.New("v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -159,18 +152,7 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		BindAddr: getAvailableBinding(),
 	}
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-	ioc.Provide(func() rest.Auditor {
-		return auditor.NewInMemory()
-	})
-	ioc.Provide(func() *tls.Config {
-		return tlsInfo
-	})
-
-	server, err := rest.New("v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", "", cfg, tlsInfo, auditor.NewInMemory(), nil, nil, nil)
 	s.Require().NoError(err)
 	s.Require().NotNil(server)
 	s.Equal("https", server.Protocol())
@@ -256,15 +238,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		BindAddr: getAvailableBinding(),
 	}
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-	ioc.Provide(func() *tls.Config {
-		return tlsInfo
-	})
-
-	server, err := rest.New("v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsInfo, nil, nil, nil, nil)
 	s.Require().NoError(err)
 	s.Require().NotNil(server)
 	s.Equal("https", server.Protocol())

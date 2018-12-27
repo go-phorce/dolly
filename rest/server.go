@@ -13,7 +13,6 @@ import (
 
 	metricsutil "github.com/go-phorce/dolly/metrics/util"
 	"github.com/go-phorce/dolly/netutil"
-	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/ready"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
@@ -104,8 +103,7 @@ type Server interface {
 	// IsReady indicates that all subservices are ready to serve
 	IsReady() bool
 
-	// Call Event to record a new Auditable event
-	// Audit event
+	// Audit records an auditable event
 	// source indicates the area that the event was triggered by
 	// eventType indicates the specific event that occured
 	// identity specifies the identity of the user that triggered this event, typically this is <role>/<cn>
@@ -125,16 +123,6 @@ type Server interface {
 
 	Scheduler() tasks.Scheduler
 
-	// Invoke runs the given function after instantiating its dependencies.
-	//
-	// Any arguments that the function has are treated as its dependencies. The
-	// dependencies are instantiated in an unspecified order along with any
-	// dependencies that they might have.
-	//
-	// The function may return an error to indicate failure. The error will be
-	// returned to the caller as-is.
-	Invoke(function interface{}) error
-
 	OnEvent(evt ServerEvent, handler ServerEventFunc)
 }
 
@@ -142,7 +130,6 @@ type Server interface {
 // as a single HTTP server
 type server struct {
 	Server
-	container      container.Container
 	auditor        Auditor
 	authz          Authz
 	clusterInfo    ClusterInfo
@@ -169,80 +156,44 @@ var _ Server = &server{}
 // New creates a new instance of the server
 func New(
 	version string,
-	container container.Container,
+	ipaddr string,
+	httpConfig HTTPServerConfig,
+	tlsConfig *tls.Config,
+	auditor Auditor,
+	authz Authz,
+	clusterInfo ClusterInfo,
+	clusterManager ClusterManager,
 ) (Server, error) {
 	var err error
-	ipaddr, err := netutil.GetLocalIP()
-	if err != nil {
-		ipaddr = "127.0.0.1"
-		logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use=%q, err=[%v]", ipaddr, errors.ErrorStack(err))
-	}
 
-	if container == nil {
-		logger.Panic("container parameter is required")
+	if ipaddr == "" {
+		ipaddr, err = netutil.GetLocalIP()
+		if err != nil {
+			ipaddr = "127.0.0.1"
+			logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use=%q, err=[%v]", ipaddr, errors.ErrorStack(err))
+		}
 	}
 
 	s := &server{
-		services:    map[string]Service{},
-		scheduler:   tasks.NewScheduler(),
-		startedAt:   time.Now().UTC(),
-		version:     version,
-		ipaddr:      ipaddr,
-		container:   container,
-		evtHandlers: make(map[ServerEvent][]ServerEventFunc),
-		clientAuth:  tlsClientAuthToStrMap[tls.NoClientCert],
+		services:       map[string]Service{},
+		scheduler:      tasks.NewScheduler(),
+		startedAt:      time.Now().UTC(),
+		version:        version,
+		ipaddr:         ipaddr,
+		evtHandlers:    make(map[ServerEvent][]ServerEventFunc),
+		clientAuth:     tlsClientAuthToStrMap[tls.NoClientCert],
+		httpConfig:     httpConfig,
+		hostname:       GetHostName(httpConfig.GetBindAddr()),
+		port:           GetPort(httpConfig.GetBindAddr()),
+		authz:          authz,
+		clusterInfo:    clusterInfo,
+		clusterManager: clusterManager,
+		auditor:        auditor,
+		tlsConfig:      tlsConfig,
 	}
 
-	err = container.Invoke(func(httpConfig HTTPServerConfig) {
-		s.httpConfig = httpConfig
-		baddr := httpConfig.GetBindAddr()
-		s.hostname = GetHostName(baddr)
-		s.port = GetPort(baddr)
-	})
-	if err != nil {
-		return nil, errors.Errorf("HTTPServerConfig not provided")
-	}
-
-	err = container.Invoke(func(authz Authz) {
-		s.authz = authz
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='Authz not provided', service=%s",
-			s.httpConfig.GetServiceName())
-	}
-
-	err = container.Invoke(func(clusterInfo ClusterInfo) {
-		s.clusterInfo = clusterInfo
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s",
-			s.httpConfig.GetServiceName())
-	}
-
-	err = container.Invoke(func(clusterManager ClusterManager) {
-		s.clusterManager = clusterManager
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='ClusterInfo not provided', service=%s",
-			s.httpConfig.GetServiceName())
-	}
-	err = container.Invoke(func(auditor Auditor) {
-		s.auditor = auditor
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='Auditor not provided', service=%s",
-			s.httpConfig.GetServiceName())
-	}
-
-	err = container.Invoke(func(tlsConfig *tls.Config) {
-		s.tlsConfig = tlsConfig
-		if tlsConfig != nil {
-			s.clientAuth = tlsClientAuthToStrMap[tlsConfig.ClientAuth]
-		}
-	})
-	if err != nil {
-		logger.Warningf("api=rest.New, reason='tls.Config not provided', service=%s",
-			s.httpConfig.GetServiceName())
+	if tlsConfig != nil {
+		s.clientAuth = tlsClientAuthToStrMap[tlsConfig.ClientAuth]
 	}
 
 	return s, nil
@@ -374,12 +325,6 @@ func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 	return server.clusterInfo.ClusterMembers()
 }
 
-/*
-func (server *server) ListenPeerURLs(nodeID string) ([]*url.URL, error) {
-	return GetNodeListenPeerURLs(server, nodeID)
-}
-*/
-
 // IsReady returns true when the server is ready to serve
 func (server *server) IsReady() bool {
 	if !server.serving {
@@ -391,14 +336,6 @@ func (server *server) IsReady() bool {
 		}
 	}
 	return true
-}
-
-func (server *server) Invoke(function interface{}) error {
-	err := server.container.Invoke(function)
-	if err != nil {
-		return errors.Trace(err)
-	}
-	return nil
 }
 
 // Audit create an audit event

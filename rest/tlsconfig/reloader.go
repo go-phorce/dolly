@@ -29,6 +29,7 @@ type KeypairReloader struct {
 	keyModifiedAt  time.Time
 	inProgress     bool
 	stopChan       chan<- struct{}
+	closed         bool
 }
 
 // NewKeypairReloader return an instance of the TLS cert loader
@@ -191,13 +192,20 @@ func (k *KeypairReloader) LoadedCount() uint32 {
 }
 
 // Close will close the reloader and release its resources
-func (k *KeypairReloader) Close() {
+func (k *KeypairReloader) Close() error {
 	if k == nil {
-		return
+		return nil
 	}
 
 	k.lock.RLock()
 	defer k.lock.RUnlock()
 
+	if k.closed {
+		return errors.New("already closed")
+	}
+
+	k.closed = true
 	k.stopChan <- struct{}{}
+
+	return nil
 }
