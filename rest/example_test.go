@@ -1,7 +1,6 @@
 package rest_test
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"os"
@@ -11,7 +10,6 @@ import (
 
 	metricsutil "github.com/go-phorce/dolly/metrics/util"
 	"github.com/go-phorce/dolly/rest"
-	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/testify/auditor"
@@ -41,17 +39,7 @@ func ExampleServer() {
 		BindAddr: ":8181",
 	}
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-	ioc.Provide(func() rest.Auditor {
-		return auditor.NewInMemory()
-	})
-	ioc.Provide(func() *tls.Config {
-		return tlsInfo
-	})
-	server, err := rest.New("v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", "", cfg, tlsInfo, auditor.NewInMemory(), nil, nil, nil)
 	if err != nil {
 		panic("unable to create the server")
 	}

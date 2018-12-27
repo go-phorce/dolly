@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
+	"time"
 
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
@@ -81,4 +82,20 @@ func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, er
 	}
 
 	return cfg, nil
+}
+
+// NewClientTLSWithReloader is a wrapper around NewClientTLSFromFiles with NewKeypairReloader
+func NewClientTLSWithReloader(certFile, keyFile, rootsFile string, checkInterval time.Duration) (*tls.Config, *KeypairReloader, error) {
+	tlsCfg, err := NewClientTLSFromFiles(certFile, keyFile, rootsFile)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+
+	tlsloader, err := NewKeypairReloader(certFile, keyFile, checkInterval)
+	if err != nil {
+		return nil, nil, errors.Trace(err)
+	}
+	tlsCfg.GetCertificate = tlsloader.GetKeypairFunc()
+
+	return tlsCfg, tlsloader, nil
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/rest"
-	"github.com/go-phorce/dolly/rest/container"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/go-phorce/dolly/xhttp/authz"
@@ -118,31 +117,13 @@ func Test_NewServer(t *testing.T) {
 		BindAddr: ":8081",
 	}
 
-	ioc := container.New()
-
-	t.Run("IoC without HTTPConfig should fail", func(t *testing.T) {
-		server, err := rest.New("v1.0.123", ioc)
-		assert.Error(t, err)
-		assert.Nil(t, server)
-	})
-
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-
 	audit := auditor.NewInMemory()
-	ioc.Provide(func() rest.Auditor {
-		return audit
-	})
 
-	server, err := rest.New("v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", "", cfg, nil, audit, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
 	require.NotNil(t, server.(rest.Server), "ensure interface")
-	err = server.Invoke(func(c rest.HTTPServerConfig) {
-		require.NotNil(t, c)
-	})
 	require.NoError(t, err)
 
 	assert.NotNil(t, server.AddNode)
@@ -219,12 +200,7 @@ func Test_ResolveTCPAddr(t *testing.T) {
 		BindAddr:    "0-0-0-0",
 	}
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-
-	server, err := rest.New("wrong", ioc)
+	server, err := rest.New("wrong", "", cfg, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -239,12 +215,7 @@ func Test_GetServerURL(t *testing.T) {
 		BindAddr: "hostname:8081",
 	}
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-
-	server, err := rest.New("v1.0.123", ioc)
+	server, err := rest.New("wrong", "", cfg, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -341,11 +312,6 @@ func Test_ClusterInfo(t *testing.T) {
 		BindAddr: "hostname:8081",
 	}
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-
 	clstr := &cluster{
 		this:   0,
 		leader: 0,
@@ -355,13 +321,8 @@ func Test_ClusterInfo(t *testing.T) {
 			{ID: "2222", Name: "node2", ListenPeerURLs: []string{"https://host2:8082"}},
 		},
 	}
-	ioc.Provide(func() rest.ClusterInfo {
-		return clstr
-	})
-	ioc.Provide(func() rest.ClusterManager {
-		return clstr
-	})
-	server, err := rest.New("v1.0.123", ioc)
+
+	server, err := rest.New("v1.0.123", "", cfg, nil, nil, nil, clstr, clstr)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -453,28 +414,15 @@ func Test_Authz(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	ioc := container.New()
-	ioc.Provide(func() rest.HTTPServerConfig {
-		return cfg
-	})
-	ioc.Provide(func() *tls.Config {
-		return tlsCfg
-	})
-	ioc.Provide(func() rest.Authz {
-		return authz
-	})
+	clusterInfo := &cluster{
+		this:   0,
+		leader: 0,
+		members: []*rest.ClusterMember{
+			{ID: "0", Name: "localhost", ListenPeerURLs: []string{"https://localhost:8081"}},
+		},
+	}
 
-	ioc.Provide(func() rest.ClusterInfo {
-		return &cluster{
-			this:   0,
-			leader: 0,
-			members: []*rest.ClusterMember{
-				{ID: "0", Name: "localhost", ListenPeerURLs: []string{"https://localhost:8081"}},
-			},
-		}
-	})
-
-	server, err := rest.New("v1.0.123", ioc)
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsCfg, nil, authz, clusterInfo, clusterInfo)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
