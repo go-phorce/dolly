@@ -2,9 +2,6 @@ package authz
 
 import (
 	"bytes"
-	"crypto/tls"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -281,7 +278,7 @@ func TestConfig_InvalidPath(t *testing.T) {
 }
 
 func TestConfig_Clone(t *testing.T) {
-	c, err := New(&Config{ValidOrganizations: []string{"org1"}, ValidIssuerCommonNames: []string{"CN1"}})
+	c, err := New(&Config{})
 	require.NoError(t, err)
 
 	c.SetRoleMapper(roleMapper("bob"))
@@ -292,8 +289,6 @@ func TestConfig_Clone(t *testing.T) {
 	assert.Equal(t, "bob", clone.roleMapper(nil), "Config.Clone() has a roleMapper set, but it doesn't appear to be ours!")
 	assert.False(t, clone.isAllowed("/foo", "alice"), "Config.Clone() returns a clone that was mutated by mutating the original instance (should be a deep copy)")
 	assert.True(t, clone.isAllowed("/foo", "bob"), "Config.Clone() return a clone that's missing an Allow() from the source")
-	assert.Equal(t, len(c.cfg.ValidOrganizations), len(clone.cfg.ValidOrganizations))
-	assert.Equal(t, len(c.cfg.ValidIssuerCommonNames), len(clone.cfg.ValidIssuerCommonNames))
 }
 
 func TestConfig_checkAccess_noTLS(t *testing.T) {
@@ -307,83 +302,6 @@ func TestConfig_checkAccess_noTLS(t *testing.T) {
 
 	r, _ = http.NewRequest(http.MethodGet, "/", nil)
 	assert.Error(t, c.checkAccess(r), "bob shouldn't be allowed access to / but was")
-}
-
-func TestConfig_checkAccess_WithLS(t *testing.T) {
-	t.Run("org_and_issuer", func(t *testing.T) {
-		c, err := New(&Config{
-			ValidOrganizations:     []string{"org"},
-			ValidIssuerCommonNames: []string{"issuer"},
-		})
-		require.NoError(t, err)
-
-		c.Allow("/foo", "bob")
-		c.SetRoleMapper(roleMapper("bob"))
-
-		r, _ := http.NewRequest(http.MethodGet, "/", nil)
-		err = c.checkAccess(r)
-		require.Error(t, err)
-		assert.Equal(t, `the "bob" role is not allowed`, err.Error())
-
-		r, _ = http.NewRequest(http.MethodGet, "/", nil)
-		r.TLS = &tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{},
-		}
-		err = c.checkAccess(r)
-		require.Error(t, err)
-		assert.Equal(t, `the "bob" role is not allowed`, err.Error())
-
-		r, _ = http.NewRequest(http.MethodGet, "/", nil)
-		r.TLS = &tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{
-				{
-					Subject: pkix.Name{
-						Organization: []string{"norg"},
-					},
-				},
-			},
-		}
-		err = c.checkAccess(r)
-		require.Error(t, err)
-		assert.Equal(t, "the \"norg\" organization is not allowed", err.Error())
-
-		r, _ = http.NewRequest(http.MethodGet, "/", nil)
-		r.TLS = &tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{
-				{
-					Subject: pkix.Name{
-						Organization: []string{"org"},
-					},
-				},
-			},
-		}
-		err = c.checkAccess(r)
-		require.Error(t, err)
-		assert.Equal(t, "the \"\" root CA is not allowed", err.Error())
-
-		r, _ = http.NewRequest(http.MethodGet, "/", nil)
-		r.TLS = &tls.ConnectionState{
-			PeerCertificates: []*x509.Certificate{
-				{
-					Subject: pkix.Name{
-						Organization: []string{"org"},
-					},
-				},
-			},
-			VerifiedChains: [][]*x509.Certificate{
-				{
-					{
-						Subject: pkix.Name{
-							CommonName: "issuer",
-						},
-					},
-				},
-			},
-		}
-		err = c.checkAccess(r)
-		require.Error(t, err)
-		assert.Equal(t, "the \"bob\" role is not allowed", err.Error())
-	})
 }
 
 func TestConfig_HandlerNotValid(t *testing.T) {

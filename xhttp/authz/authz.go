@@ -36,7 +36,6 @@ import (
 	"strings"
 
 	"github.com/go-phorce/dolly/algorithms/math"
-	"github.com/go-phorce/dolly/algorithms/slices"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
@@ -63,12 +62,6 @@ type Config struct {
 
 	// AllowAnyRole will allow any authenticated request that include a non empty role
 	AllowAnyRole []string
-
-	// ValidOrganizations is a list of `Organization` fields allowed in client certificates
-	ValidOrganizations []string
-
-	// ValidIssuerCommonNames is a list of Trusted Root Common Names
-	ValidIssuerCommonNames []string
 
 	// LogAllowed specifies to log allowed access
 	LogAllowed bool
@@ -343,43 +336,10 @@ func (c *Provider) isAllowed(path, role string) bool {
 
 // checkAccess ensures that access to the supplied http.request is allowed
 func (c *Provider) checkAccess(r *http.Request) error {
-	// The TLS layer already should handle tls.ClientAuthType.
-	// If the service came to this point, the TLS connection settings should be already validated.
-	if r.TLS != nil && len(r.TLS.PeerCertificates) > 0 {
-		peers := r.TLS.PeerCertificates
-
-		var org, issuer string
-		if len(c.cfg.ValidOrganizations) > 0 {
-			found := false
-			for _, peer := range peers {
-				for _, org = range peer.Subject.Organization {
-					if found = slices.ContainsString(c.cfg.ValidOrganizations, org); found {
-						break
-					}
-				}
-				if found {
-					break
-				}
-			}
-			if !found {
-				return errors.Errorf("the %q organization is not allowed", peers[0].Subject.Organization[0])
-			}
-		}
-		if len(c.cfg.ValidIssuerCommonNames) > 0 {
-			found := false
-			for _, chain := range r.TLS.VerifiedChains {
-				issuer = chain[len(chain)-1].Subject.CommonName
-				if found = slices.ContainsString(c.cfg.ValidIssuerCommonNames, issuer); found {
-					break
-				}
-			}
-			if !found {
-				return errors.Errorf("the %q root CA is not allowed", issuer)
-			}
-		}
-	}
-
 	role := c.roleMapper(r)
+	if role == "" {
+		role = "guest"
+	}
 	if !c.isAllowed(r.URL.Path, role) {
 		return errors.Errorf("the %q role is not allowed", role)
 	}
