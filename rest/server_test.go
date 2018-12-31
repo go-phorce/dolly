@@ -404,13 +404,11 @@ func Test_Authz(t *testing.T) {
 		Services: []string{"authztest"},
 	}
 	authz, err := authz.New(&authz.Config{
-		Allow:                  []string{"/v1/allow:admin"},
-		AllowAny:               []string{"/v1/allowany"},
-		AllowAnyRole:           []string{"/v1/allowanyrole"},
-		ValidOrganizations:     []string{"go-phorce"},
-		ValidIssuerCommonNames: []string{"[TEST] Root CA"},
-		LogAllowed:             true,
-		LogDenied:              true,
+		Allow:        []string{"/v1/allow:admin"},
+		AllowAny:     []string{"/v1/allowany"},
+		AllowAnyRole: []string{"/v1/allowanyrole"},
+		LogAllowed:   true,
+		LogDenied:    true,
 	})
 	require.NoError(t, err)
 
@@ -498,15 +496,15 @@ func Test_Authz(t *testing.T) {
 		assertSample(fmt.Sprintf("authztest.http.request.perf;method=GET;role=admin;status=200;uri=/v1/allow"))
 	})
 
-	t.Run("untrusted_root_admin_to_allow_401", func(t *testing.T) {
+	t.Run("any_root_admin_to_allow_200", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
 		r.TLS = tlsConnectionForAdminUntrusted
 		server.ServeHTTP(w, r)
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
-		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Equal(t, `{"code":"unauthorized","message":"the \"[TEST] Untrusted Root CA\" root CA is not allowed"}`, string(w.Body.Bytes()))
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, `{"Method":"GET","Path":"/v1/allow"}`, string(w.Body.Bytes()))
 
 		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
 	})
@@ -532,7 +530,7 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Equal(t, `{"code":"unauthorized","message":"the \"someorg\" organization is not allowed"}`, string(w.Body.Bytes()))
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"client\" role is not allowed"}`, string(w.Body.Bytes()))
 
 		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
 	})
