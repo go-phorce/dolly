@@ -121,7 +121,7 @@ func Test_RequestorIdentity(t *testing.T) {
 	t.Run("cn_extractor", func(t *testing.T) {
 		SetGlobalIdentityMapper(identityMapperFromCN)
 		// restore
-		defer SetGlobalIdentityMapper(defaultIdentityMapper)
+		defer SetGlobalIdentityMapper(GuestIdentityMapper)
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
@@ -151,7 +151,7 @@ func Test_RequestorIdentity(t *testing.T) {
 	t.Run("cn_extractor_must", func(t *testing.T) {
 		SetGlobalIdentityMapper(identityMapperFromCNMust)
 		// restore
-		defer SetGlobalIdentityMapper(defaultIdentityMapper)
+		defer SetGlobalIdentityMapper(GuestIdentityMapper)
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
@@ -164,7 +164,7 @@ func Test_RequestorIdentity(t *testing.T) {
 	t.Run("cn_extractor_must_ForRequest", func(t *testing.T) {
 		SetGlobalIdentityMapper(identityMapperFromCNMust)
 		// restore
-		defer SetGlobalIdentityMapper(defaultIdentityMapper)
+		defer SetGlobalIdentityMapper(GuestIdentityMapper)
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 

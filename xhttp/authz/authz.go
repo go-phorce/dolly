@@ -107,7 +107,11 @@ type pathNode struct {
 }
 
 var defaultRoleMapper = func(r *http.Request) string {
-	return identity.ForRequest(r).Identity().Role()
+	id := identity.ForRequest(r).Identity()
+	if id != nil {
+		return id.Role()
+	}
+	return identity.GuestRoleName
 }
 
 // New returns new Authz provider

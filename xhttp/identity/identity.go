@@ -50,8 +50,8 @@ func (c identity) String() string {
 	return c.role
 }
 
-// default mapper always returns "guest" for the role
-func defaultIdentityMapper(r *http.Request) (Identity, error) {
+// GuestIdentityMapper always returns "guest" for the role
+func GuestIdentityMapper(r *http.Request) (Identity, error) {
 	var name string
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		name = ClientIPFromRequest(r)

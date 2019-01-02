@@ -26,7 +26,7 @@ const (
 
 var (
 	nodeInfo       netutil.NodeInfo
-	identityMapper Mapper = defaultIdentityMapper
+	identityMapper Mapper = GuestIdentityMapper
 )
 
 // RequestContext represents user contextual information about a request being processed by the server,
