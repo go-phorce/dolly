@@ -5,6 +5,9 @@ import (
 	"net/http"
 )
 
+// GuestRoleName is default role name for guest
+const GuestRoleName = "guest"
+
 // Identity contains information about the identity of an API caller
 type Identity interface {
 	String() string
@@ -55,7 +58,7 @@ func defaultIdentityMapper(r *http.Request) (Identity, error) {
 	} else {
 		name = r.TLS.PeerCertificates[0].Subject.CommonName
 	}
-	return NewIdentity("guest", name), nil
+	return NewIdentity(GuestRoleName, name), nil
 }
 
 // WithTestIdentity is used in unit tests to set HTTP request identity

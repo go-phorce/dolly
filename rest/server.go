@@ -516,11 +516,6 @@ func (server *server) NewMux() http.Handler {
 	logger.Infof("api=NewMux, service=%s, ClientAuth=%s", server.Name(), server.clientAuth)
 
 	if server.authz != nil {
-		// authz wrapper
-		server.authz.SetRoleMapper(func(r *http.Request) string {
-			return identity.ForRequest(r).Identity().Role()
-		})
-
 		httpHandler, err = server.authz.NewHandler(httpHandler)
 		if err != nil {
 			panic(errors.ErrorStack(err))

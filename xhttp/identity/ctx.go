@@ -77,7 +77,7 @@ func ForRequest(r *http.Request) *RequestContext {
 		identity, err := identityMapper(r)
 		if err != nil {
 			logger.Errorf("api=ForRequest, reason=identityMapper, ip=%q, err=[%v]", clientIP, err.Error())
-			identity = NewIdentity("guest", clientIP)
+			identity = NewIdentity(GuestRoleName, clientIP)
 		}
 
 		return &RequestContext{

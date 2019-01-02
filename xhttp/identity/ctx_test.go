@@ -114,7 +114,7 @@ func Test_RequestorIdentity(t *testing.T) {
 
 		rn := &roleName{}
 		require.NoError(t, marshal.Decode(resp.Body, rn))
-		assert.Equal(t, "guest", rn.Role)
+		assert.Equal(t, GuestRoleName, rn.Role)
 		assert.Equal(t, "dolly", rn.Name)
 	})
 
@@ -169,7 +169,7 @@ func Test_RequestorIdentity(t *testing.T) {
 		require.NoError(t, err)
 
 		ctx := ForRequest(r)
-		assert.Equal(t, "guest", ctx.Identity().Role())
+		assert.Equal(t, GuestRoleName, ctx.Identity().Role())
 	})
 }
 
@@ -178,7 +178,7 @@ func identityMapperFromCN(r *http.Request) (Identity, error) {
 	var name string
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		name = ClientIPFromRequest(r)
-		role = "guest"
+		role = GuestRoleName
 	} else {
 		name = r.TLS.PeerCertificates[0].Subject.CommonName
 		role = r.TLS.PeerCertificates[0].Subject.CommonName
