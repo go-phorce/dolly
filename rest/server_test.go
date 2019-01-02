@@ -554,7 +554,7 @@ func identityMapperFromCN(r *http.Request) (identity.Identity, error) {
 	var name string
 	if r.TLS == nil || len(r.TLS.PeerCertificates) == 0 {
 		name = identity.ClientIPFromRequest(r)
-		role = "guest"
+		role = identity.GuestRoleName
 	} else {
 		name = r.TLS.PeerCertificates[0].Subject.CommonName
 		role = r.TLS.PeerCertificates[0].Subject.CommonName

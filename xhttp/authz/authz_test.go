@@ -309,17 +309,18 @@ func TestConfig_HandlerNotValid(t *testing.T) {
 	c, err := New(&Config{})
 	require.NoError(t, err)
 
-	_, err = c.NewHandler(delegate)
-	assert.Equal(t, ErrNoRoleMapperSpecified, errors.Cause(err), "Got wrong error when trying to create a Handler with no RoleMapper configured")
-
 	c.SetRoleMapper(roleMapper("bob"))
 	_, err = c.NewHandler(delegate)
 	assert.Equal(t, ErrNoPathsConfigured, errors.Cause(err), "Got wrong error when trying to create a Handler with no allowed paths")
 
 	c.AllowAny("/")
 	h, err := c.NewHandler(delegate)
-	assert.NoError(t, err, "Got unexpected error creating a Handler for our authz config")
-	assert.NotNil(t, h, "Got a nil Handler when calling NewHandler with a valid authz config")
+	assert.NoError(t, err)
+	assert.NotNil(t, h)
+
+	c.SetRoleMapper(nil)
+	_, err = c.NewHandler(delegate)
+	assert.Equal(t, ErrNoRoleMapperSpecified, errors.Cause(err), "Got wrong error when trying to create a Handler with no RoleMapper configured")
 }
 
 func TestConfig_Handler(t *testing.T) {

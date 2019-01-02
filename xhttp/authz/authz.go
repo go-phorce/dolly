@@ -37,6 +37,7 @@ import (
 
 	"github.com/go-phorce/dolly/algorithms/math"
 	"github.com/go-phorce/dolly/xhttp/httperror"
+	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/jinzhu/copier"
@@ -105,9 +106,16 @@ type pathNode struct {
 	allow        allowTypes
 }
 
+var defaultRoleMapper = func(r *http.Request) string {
+	return identity.ForRequest(r).Identity().Role()
+}
+
 // New returns new Authz provider
 func New(cfg *Config) (*Provider, error) {
-	az := &Provider{cfg: cfg}
+	az := &Provider{
+		cfg:        cfg,
+		roleMapper: defaultRoleMapper,
+	}
 
 	for _, s := range cfg.AllowAny {
 		az.AllowAny(s)
@@ -220,7 +228,7 @@ func (n *pathNode) allowAny() bool {
 }
 
 func (n *pathNode) allowRole(r string) bool {
-	if r == "" || r == "guest" || r == "unknown" {
+	if r == "" || r == identity.GuestRoleName {
 		return false
 	}
 	return ((n.allow & allowAnyRole) != 0) || n.allowedRoles[r]
@@ -338,7 +346,7 @@ func (c *Provider) isAllowed(path, role string) bool {
 func (c *Provider) checkAccess(r *http.Request) error {
 	role := c.roleMapper(r)
 	if role == "" {
-		role = "guest"
+		role = identity.GuestRoleName
 	}
 	if !c.isAllowed(r.URL.Path, role) {
 		return errors.Errorf("the %q role is not allowed", role)
