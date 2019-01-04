@@ -13,14 +13,24 @@ type Identity interface {
 	String() string
 	Role() string
 	Name() string
+	UserInfo() interface{}
 }
 
 // Mapper returns Identity from supplied HTTP request
 type Mapper func(*http.Request) (Identity, error)
 
-// NewIdentity returns a new Identity instance with the indicated role & CommonName
+// NewIdentity returns a new Identity instance with the indicated role
 func NewIdentity(role string, name string) Identity {
 	return identity{role: role, name: name}
+}
+
+// NewIdentityWithUserInfo returns a new Identity instance with the indicated role and user info
+func NewIdentityWithUserInfo(role string, name string, userInfo interface{}) Identity {
+	return identity{
+		role:     role,
+		name:     name,
+		userInfo: userInfo,
+	}
 }
 
 type identity struct {
@@ -29,6 +39,8 @@ type identity struct {
 	name string
 	// role of identity
 	role string
+	// extra user info, specific to the application
+	userInfo interface{}
 }
 
 // Name returns the clients name
@@ -39,6 +51,11 @@ func (c identity) Name() string {
 // Role returns the clients role
 func (c identity) Role() string {
 	return c.role
+}
+
+// UserInfo returns application specific user info
+func (c identity) UserInfo() interface{} {
+	return c.userInfo
 }
 
 // String returns the identity as a single string value
