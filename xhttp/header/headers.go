@@ -11,6 +11,10 @@ const (
 	ApplicationTimestampQuery = "application/timestamp-query"
 	// ApplicationTimestampReply is HTTP header value for RFC3161 Timestamp response
 	ApplicationTimestampReply = "application/timestamp-reply"
+	// Authorization is HTTP header for "Authorization"
+	Authorization = "Authorization"
+	// Bearer is token type for "Authorization" header
+	Bearer = "Bearer"
 	// CacheControl is HTTP header for "Cache-Control"
 	CacheControl = "Cache-Control"
 	// ContentDisposition is HTTP header for "Content-Disposition"
@@ -31,8 +35,10 @@ const (
 	UserAgent = "User-Agent"
 	// XHostname contains the name of the HTTP header to indicate which host requested the signature
 	XHostname = "X-HostName"
-	// XCorrelationID is HTTP header for "X-CorrelationID"
-	XCorrelationID = "X-CorrelationID"
+	// XCorrelationID is HTTP header for "X-Correlation-ID"
+	XCorrelationID = "X-Correlation-ID"
+	// XDeviceID is HTTP header for "X-Device-ID"
+	XDeviceID = "X-Device-ID"
 	// XFilename contains the name of the artifact to sign
 	XFilename = "X-Filename"
 	// XForwardedProto contains the protocol
