@@ -170,6 +170,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:b0c25f00bad20d783d259af2af8666969e2fc343fa0dc9efe52936bbd67fb758"
+  name = "github.com/rs/cors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "9a47f48565a795472d43519dd49aac781f3034fb"
+  version = "v1.6.0"
+
+[[projects]]
   digest = "1:ac83cf90d08b63ad5f7e020ef480d319ae890c208f8524622a2f3136e2686b02"
   name = "github.com/stretchr/objx"
   packages = ["."]
@@ -199,13 +207,9 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:dc4c7a12731af053987821f43f32970d78937b1bad49dbfb5911b6b1b88173a0"
+  digest = "1:fff999c81817e6f2f2ee04f1aa8a42e6cc5c306c915329f43a2c940aa60cd854"
   name = "go.uber.org/dig"
-  packages = [
-    ".",
-    "internal/digreflect",
-    "internal/dot",
-  ]
+  packages = ["internal/digreflect"]
   pruneopts = "UT"
   revision = "12c8adaa5e6a24ad02198588082d95582ee16e5b"
   version = "v1.6.0"
@@ -299,18 +303,19 @@
     "github.com/cloudflare/cfssl/helpers",
     "github.com/cloudflare/cfssl/initca",
     "github.com/cloudflare/cfssl/signer",
+    "github.com/cloudflare/cfssl/signer/local",
     "github.com/coreos/pkg/capnslog",
     "github.com/hashicorp/go-immutable-radix",
     "github.com/jinzhu/copier",
     "github.com/juju/errors",
     "github.com/julienschmidt/httprouter",
     "github.com/miekg/pkcs11",
+    "github.com/rs/cors",
     "github.com/stretchr/testify/assert",
     "github.com/stretchr/testify/mock",
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
     "github.com/ugorji/go/codec",
-    "go.uber.org/dig",
     "go.uber.org/dig/internal/digreflect",
     "golang.org/x/crypto/openpgp",
     "golang.org/x/crypto/openpgp/armor",

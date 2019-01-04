@@ -67,6 +67,7 @@ type ClusterInfo interface {
 	// NodeID returns the ID of the node in the cluster
 	NodeID() string
 
+	// NodeName returns the name of the node in the cluster
 	NodeName() string
 
 	// LeaderID returns the ID of the leader
@@ -126,9 +127,9 @@ type Server interface {
 	OnEvent(evt ServerEvent, handler ServerEventFunc)
 }
 
-// server is responsible for exposing the collection of the services
+// HTTPServer is responsible for exposing the collection of the services
 // as a single HTTP server
-type server struct {
+type HTTPServer struct {
 	Server
 	auditor        Auditor
 	authz          Authz
@@ -137,6 +138,7 @@ type server struct {
 	httpConfig     HTTPServerConfig
 	tlsConfig      *tls.Config
 	httpServer     *http.Server
+	cors           *CORSOptions
 	hostname       string
 	port           string
 	ipaddr         string
@@ -150,9 +152,6 @@ type server struct {
 	lock           sync.RWMutex
 }
 
-// ensure implements interface
-var _ Server = &server{}
-
 // New creates a new instance of the server
 func New(
 	version string,
@@ -163,7 +162,7 @@ func New(
 	authz Authz,
 	clusterInfo ClusterInfo,
 	clusterManager ClusterManager,
-) (Server, error) {
+) (*HTTPServer, error) {
 	var err error
 
 	if ipaddr == "" {
@@ -174,7 +173,7 @@ func New(
 		}
 	}
 
-	s := &server{
+	s := &HTTPServer{
 		services:       map[string]Service{},
 		scheduler:      tasks.NewScheduler(),
 		startedAt:      time.Now().UTC(),
@@ -199,6 +198,12 @@ func New(
 	return s, nil
 }
 
+// WithCORS enables CORS options
+func (server *HTTPServer) WithCORS(cors *CORSOptions) *HTTPServer {
+	server.cors = cors
+	return server
+}
+
 var tlsClientAuthToStrMap = map[tls.ClientAuthType]string{
 	tls.NoClientCert:               "NoClientCert",
 	tls.RequestClientCert:          "RequestClientCert",
@@ -208,13 +213,14 @@ var tlsClientAuthToStrMap = map[tls.ClientAuthType]string{
 }
 
 // AddService provides a service registration for the server
-func (server *server) AddService(s Service) {
+func (server *HTTPServer) AddService(s Service) {
 	server.lock.Lock()
 	defer server.lock.Unlock()
 	server.services[s.Name()] = s
 }
 
-func (server *server) OnEvent(evt ServerEvent, handler ServerEventFunc) {
+// OnEvent accepts a callback to handle server events
+func (server *HTTPServer) OnEvent(evt ServerEvent, handler ServerEventFunc) {
 	server.lock.Lock()
 	defer server.lock.Unlock()
 
@@ -222,24 +228,24 @@ func (server *server) OnEvent(evt ServerEvent, handler ServerEventFunc) {
 }
 
 // Scheduler returns task scheduler for the server
-func (server *server) Scheduler() tasks.Scheduler {
+func (server *HTTPServer) Scheduler() tasks.Scheduler {
 	return server.scheduler
 }
 
 // Service returns a registered server
-func (server *server) Service(name string) Service {
+func (server *HTTPServer) Service(name string) Service {
 	server.lock.Lock()
 	defer server.lock.Unlock()
 	return server.services[name]
 }
 
 // HostName returns the host name of the server
-func (server *server) HostName() string {
+func (server *HTTPServer) HostName() string {
 	return server.hostname
 }
 
 // NodeName returns the node name in the cluster
-func (server *server) NodeName() string {
+func (server *HTTPServer) NodeName() string {
 	if server.clusterInfo != nil {
 		return server.clusterInfo.NodeName()
 	}
@@ -247,12 +253,12 @@ func (server *server) NodeName() string {
 }
 
 // Port returns the port name of the server
-func (server *server) Port() string {
+func (server *HTTPServer) Port() string {
 	return server.port
 }
 
 // Protocol returns the protocol
-func (server *server) Protocol() string {
+func (server *HTTPServer) Protocol() string {
 	if server.tlsConfig != nil {
 		return "https"
 	}
@@ -260,36 +266,37 @@ func (server *server) Protocol() string {
 }
 
 // LocalIP returns the IP address of the server
-func (server *server) LocalIP() string {
+func (server *HTTPServer) LocalIP() string {
 	return server.ipaddr
 }
 
 // StartedAt returns the time when the server started
-func (server *server) StartedAt() time.Time {
+func (server *HTTPServer) StartedAt() time.Time {
 	return server.startedAt
 }
 
 // Uptime returns the duration the server was up
-func (server *server) Uptime() time.Duration {
+func (server *HTTPServer) Uptime() time.Duration {
 	return time.Now().UTC().Sub(server.startedAt)
 }
 
 // Version returns the version of the server
-func (server *server) Version() string {
+func (server *HTTPServer) Version() string {
 	return server.version
 }
 
 // Name returns the server name
-func (server *server) Name() string {
+func (server *HTTPServer) Name() string {
 	return server.httpConfig.GetServiceName()
 }
 
-func (server *server) HTTPConfig() HTTPServerConfig {
+// HTTPConfig returns HTTPServerConfig
+func (server *HTTPServer) HTTPConfig() HTTPServerConfig {
 	return server.httpConfig
 }
 
 // AddNode returns created node and a list of peers after adding the node to the cluster.
-func (server *server) AddNode(ctx context.Context, peerAddrs []string) (*ClusterMember, []*ClusterMember, error) {
+func (server *HTTPServer) AddNode(ctx context.Context, peerAddrs []string) (*ClusterMember, []*ClusterMember, error) {
 	if server.clusterManager == nil {
 		return nil, nil, errors.NotSupportedf("cluster")
 	}
@@ -297,28 +304,31 @@ func (server *server) AddNode(ctx context.Context, peerAddrs []string) (*Cluster
 }
 
 // RemoveNode returns a list of peers after removing the node from the cluster.
-func (server *server) RemoveNode(ctx context.Context, nodeID string) (peers []*ClusterMember, err error) {
+func (server *HTTPServer) RemoveNode(ctx context.Context, nodeID string) (peers []*ClusterMember, err error) {
 	if server.clusterManager == nil {
 		return nil, errors.NotSupportedf("cluster")
 	}
 	return server.clusterManager.RemoveNode(ctx, nodeID)
 }
 
-func (server *server) NodeID() string {
+// NodeID returns the ID of the node in the cluster
+func (server *HTTPServer) NodeID() string {
 	if server.clusterInfo == nil {
 		return ""
 	}
 	return server.clusterInfo.NodeID()
 }
 
-func (server *server) LeaderID() string {
+// LeaderID returns the ID of the leader
+func (server *HTTPServer) LeaderID() string {
 	if server.clusterInfo == nil {
 		return ""
 	}
 	return server.clusterInfo.LeaderID()
 }
 
-func (server *server) ClusterMembers() ([]*ClusterMember, error) {
+// ClusterMembers returns the list of members in the cluster
+func (server *HTTPServer) ClusterMembers() ([]*ClusterMember, error) {
 	if server.clusterInfo == nil {
 		return nil, errors.NotSupportedf("cluster")
 	}
@@ -326,7 +336,7 @@ func (server *server) ClusterMembers() ([]*ClusterMember, error) {
 }
 
 // IsReady returns true when the server is ready to serve
-func (server *server) IsReady() bool {
+func (server *HTTPServer) IsReady() bool {
 	if !server.serving {
 		return false
 	}
@@ -339,7 +349,7 @@ func (server *server) IsReady() bool {
 }
 
 // Audit create an audit event
-func (server *server) Audit(source string,
+func (server *HTTPServer) Audit(source string,
 	eventType string,
 	identity string,
 	contextID string,
@@ -355,7 +365,7 @@ func (server *server) Audit(source string,
 }
 
 // StartHTTP will verify all the TLS related files are present and start the actual HTTPS listener for the server
-func (server *server) StartHTTP() error {
+func (server *HTTPServer) StartHTTP() error {
 	bindAddr := server.httpConfig.GetBindAddr()
 	var err error
 
@@ -447,11 +457,11 @@ func (server *server) StartHTTP() error {
 	return nil
 }
 
-func hearbeatMetricsTask(server *server) {
+func hearbeatMetricsTask(server *HTTPServer) {
 	metricsutil.PublishHeartbeat(server.httpConfig.GetServiceName())
 }
 
-func uptimeMetricsTask(server *server) {
+func uptimeMetricsTask(server *HTTPServer) {
 	metricsutil.PublishUptime(server.httpConfig.GetServiceName(), server.Uptime())
 }
 
@@ -467,7 +477,7 @@ func uptimeMetricsTask(server *server) {
 //
 // it is expected that you don't try and use the server instance again
 // after this. [i.e. if you want to start it again, create another server instance]
-func (server *server) StopHTTP() {
+func (server *HTTPServer) StopHTTP() {
 	// stop scheduled tasks
 	server.scheduler.Stop()
 
@@ -501,8 +511,13 @@ func (server *server) StopHTTP() {
 
 // NewMux creates a new http handler for the http server, typically you only
 // need to call this directly for tests.
-func (server *server) NewMux() http.Handler {
-	router := NewRouter(notFoundHandler)
+func (server *HTTPServer) NewMux() http.Handler {
+	var router Router
+	if server.cors != nil {
+		router = NewRouterWithCORS(notFoundHandler, server.cors)
+	} else {
+		router = NewRouter(notFoundHandler)
+	}
 
 	for _, f := range server.services {
 		f.Register(router)
@@ -541,7 +556,7 @@ func (server *server) NewMux() http.Handler {
 // is not valid to use the ResponseWriter or read from the
 // Request.Body after or concurrently with the completion of the
 // ServeHTTP call.
-func (server *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (server *HTTPServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	server.httpServer.Handler.ServeHTTP(w, r)
 }
 
