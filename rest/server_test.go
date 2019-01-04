@@ -123,9 +123,11 @@ func Test_NewServer(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
-	require.NotNil(t, server.(rest.Server), "ensure interface")
-	require.NoError(t, err)
+	if _, ok := interface{}(server).(rest.Server); !ok {
+		require.Fail(t, "ensure interface")
+	}
 
+	require.NoError(t, err)
 	assert.NotNil(t, server.AddNode)
 	assert.NotNil(t, server.RemoveNode)
 	assert.NotNil(t, server.NodeName)

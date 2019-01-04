@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
 	"strconv"
 	"testing"
 	"time"
@@ -119,6 +121,56 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 	require.True(t, server.IsReady())
 
 	testHTTPService(t, server)
+	testCORS(t, server, false)
+
+	server.StopHTTP()
+
+	assert.Equal(t, 1, startedCount)
+	assert.Equal(t, 1, stoppedCount)
+}
+
+func Test_ServerWithCORS(t *testing.T) {
+	cfg := &serverConfig{
+		BindAddr: ":8088",
+	}
+
+	startedCount := 0
+	stoppedCount := 0
+
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, nil, nil, nil, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, server)
+
+	server.WithCORS(&rest.CORSOptions{
+		AllowedOrigins: []string{"*"},
+		AllowedMethods: []string{"GET", "OPTIONS", "POST"},
+		AllowedHeaders: []string{header.ContentType, header.XDeviceID},
+		ExposedHeaders: []string{"Origin", "Access-Control-Request-Method", "Access-Control-Request-Headers"},
+	})
+
+	server.OnEvent(rest.ServerStartedEvent, func(evt rest.ServerEvent) {
+		assert.Equal(t, rest.ServerStartedEvent, evt)
+		startedCount++
+	})
+	server.OnEvent(rest.ServerStoppedEvent, func(evt rest.ServerEvent) {
+		assert.Equal(t, rest.ServerStoppedEvent, evt)
+		stoppedCount++
+	})
+
+	svc := NewService(server)
+	server.AddService(svc)
+
+	//	assert.NotNil(t, server.AddService())
+	err = server.StartHTTP()
+	require.NoError(t, err)
+
+	for i := 0; i < 10 && !server.IsReady(); i++ {
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.True(t, server.IsReady())
+
+	testCORS(t, server, true)
+	testHTTPService(t, server)
 
 	server.StopHTTP()
 
@@ -134,6 +186,50 @@ func testHTTPService(t *testing.T, server rest.Server) {
 	require.NoError(t, err)
 	txt := string(b)
 	assert.Contains(t, txt, "Method: GET")
+}
+
+func testCORS(t *testing.T, server rest.Server, expected bool) {
+	client := retriable.New()
+	require.NotNil(t, client)
+
+	w := httptest.NewRecorder()
+	r, err := http.NewRequest(http.MethodOptions, "/v1/test", nil)
+	require.NoError(t, err)
+
+	r.Header.Set("Access-Control-Request-Method", "GET")
+	r.Header.Set("Access-Control-Request-Headers", "content-type,x-device-id")
+	r.Header.Set("Origin", "http://localhost:4200")
+
+	server.ServeHTTP(w, r)
+
+	h := w.Header()
+	if h != nil {
+		for k, v := range h {
+			t.Logf("Header: %s = %q", k, v)
+		}
+	}
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	debugResponse(t, w.Result(), true)
+
+	if expected {
+		assert.NotEmpty(t, h.Get("Access-Control-Allow-Origin"))
+		assert.NotEmpty(t, h.Get("Access-Control-Allow-Methods"))
+		assert.NotEmpty(t, h.Get("Access-Control-Allow-Headers"))
+	} else {
+		assert.NotEmpty(t, h.Get("Allow"))
+		assert.Empty(t, h.Get("Access-Control-Allow-Origin"))
+		assert.Empty(t, h.Get("Access-Control-Allow-Methods"))
+		assert.Empty(t, h.Get("Access-Control-Allow-Headers"))
+	}
+}
+
+func debugResponse(t *testing.T, w *http.Response, body bool) {
+	b, err := httputil.DumpResponse(w, body)
+	if assert.NoError(t, err) {
+		t.Logf(string(b))
+	}
 }
 
 func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
