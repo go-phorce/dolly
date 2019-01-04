@@ -58,6 +58,19 @@ func Test_WithTestIdentityDirect(t *testing.T) {
 	ctx := ForRequest(r)
 
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
+	assert.NotEmpty(t, ctx.CorrelationID())
+}
+
+func Test_WithDeviceID(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+	r.Header.Set(header.XDeviceID, "12345678")
+
+	r = WithTestIdentity(r, NewIdentity("role1", "name1"))
+	ctx := ForRequest(r)
+
+	assert.Equal(t, "role1/name1", ctx.Identity().String())
+	assert.Equal(t, "12345678", ctx.CorrelationID())
 }
 
 type userinfo struct {

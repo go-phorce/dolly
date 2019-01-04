@@ -145,6 +145,9 @@ func (c *RequestContext) ClientIP() string {
 func extractCorrelationID(req *http.Request) string {
 	corID := req.Header.Get(header.XCorrelationID)
 	if corID == "" {
+		corID = req.Header.Get(header.XDeviceID)
+	}
+	if corID == "" {
 		corID = guid.MustCreate()
 	}
 	return corID
