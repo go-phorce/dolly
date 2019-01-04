@@ -59,6 +59,24 @@ func Test_WithTestIdentityDirect(t *testing.T) {
 
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
 }
+
+type userinfo struct {
+	id    int
+	email string
+}
+
+func Test_NewIdentityWithUserInfo(t *testing.T) {
+	r, err := http.NewRequest(http.MethodGet, "/", nil)
+	require.NoError(t, err)
+
+	u := &userinfo{1, "denis@ekspand.com"}
+	r = WithTestIdentity(r, NewIdentityWithUserInfo("role1", "name1", u))
+	ctx := ForRequest(r)
+
+	assert.Equal(t, "role1/name1", ctx.Identity().String())
+	assert.Equal(t, "denis@ekspand.com", ctx.Identity().UserInfo().(*userinfo).email)
+}
+
 func Test_WithTestIdentityServeHTTP(t *testing.T) {
 	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		caller := ForRequest(r)
