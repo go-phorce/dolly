@@ -1,4 +1,4 @@
-package main
+package pkg_test
 
 import (
 	"bytes"
@@ -6,11 +6,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-phorce/dolly/cmd/dollypki/pkg"
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/stretchr/testify/suite"
 )
 
-const projFolder = "../../"
+const projFolder = "../../../"
 
 type testSuite struct {
 	suite.Suite
@@ -19,7 +20,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) run(additionalFlags ...string) ctl.ReturnCode {
-	rc := realMain(append(s.baseArgs, additionalFlags...), &s.out)
+	rc := pkg.ParseAndRun("dollypki", append(s.baseArgs, additionalFlags...), &s.out)
 	return rc
 }
 
@@ -39,7 +40,7 @@ func (s *testSuite) hasNoText(texts ...string) {
 	}
 }
 
-func Test_RaphtyCtlSuite(t *testing.T) {
+func Test_CtlSuite(t *testing.T) {
 	suite.Run(t, new(testSuite))
 }
 
@@ -71,4 +72,19 @@ func (s *testSuite) Test_HsmKeyInfo() {
 
 func (s *testSuite) Test_HsmKeyDel() {
 	s.Equal(ctl.RCOkay, s.run("hsm", "rmkey", "--id", "12345"))
+}
+
+func (s *testSuite) TestCsr_genkey() {
+	s.Equal(ctl.RCUsage, s.run("csr", "genkey"))
+	s.hasText(`ERROR: required flag`)
+}
+
+func (s *testSuite) TestCsr_Gencert() {
+	s.Equal(ctl.RCUsage, s.run("csr", "gencert"))
+	s.hasText(`ERROR: required flag`)
+}
+
+func (s *testSuite) TestCsr_signcert() {
+	s.Equal(ctl.RCUsage, s.run("csr", "signcert"))
+	s.hasText(`ERROR: required flag`)
 }
