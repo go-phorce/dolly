@@ -119,3 +119,48 @@ func (s *testSuite) Test_HsmKeyDel() {
 	s.Require().NoError(err)
 	s.Empty(s.out.String())
 }
+
+func (s *testSuite) Test_HsmGenKey() {
+	err := s.run(hsm.GenKey, &hsm.GenKeyFlags{})
+	s.Error(err)
+	s.Equal(`unsupported purpose: ""`, err.Error())
+
+	encrypt := "e"
+	label := "TestHsmGenKey"
+	algo := "algo"
+	rsa := "rsa"
+	size1024 := 1024
+	size2048 := 2048
+
+	err = s.run(hsm.GenKey, &hsm.GenKeyFlags{
+		Purpose: &encrypt,
+		Label:   &label,
+	})
+	s.Error(err)
+	s.Equal(`invalid algorithm: `, err.Error())
+
+	err = s.run(hsm.GenKey, &hsm.GenKeyFlags{
+		Algo:    &algo,
+		Purpose: &encrypt,
+		Label:   &label,
+	})
+	s.Error(err)
+	s.Equal(`invalid algorithm: algo`, err.Error())
+
+	err = s.run(hsm.GenKey, &hsm.GenKeyFlags{
+		Size:    &size1024,
+		Algo:    &rsa,
+		Purpose: &encrypt,
+		Label:   &label,
+	})
+	s.Error(err)
+	s.Equal(`validate RSA key: RSA key is too weak: 1024`, err.Error())
+
+	err = s.run(hsm.GenKey, &hsm.GenKeyFlags{
+		Size:    &size2048,
+		Algo:    &rsa,
+		Purpose: &encrypt,
+		Label:   &label,
+	})
+	s.NoError(err)
+}
