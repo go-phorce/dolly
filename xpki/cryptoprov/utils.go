@@ -2,6 +2,8 @@ package cryptoprov
 
 import (
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -33,7 +35,7 @@ func (c *Crypto) LoadGPGPrivateKey(creationTime time.Time, key []byte) (*packet.
 			return nil, errors.Trace(err)
 		}
 
-		s, err := provider.GetCryptoSigner(pkuri.ID())
+		s, err := provider.GetKey(pkuri.ID())
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
@@ -52,11 +54,11 @@ func (c *Crypto) LoadGPGPrivateKey(creationTime time.Time, key []byte) (*packet.
 	return pk, nil
 }
 
-// LoadSigner returns crypto.Signer.
+// LoadPrivateKey returns crypto.PrivateKey.
 // The input key can be in PEM encoded format, or PKCS11 URI.
-func (c *Crypto) LoadSigner(key []byte) (Provider, crypto.Signer, error) {
-	var s crypto.Signer
+func (c *Crypto) LoadPrivateKey(key []byte) (Provider, crypto.PrivateKey, error) {
 	var err error
+	var pvk crypto.PrivateKey
 	var provider Provider
 
 	keyPem := string(key)
@@ -68,21 +70,65 @@ func (c *Crypto) LoadSigner(key []byte) (Provider, crypto.Signer, error) {
 
 		provider, err = c.ByManufacturer(pkuri.Manufacturer())
 		if err != nil {
-			return nil, nil, errors.Annotate(err, "api=CreateCryptoSignerFromPEM, reason=ByManufacturer")
+			return nil, nil, errors.Annotate(err, "api=LoadSigner, reason=ByManufacturer")
 		}
 
-		s, err = provider.GetCryptoSigner(pkuri.ID())
+		pvk, err = provider.GetKey(pkuri.ID())
 		if err != nil {
 			return nil, nil, errors.Trace(err)
 		}
 	} else {
-		s, err = helpers.ParsePrivateKeyPEM(key)
+		pvk, err = ParsePrivateKeyPEM(key)
 		if err != nil {
 			return nil, nil, errors.Trace(err)
 		}
 	}
 
-	return provider, s, nil
+	return provider, pvk, nil
+}
+
+// ParsePrivateKeyPEM parses and returns a PEM-encoded private
+// key. The private key may be either an unencrypted PKCS#8, PKCS#1,
+// or elliptic private key.
+func ParsePrivateKeyPEM(keyPEM []byte) (key crypto.PrivateKey, err error) {
+	return ParsePrivateKeyPEMWithPassword(keyPEM, nil)
+}
+
+// ParsePrivateKeyPEMWithPassword parses and returns a PEM-encoded private
+// key. The private key may be a potentially encrypted PKCS#8, PKCS#1,
+// or elliptic private key.
+func ParsePrivateKeyPEMWithPassword(keyPEM []byte, password []byte) (key crypto.PrivateKey, err error) {
+	keyDER, err := helpers.GetKeyDERFromPEM(keyPEM, password)
+	if err != nil {
+		return nil, err
+	}
+
+	return ParsePrivateKeyDER(keyDER)
+}
+
+// ParsePrivateKeyDER parses a PKCS #1, PKCS #8, ECDSA DER-encoded
+// private key. The key must not be in PEM format.
+func ParsePrivateKeyDER(keyDER []byte) (crypto.PrivateKey, error) {
+	generalKey, err := x509.ParsePKCS8PrivateKey(keyDER)
+	if err != nil {
+		generalKey, err = x509.ParsePKCS1PrivateKey(keyDER)
+		if err != nil {
+			generalKey, err = x509.ParseECPrivateKey(keyDER)
+			if err != nil {
+				return nil, errors.New("failed to parse key")
+			}
+		}
+	}
+
+	switch generalKey.(type) {
+	case *rsa.PrivateKey:
+		return generalKey.(*rsa.PrivateKey), nil
+	case *ecdsa.PrivateKey:
+		return generalKey.(*ecdsa.PrivateKey), nil
+	}
+
+	// should never reach here
+	return nil, errors.New("failed to parse key")
 }
 
 // LoadTLSKeyPair reads and parses a public/private key pair from a pair
@@ -141,12 +187,10 @@ func (c *Crypto) TLSKeyPair(certPEMBlock, keyPEMBlock []byte) (*tls.Certificate,
 		return nil, errors.Trace(err)
 	}
 
-	_, signer, err := c.LoadSigner(keyPEMBlock)
+	_, cert.PrivateKey, err = c.LoadPrivateKey(keyPEMBlock)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
-
-	cert.PrivateKey = signer
 
 	return cert, nil
 }

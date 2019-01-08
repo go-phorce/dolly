@@ -263,7 +263,7 @@ func Test_NewLocalCASignerFromFile(t *testing.T) {
 			name:   "invalid key",
 			ca:     "testdata/test_dolly_root_CA-key.pem",
 			key:    "testdata/test_dolly_root_CA.pem",
-			experr: `{"code":2003,"message":"Failed to parse private key"}`,
+			experr: `failed to parse key`,
 		},
 		{
 			name:   "invalid cert",

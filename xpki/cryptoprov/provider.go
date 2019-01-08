@@ -42,7 +42,6 @@ type Provider interface {
 	KeyGenerator
 	Manufacturer() string
 	Model() string
-	GetCryptoSigner(keyID string) (crypto.Signer, error)
 }
 
 // Crypto exposes instances of Provider

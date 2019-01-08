@@ -2,7 +2,9 @@ package crypto11
 
 import (
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rsa"
 	"fmt"
 	"io"
 	"strings"
@@ -186,42 +188,21 @@ func (lib *PKCS11Lib) FindKeyPairOnSession(session pkcs11.SessionHandle, slot ui
 	}
 }
 
-// Public returns the public half of a private key.
-//
-// This partially implements the go.crypto.Signer and go.crypto.Decrypter interfaces for
-// PKCS11PrivateKey. (The remains of the implementation is in the
-// key-specific types.)
-func (signer PKCS11PrivateKey) Public() crypto.PublicKey {
-	return signer.PubKey
-}
-
-// ConvertToSigner converts a private key interface to PKCS11PrivateKey type
-func ConvertToSigner(priv crypto.PrivateKey) (crypto.Signer, error) {
-	switch priv.(type) {
+// ConvertToPublic converts a private key interface to crypto.PublicKey type
+func ConvertToPublic(priv crypto.PrivateKey) (crypto.PublicKey, error) {
+	switch t := priv.(type) {
+	case *rsa.PrivateKey:
+		return t.Public(), nil
+	case *ecdsa.PrivateKey:
+		return t.Public(), nil
 	case *PKCS11PrivateKeyRSA:
-		return priv.(*PKCS11PrivateKeyRSA), nil
+		return t.Public(), nil
 	case *PKCS11PrivateKeyECDSA:
-		return priv.(*PKCS11PrivateKeyECDSA), nil
+		return t.Public(), nil
 	case *PKCS11PrivateKeyDSA:
-		return priv.(*PKCS11PrivateKeyDSA), nil
+		return t.Public(), nil
 	}
 	return nil, errors.Trace(errUnsupportedKeyType)
-}
-
-// GetCryptoSigner returns crypto signer given a key URI
-func (lib *PKCS11Lib) GetCryptoSigner(keyID string) (crypto.Signer, error) {
-	priv, err := lib.FindKeyPairOnSlot(lib.Slot.id, keyID, "")
-	if err != nil {
-		return nil, errors.Annotatef(err, "api=GetCryptoSigner, reason=FindKeyPairOnSlot, slotID=%d, uriID=%s",
-			lib.Slot.id, keyID)
-	}
-
-	s, err := ConvertToSigner(priv)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	return s, nil
 }
 
 // GetKey returns private key handle
@@ -276,7 +257,7 @@ type privateKeyGen struct {
 	id    string
 	label string
 	*PKCS11PrivateKey
-	crypto.Signer
+	crypto.PrivateKey
 }
 
 func (p *privateKeyGen) KeyID() string {
@@ -291,13 +272,37 @@ func (p *privateKeyGen) Public() crypto.PublicKey {
 	return p.PKCS11PrivateKey.PubKey
 }
 
-func (p *privateKeyGen) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
-	return p.Signer.Sign(rand, digest, opts)
+func (p *privateKeyGen) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
+	if signer, ok := p.PrivateKey.(crypto.Signer); ok {
+		b, err := signer.Sign(rand, digest, opts)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		return b, nil
+	}
+
+	return nil, errors.Trace(errUnsupportedKeyType)
+}
+
+// Decrypt decrypts ciphertext with priv.
+// If opts is nil or of type *PKCS1v15DecryptOptions then PKCS#1 v1.5 decryption is performed.
+// Otherwise opts must have type *OAEPOptions and OAEP decryption is done.
+func (p *privateKeyGen) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
+	if decrypter, ok := p.PrivateKey.(crypto.Decrypter); ok {
+		b, err := decrypter.Decrypt(rand, ciphertext, opts)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		return b, nil
+	}
+
+	return nil, errors.Trace(errUnsupportedKeyType)
 }
 
 // GenerateRSAKey generates RSA key pair
 func (lib *PKCS11Lib) GenerateRSAKey(label string, bits int, purpose int) (crypto.PrivateKey, error) {
-	priv, err := lib.GenerateRSAKeyPairWithLabel(label, bits, KeyPurpose(purpose))
+	keypurpose := KeyPurpose(purpose)
+	priv, err := lib.GenerateRSAKeyPairWithLabel(label, bits, keypurpose)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -311,7 +316,7 @@ func (lib *PKCS11Lib) GenerateRSAKey(label string, bits int, purpose int) (crypt
 		id:               string(id),
 		label:            string(l),
 		PKCS11PrivateKey: priv.key,
-		Signer:           priv,
+		PrivateKey:       priv,
 	}
 
 	return k, nil
@@ -332,7 +337,7 @@ func (lib *PKCS11Lib) GenerateECDSAKey(label string, curve elliptic.Curve) (cryp
 		id:               string(id),
 		label:            string(l),
 		PKCS11PrivateKey: priv.key,
-		Signer:           priv,
+		PrivateKey:       priv,
 	}
 
 	return k, nil
@@ -345,13 +350,13 @@ func (lib *PKCS11Lib) IdentifyKey(priv crypto.PrivateKey) (keyID, label string, 
 	}
 
 	var p11o *PKCS11Object
-	switch priv.(type) {
+	switch t := priv.(type) {
 	case *PKCS11PrivateKeyRSA:
-		p11o = &priv.(*PKCS11PrivateKeyRSA).key.PKCS11Object
+		p11o = &t.key.PKCS11Object
 	case *PKCS11PrivateKeyECDSA:
-		p11o = &priv.(*PKCS11PrivateKeyECDSA).key.PKCS11Object
+		p11o = &t.key.PKCS11Object
 	case *PKCS11PrivateKeyDSA:
-		p11o = &priv.(*PKCS11PrivateKeyDSA).key.PKCS11Object
+		p11o = &t.key.PKCS11Object
 	default:
 		return "", "", errors.Trace(errUnsupportedKeyType)
 	}

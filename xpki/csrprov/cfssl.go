@@ -216,9 +216,14 @@ func NewLocalCASignerFromPEM(c *cryptoprov.Crypto, ca, caKey []byte, policy *con
 		return nil, nil, errors.New("invalid parameter: policy")
 	}
 
-	_, s, err := c.LoadSigner(caKey)
+	_, pvk, err := c.LoadPrivateKey(caKey)
 	if err != nil {
 		return nil, nil, errors.Trace(err)
+	}
+
+	sign, supported := pvk.(crypto.Signer)
+	if !supported {
+		return nil, nil, errors.Errorf("loaded key of %T type does not support crypto.Signer", pvk)
 	}
 
 	parsedCa, err := helpers.ParseCertificatePEM(ca)
@@ -227,10 +232,10 @@ func NewLocalCASignerFromPEM(c *cryptoprov.Crypto, ca, caKey []byte, policy *con
 	}
 
 	signPolicy := config.Signing(*policy)
-	localSigner, err := local.NewSigner(s, parsedCa, signer.DefaultSigAlgo(s), &signPolicy)
+	localSigner, err := local.NewSigner(sign, parsedCa, signer.DefaultSigAlgo(sign), &signPolicy)
 	if err != nil {
 		return nil, nil, errors.Trace(err)
 	}
 
-	return localSigner, s, nil
+	return localSigner, sign, nil
 }

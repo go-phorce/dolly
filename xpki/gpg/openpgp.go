@@ -396,17 +396,27 @@ func DecodePGPEntityFromPEM(r io.Reader) (*openpgp.Entity, error) {
 }
 
 // ConvertToPacketPrivateKey converts a private key interface to PKCS11PrivateKey type
-func ConvertToPacketPrivateKey(creationTime time.Time, s crypto.Signer) (*packet.PrivateKey, error) {
+func ConvertToPacketPrivateKey(creationTime time.Time, s crypto.PrivateKey) (*packet.PrivateKey, error) {
+	var public crypto.PublicKey
+
+	if signer, ok := s.(crypto.Signer); ok {
+		public = signer.Public()
+	} else if decrypter, ok := s.(crypto.Decrypter); ok {
+		public = decrypter.Public()
+	} else {
+		return nil, errors.Errorf("unsupported key type: %T", s)
+	}
+
 	var pgpPubKey packet.PublicKey
-	switch s.Public().(type) {
+	switch t := public.(type) {
 	case *rsa.PublicKey:
-		pgpPubKey = *packet.NewRSAPublicKey(creationTime, s.Public().(*rsa.PublicKey))
+		pgpPubKey = *packet.NewRSAPublicKey(creationTime, t)
 		break
 	case *ecdsa.PublicKey:
-		pgpPubKey = *packet.NewECDSAPublicKey(creationTime, s.Public().(*ecdsa.PublicKey))
+		pgpPubKey = *packet.NewECDSAPublicKey(creationTime, t)
 		break
 	default:
-		return nil, errors.New("internal error. Publickey is unknown")
+		return nil, errors.Errorf("unsupported key type: %T", t)
 	}
 
 	priv := &packet.PrivateKey{
