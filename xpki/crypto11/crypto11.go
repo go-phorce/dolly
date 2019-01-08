@@ -193,6 +193,15 @@ type PKCS11PrivateKey struct {
 	PubKey crypto.PublicKey
 }
 
+// Public returns the public half of a private key.
+//
+// This partially implements the go.crypto.Signer and go.crypto.Decrypter interfaces for
+// PKCS11PrivateKey. (The remains of the implementation is in the
+// key-specific types.)
+func (p PKCS11PrivateKey) Public() crypto.PublicKey {
+	return p.PubKey
+}
+
 // Manufacturer returns manufacturer for the calling library
 func (lib *PKCS11Lib) Manufacturer() string {
 	return lib.Config.Manufacturer()

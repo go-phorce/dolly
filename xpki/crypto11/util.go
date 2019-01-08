@@ -197,7 +197,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 
 	pubKey := ""
 	if includePublic {
-		pubKey, err = p11lib.getPublicKey(slotID, keyID)
+		pubKey, err = p11lib.getPublicKeyPEM(slotID, keyID)
 		if err != nil {
 			return errors.Annotatef(err, "reason='failed on GetPublicKey', slotID=%d, keyID=%q", slotID, keyID)
 		}
@@ -219,20 +219,20 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 	return nil
 }
 
-// getPublicKey retrieves public key for the specified key
-func (p11lib *PKCS11Lib) getPublicKey(slotID uint, keyID string) (string, error) {
+// getPublicKeyPEM retrieves public key for the specified key
+func (p11lib *PKCS11Lib) getPublicKeyPEM(slotID uint, keyID string) (string, error) {
 	priv, err := p11lib.FindKeyPairOnSlot(slotID, keyID, "")
 	if err != nil {
 		return "", errors.Annotatef(err, "api=PublicKey, reason=FindKeyPairOnSlot, slotID=%d, uriID=%s",
 			slotID, keyID)
 	}
 
-	s, err := ConvertToSigner(priv)
+	pub, err := ConvertToPublic(priv)
 	if err != nil {
 		return "", errors.Trace(err)
 	}
 
-	pemKey, err := EncodePublicKeyToPEM(s.Public())
+	pemKey, err := EncodePublicKeyToPEM(pub)
 	if err != nil {
 		return "", errors.Trace(err)
 	}

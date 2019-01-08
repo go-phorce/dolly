@@ -37,7 +37,7 @@ func Test_GenerateKeys(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "inmemoryECDSA", label)
 
-	l := len(p.inMemProv.keyIDToSigner)
+	l := len(p.inMemProv.keyIDToPvk)
 	assert.Equal(t, 1, l)
 	keyURI, keyBytes, err := p.ExportKey(keyID1)
 	require.NoError(t, err)
@@ -45,9 +45,9 @@ func Test_GenerateKeys(t *testing.T) {
 	expectedURI := fmt.Sprintf("pkcs11:manufacturer=testprov;model=inmem;serial=20764350726;token=inmemoryECDSA;id=%s;type=private", keyID1)
 	assert.Equal(t, expectedURI, keyURI)
 
-	s, err := p.GetCryptoSigner(keyID1)
+	s, err := p.GetKey(keyID1)
 	require.NoError(t, err)
-	si, ok := s.(*signerImpl)
+	si, ok := s.(*provImpl)
 	assert.True(t, ok)
 	assert.NotNil(t, si.Public())
 
@@ -63,16 +63,16 @@ func Test_GenerateKeys(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "inmemoryRSA", label)
 
-	l = len(p.inMemProv.keyIDToSigner)
+	l = len(p.inMemProv.keyIDToPvk)
 	assert.Equal(t, 2, l)
 	keyURI, _, err = p.ExportKey(keyID2)
 	require.NoError(t, err)
 	expectedURI = fmt.Sprintf("pkcs11:manufacturer=testprov;model=inmem;serial=20764350726;token=inmemoryRSA;id=%s;type=private", keyID2)
 	assert.Equal(t, expectedURI, keyURI)
 
-	s, err = p.GetCryptoSigner(keyID2)
+	s, err = p.GetKey(keyID2)
 	require.NoError(t, err)
-	si, ok = s.(*signerImpl)
+	si, ok = s.(*provImpl)
 	assert.True(t, ok)
 	assert.NotNil(t, si.Public())
 
@@ -97,7 +97,7 @@ func Test_SignECDSA(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "inmemoryECDSA", label)
 
-	l := len(p.inMemProv.keyIDToSigner)
+	l := len(p.inMemProv.keyIDToPvk)
 	assert.Equal(t, 1, l)
 	keyURI, _, err := p.ExportKey(keyID)
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func Test_SignRSA(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "inmemoryRSA", label)
 
-	l := len(p.inMemProv.keyIDToSigner)
+	l := len(p.inMemProv.keyIDToPvk)
 	assert.Equal(t, 1, l)
 	keyURI, _, err := p.ExportKey(keyID)
 	require.NoError(t, err)

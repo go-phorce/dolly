@@ -16,50 +16,68 @@ import (
 
 // inMemProv stores keyID to signer mapping in memory. Private keys are not exportable.
 type inMemProv struct {
-	keyIDToSigner map[string]crypto.Signer
+	keyIDToPvk map[string]crypto.PrivateKey
 }
 
-// registerSigner registers signer for the given key id in HSM
-func (h *inMemProv) registerSigner(keyID string, signer crypto.Signer) {
-	h.keyIDToSigner[keyID] = signer
+// registerKey registers key for the given id in HSM
+func (h *inMemProv) registerKey(keyID string, pvk crypto.PrivateKey) {
+	h.keyIDToPvk[keyID] = pvk
 }
 
 // getSigner returns signer for the given key id in HSM
-func (h *inMemProv) getSigner(keyID string) (crypto.Signer, error) {
-	signer, ok := h.keyIDToSigner[keyID]
+func (h *inMemProv) getKey(keyID string) (crypto.PrivateKey, error) {
+	pvk, ok := h.keyIDToPvk[keyID]
 	if !ok {
-		return nil, fmt.Errorf("signer not found: %s", keyID)
+		return nil, fmt.Errorf("key not found: %s", keyID)
 	}
-	return signer, nil
+	return pvk, nil
 }
 
-type signerImpl struct {
-	id     string
-	label  string
-	signer crypto.Signer
+type provImpl struct {
+	id    string
+	label string
+	pvk   crypto.PrivateKey
 }
 
 // KeyID returns key id of the signer
-func (s *signerImpl) KeyID() string {
+func (s *provImpl) KeyID() string {
 	return s.id
 }
 
 // Label returns key label of the signer
-func (s *signerImpl) Label() string {
+func (s *provImpl) Label() string {
 	return s.label
 }
 
 // Public returns public key of the signer
-func (s *signerImpl) Public() crypto.PublicKey {
-	return s.signer.Public()
+func (s *provImpl) Public() crypto.PublicKey {
+	if signer, ok := s.pvk.(crypto.Signer); ok {
+		return signer.Public()
+	} else if decrypter, ok := s.pvk.(crypto.Decrypter); ok {
+		return decrypter.Public()
+	}
+	return s.pvk
 }
 
 // Sign signs data
-func (s *signerImpl) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+func (s *provImpl) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) ([]byte, error) {
 	if opts == nil {
 		opts = crypto.SHA256
 	}
-	return s.signer.Sign(rand, digest, opts)
+	if signer, ok := s.pvk.(crypto.Signer); ok {
+		return signer.Sign(rand, digest, opts)
+	}
+
+	return nil, errors.Errorf("crypto.Signer is not supported")
+}
+
+// Decrypt data
+func (s *provImpl) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
+	if decrypter, ok := s.pvk.(crypto.Decrypter); ok {
+		return decrypter.Decrypt(rand, ciphertext, opts)
+	}
+
+	return nil, errors.Errorf("crypto.Decrypter is not supported")
 }
 
 type rsaKeyGenerator interface {
@@ -106,7 +124,7 @@ type Provider struct {
 // Init creates new provider for in memory based HSM
 func Init() (*Provider, error) {
 	inMemProv := inMemProv{
-		keyIDToSigner: make(map[string]crypto.Signer),
+		keyIDToPvk: make(map[string]crypto.PrivateKey),
 	}
 
 	return &Provider{
@@ -132,13 +150,13 @@ func (p *Provider) Serial() string {
 	return "20764350726"
 }
 
-// GetCryptoSigner returns signer for the given key id
-func (p *Provider) GetCryptoSigner(keyID string) (crypto.Signer, error) {
-	signer, err := p.inMemProv.getSigner(keyID)
+// GetKey returns key for the given id
+func (p *Provider) GetKey(keyID string) (crypto.PrivateKey, error) {
+	pvk, err := p.inMemProv.getKey(keyID)
 	if err != nil {
-		return nil, errors.Annotatef(err, "api=GetCryptoSigner, reason=GetSigner, keyId=%s", keyID)
+		return nil, errors.Annotatef(err, "api=GetKey, keyId=%s", keyID)
 	}
-	return signer, nil
+	return pvk, nil
 }
 
 // GenerateRSAKey creates signer using randomly generated RSA key
@@ -155,12 +173,12 @@ func (p *Provider) GenerateRSAKey(label string, bits int, purpose int) (crypto.P
 
 	id := p.idGenerator.Generate()
 
-	si := &signerImpl{
-		id:     id,
-		label:  label,
-		signer: key,
+	si := &provImpl{
+		id:    id,
+		label: label,
+		pvk:   key,
 	}
-	p.inMemProv.registerSigner(id, si)
+	p.inMemProv.registerKey(id, si)
 	return si, nil
 
 }
@@ -179,46 +197,31 @@ func (p *Provider) GenerateECDSAKey(label string, curve elliptic.Curve) (crypto.
 
 	id := p.idGenerator.Generate()
 
-	si := &signerImpl{
-		id:     id,
-		label:  label,
-		signer: key,
+	si := &provImpl{
+		id:    id,
+		label: label,
+		pvk:   key,
 	}
-	p.inMemProv.registerSigner(id, si)
+	p.inMemProv.registerKey(id, si)
 	return si, nil
 }
 
 // IdentifyKey returns key id and label for the given private key
 func (p *Provider) IdentifyKey(priv crypto.PrivateKey) (keyID, label string, err error) {
-	if ki, ok := priv.(*signerImpl); ok {
+	if ki, ok := priv.(*provImpl); ok {
 		return ki.KeyID(), ki.Label(), nil
 	}
-	return "", "", errors.New("unsupported key")
-}
-
-// GetKey returns private key handle
-func (p *Provider) GetKey(keyID string) (crypto.PrivateKey, error) {
-	s, err := p.inMemProv.getSigner(keyID)
-	if err != nil {
-		return nil, errors.Annotatef(err, "api=GetKey, reason=getSigner, keyID=%s", keyID)
-	}
-
-	pvk, ok := s.(crypto.PrivateKey)
-	if !ok {
-		return nil, errors.Errorf("no private key %q", keyID)
-	}
-
-	return pvk, nil
+	return "", "", errors.Errorf("unsupported key: %T", priv)
 }
 
 // ExportKey returns pkcs11 uri for the given key id
 func (p *Provider) ExportKey(keyID string) (string, []byte, error) {
-	s, err := p.inMemProv.getSigner(keyID)
+	s, err := p.inMemProv.getKey(keyID)
 	if err != nil {
 		return "", nil, errors.Annotatef(err, "api=ExportKey, reason=getSigner, keyID=%s", keyID)
 	}
 
-	si, ok := s.(*signerImpl)
+	si, ok := s.(*provImpl)
 	if !ok {
 		return "", nil, errors.New("unsupported signer")
 	}

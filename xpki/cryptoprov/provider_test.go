@@ -1,7 +1,11 @@
 package cryptoprov_test
 
 import (
+	"crypto"
 	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
 	"os"
 	"path/filepath"
 	"testing"
@@ -61,12 +65,12 @@ func Test_P11(t *testing.T) {
 	assert.Empty(t, keyURI)
 	assert.Nil(t, keyBytes)
 
-	t.Run("RSA", func(t *testing.T) {
+	t.Run("RSA-sign", func(t *testing.T) {
 		rsaKeyLabel := "rsa" + guid.MustCreate()
-		rsa, err := d.GenerateRSAKey(rsaKeyLabel, 1024, 1)
+		key, err := d.GenerateRSAKey(rsaKeyLabel, 1024, 1)
 		require.NoError(t, err)
 
-		keyID, keyLabel, err := d.IdentifyKey(rsa)
+		keyID, keyLabel, err := d.IdentifyKey(key)
 		require.NoError(t, err)
 		assert.NotEmpty(t, keyID)
 		assert.Equal(t, rsaKeyLabel, keyLabel)
@@ -84,8 +88,55 @@ func Test_P11(t *testing.T) {
 		_, err = cp.LoadGPGPrivateKey(time.Now(), []byte(keyURI))
 		require.NoError(t, err)
 
-		_, _, err = cp.LoadSigner([]byte(keyURI))
+		_, pvk, err := cp.LoadPrivateKey([]byte(keyURI))
 		require.NoError(t, err)
+
+		message := []byte("To Be Signed")
+		hashed := sha256.Sum256(message)
+
+		signer, ok := pvk.(crypto.Signer)
+		assert.True(t, ok, "crypto.Signer not supported")
+		signature, err := signer.Sign(rand.Reader, hashed[:], crypto.SHA256)
+		require.NoError(t, err)
+
+		err = rsa.VerifyPKCS1v15(signer.Public().(*rsa.PublicKey), crypto.SHA256, hashed[:], signature)
+		require.NoError(t, err)
+	})
+
+	t.Run("RSA-encrypt", func(t *testing.T) {
+		rsaKeyLabel := "rsa" + guid.MustCreate()
+		key, err := d.GenerateRSAKey(rsaKeyLabel, 1024, 2)
+		require.NoError(t, err)
+
+		keyID, keyLabel, err := d.IdentifyKey(key)
+		require.NoError(t, err)
+		assert.NotEmpty(t, keyID)
+		assert.Equal(t, rsaKeyLabel, keyLabel)
+
+		keyURI, keyBytes, err := d.ExportKey(keyID)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, keyURI)
+		assert.Nil(t, keyBytes)
+
+		pvkURI, err := cryptoprov.ParsePrivateKeyURI(keyURI)
+		require.NoError(t, err)
+		assert.Equal(t, "SoftHSM", pvkURI.Manufacturer())
+		assert.Equal(t, keyID, pvkURI.ID())
+
+		_, pvk, err := cp.LoadPrivateKey([]byte(keyURI))
+		require.NoError(t, err)
+
+		message := []byte("To Be Encrypted")
+
+		decryptor, ok := pvk.(crypto.Decrypter)
+		assert.True(t, ok, "crypto.Decrypter not supported")
+
+		encrypted, err := rsa.EncryptPKCS1v15(rand.Reader, decryptor.Public().(*rsa.PublicKey), message)
+		require.NoError(t, err)
+
+		decrypted, err := decryptor.Decrypt(rand.Reader, encrypted, nil)
+		require.NoError(t, err)
+		assert.Equal(t, message, decrypted)
 	})
 
 	t.Run("ECDSA", func(t *testing.T) {
@@ -111,7 +162,7 @@ func Test_P11(t *testing.T) {
 		_, err = cp.LoadGPGPrivateKey(time.Now(), []byte(keyURI))
 		require.NoError(t, err)
 
-		_, _, err = cp.LoadSigner([]byte(keyURI))
+		_, _, err = cp.LoadPrivateKey([]byte(keyURI))
 		require.NoError(t, err)
 	})
 }

@@ -63,8 +63,9 @@ func Test_LoadSigner(t *testing.T) {
 	t.Run("PEM key", func(t *testing.T) {
 		pem, err := testify.GenerateRSAKeyInPEM(nil, 1024)
 
-		_, signer, err := cp.LoadSigner(pem)
+		_, pvk, err := cp.LoadPrivateKey(pem)
 		require.NoError(t, err)
+		signer := pvk.(crypto.Signer)
 
 		digest := certutil.SHA1([]byte(prov.Manufacturer()))
 		_, err = signer.Sign(rand.Reader, digest, crypto.SHA1)
@@ -81,8 +82,9 @@ func Test_LoadSigner(t *testing.T) {
 		uri, _, err := prov.ExportKey(keyID)
 		require.NoError(t, err)
 
-		_, signer, err := cp.LoadSigner([]byte(uri))
+		_, pvk, err = cp.LoadPrivateKey([]byte(uri))
 		require.NoError(t, err)
+		signer := pvk.(crypto.Signer)
 
 		digest := certutil.SHA1([]byte(prov.Manufacturer()))
 		_, err = signer.Sign(rand.Reader, digest, crypto.SHA1)
@@ -90,15 +92,15 @@ func Test_LoadSigner(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
-		_, _, err = cp.LoadSigner([]byte(""))
+		_, _, err = cp.LoadPrivateKey([]byte(""))
 		assert.Error(t, err)
-		_, _, err = cp.LoadSigner([]byte("pkcs11"))
+		_, _, err = cp.LoadPrivateKey([]byte("pkcs11"))
 		assert.Error(t, err)
-		_, _, err = cp.LoadSigner([]byte("pkcs11:manufacturer=test"))
+		_, _, err = cp.LoadPrivateKey([]byte("pkcs11:manufacturer=test"))
 		assert.Error(t, err)
-		_, _, err = cp.LoadSigner([]byte("pkcs11:manufacturer=testprov;id=123;type=private;serial=123"))
+		_, _, err = cp.LoadPrivateKey([]byte("pkcs11:manufacturer=testprov;id=123;type=private;serial=123"))
 		assert.Error(t, err)
-		_, _, err = cp.LoadSigner([]byte("pkcs11:manufacturer=SoftHSM;id=123;type=private;serial=123"))
+		_, _, err = cp.LoadPrivateKey([]byte("pkcs11:manufacturer=SoftHSM;id=123;type=private;serial=123"))
 		assert.Error(t, err)
 	})
 }
