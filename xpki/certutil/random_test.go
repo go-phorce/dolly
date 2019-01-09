@@ -7,6 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func Test_Randomg(t *testing.T) {
+	tcases := []int{1, 8, 13, 96, 512, 1024}
+	for _, tc := range tcases {
+		rnd := certutil.Random(tc)
+		assert.Equal(t, tc, len(rnd))
+	}
+}
+
 func Test_RandomString(t *testing.T) {
 	tcases := []int{1, 8, 13, 96, 512, 1024}
 	for _, tc := range tcases {
