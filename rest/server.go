@@ -519,8 +519,10 @@ func (server *HTTPServer) NewMux() http.Handler {
 		router = NewRouter(notFoundHandler)
 	}
 
+	services := make([]Service, 0, len(server.services))
 	for _, f := range server.services {
 		f.Register(router)
+		services = append(services, f)
 	}
 	logger.Debugf("api=NewMux, service=%s, service_count=%d",
 		server.Name(), len(server.services))
@@ -541,7 +543,8 @@ func (server *HTTPServer) NewMux() http.Handler {
 	httpHandler = xhttp.NewRequestLogger(httpHandler, server.Name(), serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
 
 	// metrics wrapper
-	httpHandler = xhttp.NewRequestMetrics(httpHandler)
+	extraMetrics := GetExtraMetrics(services)
+	httpHandler = xhttp.NewRequestWithExtraMetrics(httpHandler, extraMetrics)
 
 	// service ready
 	httpHandler = ready.NewServiceStatusVerifier(server, httpHandler)
@@ -626,4 +629,24 @@ func GetNodeListenPeerURLs(c ClusterInfo, nodeID string) ([]*url.URL, error) {
 		return nil, errors.NotFoundf("node: %q", nodeID)
 	}
 	return list, nil
+}
+
+// ExtraMetrics allows services to provide extra metrics
+type ExtraMetrics interface {
+	ExtraMetrics() map[string]string
+}
+
+// GetExtraMetrics returns additional metrics for the list of services
+func GetExtraMetrics(services ...interface{}) map[string]string {
+	extraMetrics := make(map[string]string)
+	for _, s := range services {
+		// try to extract extra metrics if provided by the service
+		fam, ok := s.(ExtraMetrics)
+		if ok {
+			for k, v := range fam.ExtraMetrics() {
+				extraMetrics[k] = v
+			}
+		}
+	}
+	return extraMetrics
 }

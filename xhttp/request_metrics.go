@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-phorce/dolly/algorithms/math"
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/metrics/tags"
 	"github.com/go-phorce/dolly/xhttp/identity"
@@ -14,13 +15,20 @@ import (
 type requestMetrics struct {
 	handler       http.Handler
 	responseCodes []string
+	extraMetrics  map[string]string
 }
 
 // NewRequestMetrics creates a wrapper handler to produce metrics for each request
 func NewRequestMetrics(h http.Handler) http.Handler {
+	return NewRequestWithExtraMetrics(h, nil)
+}
+
+// NewRequestWithExtraMetrics creates a wrapper handler to produce additional metrics for each request
+func NewRequestWithExtraMetrics(h http.Handler, extraMetrics map[string]string) http.Handler {
 	rm := requestMetrics{
 		handler:       h,
 		responseCodes: make([]string, 599),
+		extraMetrics:  extraMetrics,
 	}
 	for idx := range rm.responseCodes {
 		rm.responseCodes[idx] = strconv.Itoa(idx)
@@ -54,6 +62,12 @@ func (rm *requestMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		{Name: tags.Role, Value: role},
 		{Name: tags.Status, Value: rm.statusCode(sc)},
 		{Name: tags.URI, Value: r.URL.Path},
+	}
+
+	// add additional metrics
+	keys := math.SortedKeys(rm.extraMetrics)
+	for _, n := range keys {
+		tags = append(tags, metrics.Tag{Name: n, Value: rm.extraMetrics[n]})
 	}
 
 	if sc >= 400 {

@@ -90,3 +90,92 @@ func Test_RequestMetrics(t *testing.T) {
 	assertCounter("test.http.request.status.failed;method=POST;role=dolly;status=400;uri=/", 1)
 	assertCounter("test.http.request.status.failed;method=POST;role=dolly;status=400;uri=/bar", 2)
 }
+
+func Test_RequestExtraMetricsStatusCode(t *testing.T) {
+	extraMetrics := map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": "value3",
+	}
+	rm := NewRequestWithExtraMetrics(nil, extraMetrics).(*requestMetrics)
+
+	assert.Equal(t, "200", rm.statusCode(200))
+	assert.Equal(t, "500", rm.statusCode(500))
+	assert.Equal(t, "700", rm.statusCode(700))
+	assert.Equal(t, "0", rm.statusCode(0))
+	assert.Equal(t, extraMetrics, rm.extraMetrics)
+}
+
+func Test_RequestWithExtraMetrics(t *testing.T) {
+	im := metrics.NewInmemSink(time.Minute, time.Minute*5)
+	_, err := metrics.NewGlobal(metrics.DefaultConfig("test"), im)
+	require.NoError(t, err)
+
+	assertSample := func(key string, expectedCount int) {
+		data := im.Data()
+		s, exists := data[0].Samples[key]
+		if assert.True(t, exists, "sample metric key not found: %s", key) {
+			assert.Equal(t, expectedCount, s.Count, "unexpected count for metric %s", key)
+		}
+	}
+	assertCounter := func(key string, expectedCount int) {
+		data := im.Data()
+		s, exists := data[0].Counters[key]
+		if assert.True(t, exists, "counter metric key not found: %s", key) {
+			assert.Equal(t, expectedCount, s.Count, "Unexpected count for metric %s", key)
+		}
+	}
+
+	defer func() {
+		md := im.Data()
+		if len(md) > 0 {
+			for k := range md[0].Gauges {
+				t.Log("Gauge:", k)
+			}
+			for k := range md[0].Counters {
+				t.Log("Counter:", k)
+			}
+			for k := range md[0].Samples {
+				t.Log("Sample:", k)
+			}
+		}
+	}()
+
+	handlerStatusCode := 200
+	h := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(handlerStatusCode)
+		io.WriteString(w, `"Helo World"`)
+	}
+	extraMetrics := map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+		"key3": "value3",
+	}
+	rm := NewRequestWithExtraMetrics(http.HandlerFunc(h), extraMetrics)
+	req := func(method, uri string, sc int) {
+		r, err := http.NewRequest(method, uri, nil)
+		require.NoError(t, err)
+		r = identity.WithTestIdentity(r, identity.NewIdentity("dolly", "10.0.0.1"))
+
+		w := httptest.NewRecorder()
+		handlerStatusCode = sc
+		rm.ServeHTTP(w, r)
+	}
+	req(http.MethodGet, "/", http.StatusOK)
+	req(http.MethodGet, "/foo", http.StatusOK)
+	req(http.MethodPost, "/", http.StatusOK)
+	req(http.MethodPost, "/", http.StatusOK)
+	req(http.MethodPost, "/", http.StatusBadRequest)
+	req(http.MethodPost, "/bar", http.StatusBadRequest)
+	req(http.MethodPost, "/bar", http.StatusBadRequest)
+
+	assertSample("test.http.request.perf;method=GET;role=dolly;status=200;uri=/;key1=value1;key2=value2;key3=value3", 1)
+	assertSample("test.http.request.perf;method=GET;role=dolly;status=200;uri=/foo;key1=value1;key2=value2;key3=value3", 1)
+	assertSample("test.http.request.perf;method=POST;role=dolly;status=200;uri=/;key1=value1;key2=value2;key3=value3", 2)
+
+	assertCounter("test.http.request.status.successful;method=GET;role=dolly;status=200;uri=/;key1=value1;key2=value2;key3=value3", 1)
+	assertCounter("test.http.request.status.successful;method=GET;role=dolly;status=200;uri=/foo;key1=value1;key2=value2;key3=value3", 1)
+	assertCounter("test.http.request.status.successful;method=POST;role=dolly;status=200;uri=/;key1=value1;key2=value2;key3=value3", 2)
+	assertCounter("test.http.request.status.failed;method=POST;role=dolly;status=400;uri=/;key1=value1;key2=value2;key3=value3", 1)
+	assertCounter("test.http.request.status.failed;method=POST;role=dolly;status=400;uri=/bar;key1=value1;key2=value2;key3=value3", 2)
+}

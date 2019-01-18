@@ -625,3 +625,66 @@ func (s *serviceX) handle() rest.Handle {
 		marshal.WriteJSON(w, r, res)
 	}
 }
+
+type service1 struct {
+}
+
+func (s service1) ExtraMetrics() map[string]string {
+	return map[string]string{}
+}
+
+type service2 struct {
+}
+
+func (s service2) ExtraMetrics() map[string]string {
+	return map[string]string{
+		"service2Key1": "service2Value1",
+		"service2Key2": "service2Value2",
+	}
+}
+
+type service3 struct {
+}
+
+func (s service3) ExtraMetrics() map[string]string {
+	return map[string]string{
+		"service3Key1": "service3Value1",
+		"service3Key2": "service3Value2",
+		"service3Key3": "service3Value3",
+	}
+}
+
+type service4 struct {
+}
+
+func Test_GetExtraMetrics_NoAdditonalMetrics(t *testing.T) {
+	extraMetrics := rest.GetExtraMetrics()
+	require.Equal(t, 0, len(extraMetrics))
+
+	service1 := service1{}
+	extraMetrics = rest.GetExtraMetrics(service1)
+	require.Equal(t, 0, len(extraMetrics))
+}
+
+func Test_GetExtraMetrics_OneService(t *testing.T) {
+	service1 := service1{}
+	service2 := service2{}
+	extraMetrics := rest.GetExtraMetrics(service1, service2)
+	require.Equal(t, 2, len(extraMetrics))
+	require.Equal(t, "service2Value1", extraMetrics["service2Key1"])
+	require.Equal(t, "service2Value2", extraMetrics["service2Key2"])
+}
+
+func Test_GetExtraMetrics_MultipleServices(t *testing.T) {
+	service1 := service1{}
+	service2 := service2{}
+	service3 := service3{}
+	service4 := service4{}
+	extraMetrics := rest.GetExtraMetrics(service1, service2, service3, service4)
+	require.Equal(t, 5, len(extraMetrics))
+	require.Equal(t, "service2Value1", extraMetrics["service2Key1"])
+	require.Equal(t, "service2Value2", extraMetrics["service2Key2"])
+	require.Equal(t, "service3Value1", extraMetrics["service3Key1"])
+	require.Equal(t, "service3Value2", extraMetrics["service3Key2"])
+	require.Equal(t, "service3Value3", extraMetrics["service3Key3"])
+}
