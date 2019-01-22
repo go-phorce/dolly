@@ -302,6 +302,9 @@ func TestConfig_checkAccess_noTLS(t *testing.T) {
 
 	r, _ = http.NewRequest(http.MethodGet, "/", nil)
 	assert.Error(t, c.checkAccess(r), "bob shouldn't be allowed access to / but was")
+
+	r, _ = http.NewRequest(http.MethodOptions, "/", nil)
+	assert.NoError(t, c.checkAccess(r), "OPTIONS should be allowed")
 }
 
 func TestConfig_HandlerNotValid(t *testing.T) {

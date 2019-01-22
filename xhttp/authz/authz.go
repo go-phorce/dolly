@@ -348,6 +348,11 @@ func (c *Provider) isAllowed(path, role string) bool {
 
 // checkAccess ensures that access to the supplied http.request is allowed
 func (c *Provider) checkAccess(r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		// always allow OPTIONS
+		return nil
+	}
+
 	role := c.roleMapper(r)
 	if role == "" {
 		role = identity.GuestRoleName
