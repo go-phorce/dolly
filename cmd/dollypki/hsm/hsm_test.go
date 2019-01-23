@@ -131,6 +131,7 @@ func (s *testSuite) Test_HsmGenKey() {
 	rsa := "rsa"
 	size1024 := 1024
 	size2048 := 2048
+	yes := true
 
 	err = s.run(hsm.GenKey, &hsm.GenKeyFlags{
 		Purpose: &encrypt,
@@ -161,6 +162,7 @@ func (s *testSuite) Test_HsmGenKey() {
 		Algo:    &rsa,
 		Purpose: &encrypt,
 		Label:   &label,
+		Check:   &yes,
 	})
 	s.NoError(err)
 }
