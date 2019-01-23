@@ -44,6 +44,8 @@ func ParseAndRun(cmdname string, args []string, out io.Writer) ctl.ReturnCode {
 	hsmGenKeyFlags.Size = cmdHsmGenKey.Flag("size", "Key size in bits").Required().Int()
 	hsmGenKeyFlags.Label = cmdHsmGenKey.Flag("label", "Label for generated key").String()
 	hsmGenKeyFlags.Output = cmdHsmGenKey.Flag("output", "Optional output file name").String()
+	hsmGenKeyFlags.Force = cmdHsmGenKey.Flag("force", "Override output file if exists").Bool()
+	hsmGenKeyFlags.Check = cmdHsmGenKey.Flag("check", "Check if file exists").Bool()
 
 	hsmRmKeyFlags := new(hsm.RmKeyFlags)
 	cmdRmKey := cmdHsm.Command("rmkey", "Destroy key").Action(cli.RegisterAction(hsm.RmKey, hsmRmKeyFlags))

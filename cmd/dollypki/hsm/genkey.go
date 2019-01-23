@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-phorce/dolly/fileutil"
+
 	cfsslcli "github.com/cloudflare/cfssl/cli"
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
@@ -26,12 +28,17 @@ type GenKeyFlags struct {
 	// Output specifies the prefix for generated key
 	// if not set, the output will be printed to STDOUT only
 	Output *string
+	// Force to override key file if exists
+	Force *bool
+	// Check if file exists, and exit without error
+	Check *bool
 }
 
 func ensureGenKeyFlags(f *GenKeyFlags) *GenKeyFlags {
 	var (
 		emptyString = ""
 		intVal      = 0
+		falseVal    = false
 	)
 	if f.Size == nil {
 		f.Size = &intVal
@@ -48,6 +55,12 @@ func ensureGenKeyFlags(f *GenKeyFlags) *GenKeyFlags {
 	if f.Output == nil {
 		f.Output = &emptyString
 	}
+	if f.Force == nil {
+		f.Force = &falseVal
+	}
+	if f.Check == nil {
+		f.Check = &falseVal
+	}
 	return f
 }
 
@@ -58,6 +71,15 @@ func GenKey(c ctl.Control, p interface{}) error {
 	cryptoprov := c.(*cli.Cli).CryptoProv()
 	if cryptoprov == nil {
 		return errors.Errorf("unsupported command for this crypto provider")
+	}
+
+	if *flags.Check && *flags.Output != "" && fileutil.FileExists(*flags.Output) == nil {
+		c.Printf("%q file exists, specify --force flag to override\n", *flags.Output)
+		return nil
+	}
+
+	if !*flags.Force && *flags.Output != "" && fileutil.FileExists(*flags.Output) == nil {
+		return errors.Errorf("%q file exists, specify --force flag to override", *flags.Output)
 	}
 
 	crypto := cryptoprov.Default()
