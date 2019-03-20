@@ -54,7 +54,7 @@ func Test_WithTestIdentityDirect(t *testing.T) {
 	r, err := http.NewRequest(http.MethodGet, "/", nil)
 	require.NoError(t, err)
 
-	r = WithTestIdentity(r, NewIdentity("role1", "name1"))
+	r = WithTestIdentity(r, NewIdentity("role1", "name1", ""))
 	ctx := ForRequest(r)
 
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
@@ -66,7 +66,7 @@ func Test_WithDeviceID(t *testing.T) {
 	require.NoError(t, err)
 	r.Header.Set(header.XDeviceID, "12345678")
 
-	r = WithTestIdentity(r, NewIdentity("role1", "name1"))
+	r = WithTestIdentity(r, NewIdentity("role1", "name1", ""))
 	ctx := ForRequest(r)
 
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
@@ -83,9 +83,10 @@ func Test_NewIdentityWithUserInfo(t *testing.T) {
 	require.NoError(t, err)
 
 	u := &userinfo{1, "denis@ekspand.com"}
-	r = WithTestIdentity(r, NewIdentityWithUserInfo("role1", "name1", u))
+	r = WithTestIdentity(r, NewIdentityWithUserInfo("role1", "name1", "123", u))
 	ctx := ForRequest(r)
 
+	assert.Equal(t, "123", ctx.Identity().UserID())
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
 	assert.Equal(t, "denis@ekspand.com", ctx.Identity().UserInfo().(*userinfo).email)
 }
@@ -98,7 +99,7 @@ func Test_WithTestIdentityServeHTTP(t *testing.T) {
 	rw := httptest.NewRecorder()
 	handler := NewContextHandler(d)
 	r, _ := http.NewRequest("GET", "/test", nil)
-	r = WithTestIdentity(r, NewIdentity("role1", "name2"))
+	r = WithTestIdentity(r, NewIdentity("role1", "name2", ""))
 	handler.ServeHTTP(rw, r)
 	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
 }
