@@ -32,9 +32,10 @@ func Test_Identity(t *testing.T) {
 	assert.Equal(t, "Ekspand", i.Name())
 	assert.Equal(t, "netmgmt/Ekspand", i.String())
 
-	id := NewIdentity("netmgmt", "Ekspand")
+	id := NewIdentity("netmgmt", "Ekspand", "123456")
 	assert.Equal(t, "netmgmt", id.Role())
 	assert.Equal(t, "Ekspand", id.Name())
+	assert.Equal(t, "123456", id.UserID())
 	assert.Equal(t, "netmgmt/Ekspand", id.String())
 }
 

@@ -11,6 +11,7 @@ const GuestRoleName = "guest"
 // Identity contains information about the identity of an API caller
 type Identity interface {
 	String() string
+	UserID() string
 	Role() string
 	Name() string
 	UserInfo() interface{}
@@ -20,15 +21,20 @@ type Identity interface {
 type Mapper func(*http.Request) (Identity, error)
 
 // NewIdentity returns a new Identity instance with the indicated role
-func NewIdentity(role string, name string) Identity {
-	return identity{role: role, name: name}
+func NewIdentity(role, name, userID string) Identity {
+	return identity{
+		role:   role,
+		name:   name,
+		userID: userID,
+	}
 }
 
 // NewIdentityWithUserInfo returns a new Identity instance with the indicated role and user info
-func NewIdentityWithUserInfo(role string, name string, userInfo interface{}) Identity {
+func NewIdentityWithUserInfo(role, name, userID string, userInfo interface{}) Identity {
 	return identity{
 		role:     role,
 		name:     name,
+		userID:   userID,
 		userInfo: userInfo,
 	}
 }
@@ -39,8 +45,15 @@ type identity struct {
 	name string
 	// role of identity
 	role string
+	// ID of the user
+	userID string
 	// extra user info, specific to the application
 	userInfo interface{}
+}
+
+// UserID returns user ID
+func (c identity) UserID() string {
+	return c.userID
 }
 
 // Name returns the clients name
@@ -75,7 +88,7 @@ func GuestIdentityMapper(r *http.Request) (Identity, error) {
 	} else {
 		name = r.TLS.PeerCertificates[0].Subject.CommonName
 	}
-	return NewIdentity(GuestRoleName, name), nil
+	return NewIdentity(GuestRoleName, name, ""), nil
 }
 
 // WithTestIdentity is used in unit tests to set HTTP request identity
