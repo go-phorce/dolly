@@ -44,6 +44,7 @@ func Test_New(t *testing.T) {
 		retriable.WithPolicy(p),
 		retriable.WithTLS(nil),
 		retriable.WithTransport(nil),
+		retriable.WithTimeout(time.Second*300),
 	)
 	assert.NotNil(t, c)
 	c.AddHeader("test", "for client")

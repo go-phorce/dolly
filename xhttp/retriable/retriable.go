@@ -152,6 +152,18 @@ func WithTransport(transport http.RoundTripper) ClientOption {
 	})
 }
 
+// WithTimeout is a ClientOption that specifies HTTP client timeout.
+//
+//   retriable.New(retriable.WithTimeout(t))
+//
+// This option cannot be provided for constructors which produce result
+// objects.
+func WithTimeout(timeout time.Duration) ClientOption {
+	return optionFunc(func(c *Client) {
+		c.WithTimeout(timeout)
+	})
+}
+
 // Client is custom implementation of http.Client
 type Client struct {
 	lock       sync.RWMutex
@@ -246,6 +258,14 @@ func (c *Client) WithTransport(transport http.RoundTripper) *Client {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	c.httpClient.Transport = transport
+	return c
+}
+
+// WithTimeout modifies HTTP client timeout.
+func (c *Client) WithTimeout(timeout time.Duration) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	c.httpClient.Timeout = timeout
 	return c
 }
 
