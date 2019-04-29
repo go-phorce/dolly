@@ -386,6 +386,37 @@ func Test_RetriableTimeout(t *testing.T) {
 	assert.Contains(t, err.Error(), exp2)
 }
 
+func Test_Retriable_WithReadTimeout(t *testing.T) {
+	h := makeTestHandler(t, "/v1/test", http.StatusOK, `{
+		"status": "ok"
+	}`)
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	client := retriable.New().
+		WithHeaders(map[string]string{
+			"X-Test-Token": "token1",
+		}).
+		WithPolicy(&retriable.Policy{
+			TotalRetryLimit: 2,
+			RequestTimeout:  time.Second,
+		}).
+		WithTimeout(time.Microsecond * 1)
+	require.NotNil(t, client)
+
+	hosts := []string{server.URL}
+
+	t.Run("GET WithTimeout", func(t *testing.T) {
+		w := bytes.NewBuffer([]byte{})
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		_, _, err := client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Client.Timeout exceeded while awaiting headers")
+	})
+}
+
 func Test_Retriable_DoWithTimeout(t *testing.T) {
 	h := makeTestHandlerSlow(t, "/v1/test/do", http.StatusInternalServerError, 1*time.Second, `{
 		"error": "bug"
