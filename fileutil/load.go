@@ -37,3 +37,23 @@ func LoadConfigWithSchema(config string) (string, error) {
 
 	return config, nil
 }
+
+// SaveConfigWithSchema saves configuration to file:// or env://
+func SaveConfigWithSchema(path, value string) error {
+	if strings.HasPrefix(path, FileSource) {
+		fn := strings.TrimPrefix(path, FileSource)
+		err := ioutil.WriteFile(fn, []byte(value), 0644)
+		if err != nil {
+			return errors.Trace(err)
+		}
+	} else if strings.HasPrefix(path, EnvSource) {
+		env := strings.TrimPrefix(path, EnvSource)
+		// ENV content
+		err := os.Setenv(env, value)
+		if err != nil {
+			return errors.Trace(err)
+		}
+	}
+
+	return nil
+}
