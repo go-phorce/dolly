@@ -69,6 +69,26 @@ func TestSlices_ContainsStringEqualFold(t *testing.T) {
 	}
 }
 
+func TestSlices_StringContainsOneOf(t *testing.T) {
+	// TODO: daniel: test StringContainsOneOf
+	tcases := []struct {
+		str    string
+		slices []string
+		exp    bool
+	}{
+		{"Daniel", []string{"foo", "bar"}, false},
+		{"Daniel", []string{"foo", "el"}, true},
+		{"Daniel", []string{"foo", "da"}, false},
+		{"Daniel", []string{"foo", "Dan"}, true},
+	}
+	for idx, tc := range tcases {
+		res := StringContainsOneOf(tc.str, tc.slices)
+		if res != tc.exp {
+			t.Errorf("case %d failed", idx)
+		}
+	}
+}
+
 func testSlicesContains(t *testing.T, items interface{}, missing interface{}, newItem interface{}, containsFunc func(items interface{}, item interface{}) bool) {
 	vm := reflect.ValueOf(missing)
 	for i := 0; i < vm.Len(); i++ {
