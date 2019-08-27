@@ -38,6 +38,17 @@ func Test_SetProviderDatadog(t *testing.T) {
 	run(prov, 10)
 }
 
+func Test_SetProviderPrometheus(t *testing.T) {
+	d, err := metrics.NewPrometheusSink()
+	require.NoError(t, err)
+
+	prov, err := metrics.New(&metrics.Config{
+		FilterDefault: true,
+	}, d)
+	require.NoError(t, err)
+	run(prov, 10)
+}
+
 //
 // Mock
 //
