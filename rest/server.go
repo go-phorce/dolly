@@ -100,6 +100,7 @@ type Server interface {
 	Uptime() time.Duration
 	Service(name string) Service
 	HTTPConfig() HTTPServerConfig
+	TLSConfig() *tls.Config
 
 	// IsReady indicates that all subservices are ready to serve
 	IsReady() bool
@@ -293,6 +294,11 @@ func (server *HTTPServer) Name() string {
 // HTTPConfig returns HTTPServerConfig
 func (server *HTTPServer) HTTPConfig() HTTPServerConfig {
 	return server.httpConfig
+}
+
+// TLSConfig returns TLSConfig
+func (server *HTTPServer) TLSConfig() *tls.Config {
+	return server.tlsConfig
 }
 
 // AddNode returns created node and a list of peers after adding the node to the cluster.
