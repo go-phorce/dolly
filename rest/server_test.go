@@ -196,6 +196,22 @@ func Test_NewServer(t *testing.T) {
 	require.NotNil(t, e)
 }
 
+func Test_TLSConfig(t *testing.T) {
+	cfg := &serverConfig{
+		BindAddr: ":8081",
+	}
+
+	audit := auditor.NewInMemory()
+
+	tlsConfig := &tls.Config{}
+	server, err := rest.New("v1.0.123", "", cfg, tlsConfig, audit, nil, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, server)
+
+	assert.NotNil(t, server.TLSConfig)
+	assert.Equal(t, tlsConfig, server.TLSConfig())
+}
+
 func Test_ResolveTCPAddr(t *testing.T) {
 	cfg := &serverConfig{
 		ServiceName: "invalid",
