@@ -36,6 +36,16 @@ func Test_parseTaskFormat(t *testing.T) {
 			wantErr:  false,
 		},
 		{
+			format:   "every 1 hour",
+			wantTask: NewTaskAtIntervals(1, Hours).(*task),
+			wantErr:  false,
+		},
+		{
+			format:   "every 2 hours",
+			wantTask: NewTaskAtIntervals(2, Hours).(*task),
+			wantErr:  false,
+		},
+		{
 			format:   "every 61 minutes",
 			wantTask: NewTaskAtIntervals(61, Minutes).(*task),
 			wantErr:  false,
@@ -74,6 +84,21 @@ func Test_parseTaskFormat(t *testing.T) {
 		{
 			format:   "every Tuesday 23:59",
 			wantTask: NewTaskOnWeekday(time.Tuesday, 23, 59).(*task),
+			wantErr:  false,
+		},
+		{
+			format:   "wednesday",
+			wantTask: NewTaskOnWeekday(time.Wednesday, 0, 0).(*task),
+			wantErr:  false,
+		},
+		{
+			format:   "thursday",
+			wantTask: NewTaskOnWeekday(time.Thursday, 0, 0).(*task),
+			wantErr:  false,
+		},
+		{
+			format:   "friday",
+			wantTask: NewTaskOnWeekday(time.Friday, 0, 0).(*task),
 			wantErr:  false,
 		},
 		{
@@ -123,6 +148,9 @@ func Test_parseTaskFormat(t *testing.T) {
 				assert.Equal(t, tt.wantTask.period, j.period)
 				assert.Equal(t, tt.wantTask.startDay, j.startDay)
 				assert.Equal(t, tt.wantTask.NextScheduledTime(), j.NextScheduledTime())
+
+				d := j.Duration()
+				assert.True(t, d > 0)
 			}
 		})
 	}
@@ -248,4 +276,16 @@ func Test_TaskWeekdaysTodayBefore(t *testing.T) {
 	job1 := NewTaskOnWeekday(now.Weekday(), timeToSchedule.Hour(), timeToSchedule.Minute()).Do("test", testTask)
 	t.Logf("task is scheduled for %s", job1.NextScheduledTime())
 	assert.Equal(t, timeToSchedule, job1.NextScheduledTime(), "Task should be run today, at the set time.")
+}
+
+func Test_NewTask_panic(t *testing.T) {
+	require.Panics(t, func() {
+		NewTaskOnWeekday(time.Wednesday, -1, 60)
+	})
+	require.Panics(t, func() {
+		NewTaskOnWeekday(time.Wednesday, 0, -1)
+	})
+	require.Panics(t, func() {
+		NewTaskDaily(0, -1)
+	})
 }

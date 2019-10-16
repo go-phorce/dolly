@@ -19,6 +19,7 @@ func taskWithParams(a int, b string) {
 func Test_StartAndStop(t *testing.T) {
 	scheduler := NewScheduler().(*scheduler)
 	require.NotNil(t, scheduler)
+	defer scheduler.Stop()
 
 	scheduler.Add(NewTaskAtIntervals(1, Seconds).Do("test", testTask))
 	scheduler.Add(NewTaskAtIntervals(1, Seconds).Do("test", taskWithParams, 1, "hello"))
@@ -39,12 +40,15 @@ func Test_StartAndStop(t *testing.T) {
 		count := j.RunCount()
 		assert.True(t, count >= 3, "Expected retry count >= 3, actual %d, name: %s", count, j.Name())
 	}
+
+	assert.True(t, scheduler.IsRunning())
 }
 
 func Test_AddAndClear(t *testing.T) {
 	scheduler := NewScheduler().(*scheduler)
 	require.NotNil(t, scheduler)
 	assert.Equal(t, 0, scheduler.Count())
+	defer scheduler.Stop()
 
 	scheduler.Add(NewTaskAtIntervals(1, Seconds).Do("test", testTask))
 	scheduler.Add(NewTaskAtIntervals(1, Seconds).Do("test", taskWithParams, 1, "hello"))
