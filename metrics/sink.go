@@ -95,7 +95,7 @@ var sinkRegistry = map[string]sinkURLFactoryFunc{
 // "addr" of the sink
 //
 // "inmem://" - Initializes an InmemSink. The host and port are ignored. The
-// "interval" and "duration" query parameters must be specified with valid
+// "interval" and "retain" query parameters must be specified with valid
 // durations, see NewInmemSink for details.
 func NewMetricSinkFromURL(urlStr string) (Sink, error) {
 	u, err := url.Parse(urlStr)

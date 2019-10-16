@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"fmt"
-	"net/http"
 	"sort"
 	"time"
 )
@@ -45,7 +44,7 @@ type SampledValue struct {
 }
 
 // DisplayMetrics returns a summary of the metrics from the most recent finished interval.
-func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (i *InmemSink) DisplayMetrics() (*Summary, error) {
 	data := i.Data()
 
 	var interval *IntervalMetrics
@@ -93,7 +92,7 @@ func (i *InmemSink) DisplayMetrics(resp http.ResponseWriter, req *http.Request) 
 	summary.Counters = formatSamples(interval.Counters)
 	summary.Samples = formatSamples(interval.Samples)
 
-	return summary, nil
+	return &summary, nil
 }
 
 func formatSamples(source map[string]SampledValue) []SampledValue {

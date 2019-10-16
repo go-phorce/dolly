@@ -3,11 +3,12 @@ package metrics
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/juju/errors"
 )
 
 const (
@@ -114,7 +115,7 @@ CONNECT:
 	// Attempt to connect
 	sock, err = net.Dial("udp", s.addr)
 	if err != nil {
-		log.Printf("[ERR] Error connecting to statsd! Err: %s", err)
+		logger.Errorf("api=flushMetrics, reason=connecting, err=[%v]", errors.ErrorStack(err))
 		goto WAIT
 	}
 
@@ -131,7 +132,7 @@ CONNECT:
 				_, err := sock.Write(buf.Bytes())
 				buf.Reset()
 				if err != nil {
-					log.Printf("[ERR] Error writing to statsd! Err: %s", err)
+					logger.Errorf("api=flushMetrics, reason=writing, err=[%v]", errors.ErrorStack(err))
 					goto WAIT
 				}
 			}
@@ -147,7 +148,7 @@ CONNECT:
 			_, err := sock.Write(buf.Bytes())
 			buf.Reset()
 			if err != nil {
-				log.Printf("[ERR] Error flushing to statsd! Err: %s", err)
+				logger.Errorf("api=flushMetrics, reason=flushing, err=[%v]", errors.ErrorStack(err))
 				goto WAIT
 			}
 		}

@@ -190,6 +190,30 @@ func TestPFX(t *testing.T) {
 	})
 }
 
+func Test_MakeValidCertsChainTSA(t *testing.T) {
+	// RSA
+	key, crt, chain, end := MakeValidCertsChainTSA(t, 24, false)
+	assert.NotNil(t, key)
+	assert.NotNil(t, crt)
+	assert.NotNil(t, chain)
+	assert.NotNil(t, end)
+
+	// EC
+	key, crt, chain, end = MakeValidCertsChainTSA(t, 24, true)
+	assert.NotNil(t, key)
+	assert.NotNil(t, crt)
+	assert.NotNil(t, chain)
+	assert.NotNil(t, end)
+}
+
+func Test_MakeInvalidCertsChainTSA(t *testing.T) {
+	key, crt, chain, end := MakeInvalidCertsChainTSA(t, 24)
+	assert.NotNil(t, key)
+	assert.NotNil(t, crt)
+	assert.NotNil(t, chain)
+	assert.NotNil(t, end)
+}
+
 func TestAIA(t *testing.T) {
 	i := NewEntity(IssuingCertificateURL("a", "b"), OCSPServer("c", "d"))
 
