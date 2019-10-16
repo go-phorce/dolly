@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/juju/errors"
 )
 
 // InmemSink provides a MetricSink that does in-memory aggregation
@@ -129,12 +131,12 @@ func NewInmemSinkFromURL(u *url.URL) (Sink, error) {
 
 	interval, err := time.ParseDuration(params.Get("interval"))
 	if err != nil {
-		return nil, fmt.Errorf("Bad 'interval' param: %s", err)
+		return nil, errors.Annotate(err, "bad 'interval' param")
 	}
 
 	retain, err := time.ParseDuration(params.Get("retain"))
 	if err != nil {
-		return nil, fmt.Errorf("Bad 'retain' param: %s", err)
+		return nil, errors.Annotate(err, "bad 'retain' param")
 	}
 
 	return NewInmemSink(interval, retain), nil
@@ -288,22 +290,6 @@ func (i *InmemSink) getInterval() *IntervalMetrics {
 		return m
 	}
 	return i.createInterval(intv)
-}
-
-// Flattens the key for formatting, removes spaces
-func (i *InmemSink) flattenKey(parts []string) string {
-	buf := &bytes.Buffer{}
-	replacer := strings.NewReplacer(" ", "_")
-
-	if len(parts) > 0 {
-		replacer.WriteString(buf, parts[0])
-	}
-	for _, part := range parts[1:] {
-		replacer.WriteString(buf, ".")
-		replacer.WriteString(buf, part)
-	}
-
-	return buf.String()
 }
 
 // Flattens the key for formatting along with its tags, removes spaces

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/metrics"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
@@ -18,13 +19,41 @@ func run(p metrics.Provider, times int) {
 	}
 }
 
-func Test_SetProvider(t *testing.T) {
+func Test_SetProvider_NewInmemSink(t *testing.T) {
 	im := metrics.NewInmemSink(time.Second, time.Minute)
 	prov, err := metrics.New(&metrics.Config{
 		FilterDefault: true,
 	}, im)
 	require.NoError(t, err)
 	run(prov, 10)
+}
+
+func Test_NewMetricSinkFromURL_InMem(t *testing.T) {
+	im, err := metrics.NewMetricSinkFromURL("inmem://localhost?interval=1s&retain=1m")
+	require.NoError(t, err)
+	prov, err := metrics.New(&metrics.Config{
+		FilterDefault: true,
+	}, im)
+	require.NoError(t, err)
+	run(prov, 10)
+}
+
+func Test_NewMetricSinkFromURL_InMem_InvalidParams(t *testing.T) {
+	_, err := metrics.NewMetricSinkFromURL("inmem://localhost?interval=1s")
+	require.Error(t, err)
+	assert.Equal(t, "bad 'retain' param: time: invalid duration ", err.Error())
+
+	_, err = metrics.NewMetricSinkFromURL("inmem://localhost?interval=1s&retain=xxx")
+	require.Error(t, err)
+	assert.Equal(t, "bad 'retain' param: time: invalid duration xxx", err.Error())
+
+	_, err = metrics.NewMetricSinkFromURL("inmem://localhost?retain=1s")
+	require.Error(t, err)
+	assert.Equal(t, "bad 'interval' param: time: invalid duration ", err.Error())
+
+	_, err = metrics.NewMetricSinkFromURL("inmem://localhost?retain=1s&interval=yyy")
+	require.Error(t, err)
+	assert.Equal(t, "bad 'interval' param: time: invalid duration yyy", err.Error())
 }
 
 func Test_SetProviderDatadog(t *testing.T) {
@@ -34,6 +63,16 @@ func Test_SetProviderDatadog(t *testing.T) {
 	prov, err := metrics.New(&metrics.Config{
 		FilterDefault: true,
 	}, d)
+	require.NoError(t, err)
+	run(prov, 10)
+}
+
+func Test_NewMetricSinkFromURL_Datadog(t *testing.T) {
+	im, err := metrics.NewMetricSinkFromURL("statsd://127.0.0.1:8125")
+	require.NoError(t, err)
+	prov, err := metrics.New(&metrics.Config{
+		FilterDefault: true,
+	}, im)
 	require.NoError(t, err)
 	run(prov, 10)
 }
