@@ -114,26 +114,19 @@ func Test_parseTaskFormat(t *testing.T) {
 		//
 		// Error cases
 		//
-		{
-			format:  "1 second 16:18",
-			wantErr: true,
-		},
-		{
-			format:  "24:00",
-			wantErr: true,
-		},
-		{
-			format:  "Sunday 23:61",
-			wantErr: true,
-		},
-		{
-			format:  "every",
-			wantErr: true,
-		},
-		{
-			format:  "every every 1 second",
-			wantErr: true,
-		},
+		{format: "1 second 16:18", wantErr: true},
+		{format: "24:00", wantErr: true},
+		{format: "Sunday 23:61", wantErr: true},
+		{format: "every", wantErr: true},
+		{format: "every every 1 second", wantErr: true},
+		{format: "every", wantErr: true},
+		{format: "2 monday", wantErr: true},
+		{format: "3 tuesday", wantErr: true},
+		{format: "3 wednesday", wantErr: true},
+		{format: "3 thursday", wantErr: true},
+		{format: "3 friday", wantErr: true},
+		{format: "3 saturday", wantErr: true},
+		{format: "3 sunday", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.format, func(t *testing.T) {
@@ -248,6 +241,14 @@ func Test_TaskOnWeekday(t *testing.T) {
 func Test_TaskDaily(t *testing.T) {
 	job1 := NewTaskDaily(00, 00).Do("test", testTask)
 	job2 := NewTaskDaily(23, 59).Do("test", testTask)
+	t.Logf("job1 scheduled for %s", job1.NextScheduledTime())
+	t.Logf("job2 scheduled for %s", job2.NextScheduledTime())
+	assert.NotEqual(t, job1.NextScheduledTime(), job2.NextScheduledTime())
+}
+
+func Test_TaskWeekls(t *testing.T) {
+	job1 := NewTaskAtIntervals(1, Weeks).Do("test", testTask)
+	job2 := NewTaskAtIntervals(2, Weeks).Do("test", testTask)
 	t.Logf("job1 scheduled for %s", job1.NextScheduledTime())
 	t.Logf("job2 scheduled for %s", job2.NextScheduledTime())
 	assert.NotEqual(t, job1.NextScheduledTime(), job2.NextScheduledTime())
