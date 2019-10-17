@@ -89,7 +89,7 @@ func (l LogLevel) String() string {
 func (l *LogLevel) Set(s string) error {
 	value, err := ParseLevel(s)
 	if err != nil {
-		return err
+		return errors.Trace(err)
 	}
 	*l = value
 	return nil
@@ -183,7 +183,7 @@ func (r RepoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error
 		}
 		l, err := ParseLevel(setting[1])
 		if err != nil {
-			return nil, err
+			return nil, errors.Trace(err)
 		}
 		out[setting[0]] = l
 	}
