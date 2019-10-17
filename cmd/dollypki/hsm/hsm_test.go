@@ -118,6 +118,28 @@ func (s *testSuite) Test_HsmKeyDel() {
 	})
 	s.Require().NoError(err)
 	s.Empty(s.out.String())
+
+	encrypt := "e"
+	label := "Test"
+	rsa := "rsa"
+	size2048 := 2048
+	yes := true
+
+	err = s.run(hsm.GenKey, &hsm.GenKeyFlags{
+		Size:    &size2048,
+		Algo:    &rsa,
+		Purpose: &encrypt,
+		Label:   &label,
+		Check:   &yes,
+	})
+	s.NoError(err)
+
+	err = s.run(hsm.RmKey, &hsm.RmKeyFlags{
+		Prefix: &label,
+		Force:  &yes,
+	})
+	s.Require().NoError(err)
+	s.NotEmpty(s.out.String())
 }
 
 func (s *testSuite) Test_HsmGenKey() {
