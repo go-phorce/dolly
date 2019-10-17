@@ -1,10 +1,13 @@
 package metrics_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/go-phorce/dolly/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -86,6 +89,16 @@ func Test_SetProviderPrometheus(t *testing.T) {
 	}, d)
 	require.NoError(t, err)
 	run(prov, 10)
+
+	r, err := http.NewRequest(http.MethodGet, "/stats", nil)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	promhttp.Handler().ServeHTTP(w, r)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	body := string(w.Body.Bytes())
+	assert.Contains(t, body, "test_metrics_since_count")
 }
 
 //
