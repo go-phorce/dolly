@@ -23,6 +23,8 @@ const (
 	ContentLength = "Content-Length"
 	// ContentType is HTTP header for "Content-Type"
 	ContentType = "Content-Type"
+	// IfMatch is HTTP header for "If-Match"
+	IfMatch = "If-Match"
 	// Link is HTTP header for "Link"
 	Link = "Link"
 	// Location is HTTP header for "Location"

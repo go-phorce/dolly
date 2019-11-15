@@ -113,6 +113,11 @@ func WithNotReady(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusForbidden, NotReady, msgFormat, vals...)
 }
 
+// WithConflict for builds a new Error instance with Conflict code
+func WithConflict(msgFormat string, vals ...interface{}) *Error {
+	return New(http.StatusConflict, Conflict, msgFormat, vals...)
+}
+
 // WithCause adds the cause error
 func (e *Error) WithCause(err error) *Error {
 	e.Cause = err

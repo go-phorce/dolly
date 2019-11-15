@@ -558,7 +558,9 @@ func debugResponse(w *http.Response, body bool) {
 // [retrying rate limit errors should be done before this]
 func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (http.Header, int, error) {
 	debugResponse(resp, resp.StatusCode >= 300)
-	if resp.StatusCode >= http.StatusMultipleChoices { // 300
+	if resp.StatusCode == http.StatusNoContent {
+		return resp.Header, resp.StatusCode, nil
+	} else if resp.StatusCode >= http.StatusMultipleChoices { // 300
 		e := new(httperror.Error)
 		e.HTTPStatus = resp.StatusCode
 		bodyCopy := bytes.Buffer{}

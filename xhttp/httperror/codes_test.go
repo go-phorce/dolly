@@ -11,6 +11,7 @@ import (
 func Test_ErrorCodes(t *testing.T) {
 	assert.Equal(t, "account_not_found", httperror.AccountNotFound)
 	assert.Equal(t, "bad_nonce", httperror.BadNonce)
+	assert.Equal(t, "conflict", httperror.Conflict)
 	assert.Equal(t, "connection", httperror.Connection)
 	assert.Equal(t, "content_length_required", httperror.ContentLengthRequired)
 	assert.Equal(t, "forbidden", httperror.Forbidden)
@@ -50,6 +51,7 @@ func Test_StatusCodes(t *testing.T) {
 		{httperror.WithUnauthorized("1"), http.StatusUnauthorized, "unauthorized: 1"},
 		{httperror.WithAccountNotFound("1"), http.StatusForbidden, "account_not_found: 1"},
 		{httperror.WithNotReady("1"), http.StatusForbidden, "not_ready: 1"},
+		{httperror.WithConflict("1"), http.StatusConflict, "conflict: 1"},
 	}
 	for _, tc := range tcases {
 		t.Run(tc.httpErr.Code, func(t *testing.T) {
