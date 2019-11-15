@@ -18,6 +18,7 @@ func Test_Headers(t *testing.T) {
 	assert.Equal(t, "Cache-Control", header.CacheControl)
 	assert.Equal(t, "Content-Type", header.ContentType)
 	assert.Equal(t, "Content-Disposition", header.ContentDisposition)
+	assert.Equal(t, "If-Match", header.IfMatch)
 	assert.Equal(t, "Replay-Nonce", header.ReplayNonce)
 	assert.Equal(t, "text/plain", header.TextPlain)
 	assert.Equal(t, "User-Agent", header.UserAgent)

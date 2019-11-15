@@ -272,6 +272,25 @@ func Test_RetriableWithHeaders(t *testing.T) {
 	})
 }
 
+func Test_Retriable_StatusNoContent(t *testing.T) {
+	h := makeTestHandler(t, "/v1/test", http.StatusNoContent, "")
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	client := retriable.New()
+	require.NotNil(t, client)
+
+	hosts := []string{server.URL}
+
+	w := bytes.NewBuffer([]byte{})
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	_, status, err := client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNoContent, status)
+}
+
 func Test_Retriable500(t *testing.T) {
 	h := makeTestHandler(t, "/v1/test", http.StatusInternalServerError, `{
 		"error": "bug!"

@@ -5,6 +5,8 @@ const (
 	AccountNotFound = "account_not_found"
 	// BadNonce is returned for bad nonce.
 	BadNonce = "bad_nonce"
+	// Conflict is returned whith 409 CONFLICT response code.
+	Conflict = "conflict"
 	// Connection is returned when connection failed.
 	Connection = "connection"
 	// ContentLengthRequired is returned when request does not specify ContentLength.
