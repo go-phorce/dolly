@@ -99,7 +99,10 @@ func NewControl(d *ControlDefinition) *Ctl {
 	ctl := &Ctl{
 		params: d,
 	}
-	ctl.initGlobalFlags()
+
+	if !d.DisableGlobalFlags {
+		ctl.initGlobalFlags()
+	}
 	return ctl
 }
 
@@ -259,6 +262,9 @@ type ControlDefinition struct {
 	DefaultServerURL string
 	// DefaultContentType specifies Content-Type in Accepts header: "text/plain"
 	DefaultContentType string
+
+	// DisableGlobalFlags specifies if the global command line flags should NOT be populated
+	DisableGlobalFlags bool
 }
 
 // InitGlobalFlags builds a FlagSet configured with the default set of flags & usage formatting.
