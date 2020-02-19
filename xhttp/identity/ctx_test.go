@@ -73,6 +73,54 @@ func Test_ClientIP(t *testing.T) {
 	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
 }
 
+func Test_FromContext(t *testing.T) {
+	type roleName struct {
+		Role string `json:"role,omitempty"`
+		Name string `json:"name,omitempty"`
+	}
+
+	h := func(w http.ResponseWriter, r *http.Request) {
+		ctx := FromContext(r.Context())
+
+		identity := ctx.Identity()
+		res := &roleName{
+			Role: identity.Role(),
+			Name: identity.Name(),
+		}
+		marshal.WriteJSON(w, r, res)
+	}
+
+	handler := NewContextHandler(http.HandlerFunc(h))
+
+	t.Run("default_extractor", func(t *testing.T) {
+		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
+		require.NoError(t, err)
+
+		r.TLS = &tls.ConnectionState{
+			PeerCertificates: []*x509.Certificate{
+				{
+					Subject: pkix.Name{
+						CommonName:   "dolly",
+						Organization: []string{"org"},
+					},
+				},
+			},
+		}
+
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		resp := w.Result()
+		defer resp.Body.Close()
+
+		rn := &roleName{}
+		require.NoError(t, marshal.Decode(resp.Body, rn))
+		assert.Equal(t, GuestRoleName, rn.Role)
+		assert.Equal(t, "dolly", rn.Name)
+	})
+}
+
 func Test_RequestorIdentity(t *testing.T) {
 	type roleName struct {
 		Role string `json:"role,omitempty"`
