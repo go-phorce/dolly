@@ -69,6 +69,12 @@ func SetGlobalIdentityMapper(e Mapper) {
 	identityMapper = e
 }
 
+//FromContext extracts the RequestContext stored inside a go context. Returns null if no such value exists.
+func FromContext(ctx context.Context) *RequestContext {
+	ret, _ := ctx.Value(keyContext).(*RequestContext)
+	return ret
+}
+
 // ForRequest returns the full context ascocicated with this http request.
 func ForRequest(r *http.Request) *RequestContext {
 	v := r.Context().Value(keyContext)
