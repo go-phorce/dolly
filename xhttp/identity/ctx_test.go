@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -71,6 +72,21 @@ func Test_ClientIP(t *testing.T) {
 
 	handler.ServeHTTP(rw, r)
 	assert.NotEqual(t, "", rw.Header().Get(header.XHostname))
+}
+
+func Test_AddToContext(t *testing.T) {
+	ctx := AddToContext(
+		context.Background(),
+		NewRequestContext(NewIdentity("r", "n", "u")),
+	)
+
+	rqCtx := FromContext(ctx)
+	require.NotNil(t, rqCtx)
+
+	identity := rqCtx.Identity()
+	require.Equal(t, "n", identity.Name())
+	require.Equal(t, "r", identity.Role())
+	require.Equal(t, "u", identity.UserID())
 }
 
 func Test_FromContext(t *testing.T) {

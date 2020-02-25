@@ -37,6 +37,12 @@ type RequestContext struct {
 	clientIP      string
 }
 
+func NewRequestContext(id Identity) *RequestContext {
+	return &RequestContext{
+		identity:      id,
+	}
+}
+
 // Context represents user contextual information about a request being processed by the server,
 // it includes identity, CorrelationID [for cross system request correlation].
 type Context interface {
@@ -73,6 +79,11 @@ func SetGlobalIdentityMapper(e Mapper) {
 func FromContext(ctx context.Context) *RequestContext {
 	ret, _ := ctx.Value(keyContext).(*RequestContext)
 	return ret
+}
+
+//AddToContext returns a new golang context that adds `rq` as the dolly request context.
+func AddToContext(ctx context.Context, rq *RequestContext) context.Context {
+	return context.WithValue(ctx, keyContext, rq)
 }
 
 // ForRequest returns the full context ascocicated with this http request.
