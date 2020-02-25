@@ -77,9 +77,7 @@ func Test_ClientIP(t *testing.T) {
 func Test_AddToContext(t *testing.T) {
 	ctx := AddToContext(
 		context.Background(),
-		&RequestContext{
-			identity: NewIdentity("r", "n", "u"),
-		},
+		NewRequestContext(NewIdentity("r", "n", "u")),
 	)
 
 	rqCtx := FromContext(ctx)
