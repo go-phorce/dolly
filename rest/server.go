@@ -22,6 +22,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
+	"github.com/rs/cors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
@@ -139,6 +140,7 @@ type HTTPServer struct {
 	httpConfig     HTTPServerConfig
 	tlsConfig      *tls.Config
 	httpServer     *http.Server
+	handler        http.Handler
 	cors           *CORSOptions
 	hostname       string
 	port           string
@@ -370,6 +372,10 @@ func (server *HTTPServer) Audit(source string,
 	}
 }
 
+func (server *HTTPServer) Handler(handler http.Handler) {
+	server.handler = handler
+}
+
 // StartHTTP will verify all the TLS related files are present and start the actual HTTPS listener for the server
 func (server *HTTPServer) StartHTTP() error {
 	bindAddr := server.httpConfig.GetBindAddr()
@@ -401,15 +407,11 @@ func (server *HTTPServer) StartHTTP() error {
 		server.httpServer.Addr = bindAddr
 	}
 
-	httpHandler := server.NewMux()
-
-	if server.httpConfig.GetAllowProfiling() {
-		if httpHandler, err = xhttp.NewRequestProfiler(httpHandler, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
-			return errors.Trace(err)
-		}
+	if server.handler == nil {
+		server.handler = server.NewMux()
 	}
 
-	server.httpServer.Handler = httpHandler
+	server.httpServer.Handler = server.handler
 
 	serve := func() error {
 		server.serving = true
@@ -515,15 +517,65 @@ func (server *HTTPServer) StopHTTP() {
 	)
 }
 
-// NewMux creates a new http handler for the http server, typically you only
-// need to call this directly for tests.
-func (server *HTTPServer) NewMux() http.Handler {
-	var router Router
-	if server.cors != nil {
-		router = NewRouterWithCORS(notFoundHandler, server.cors)
-	} else {
-		router = NewRouter(notFoundHandler)
+func corsHandler(handler http.Handler, corsOptions *CORSOptions) http.Handler {
+	if corsOptions == nil {
+		return handler
 	}
+
+	c := cors.New(cors.Options{
+		AllowedOrigins:         corsOptions.AllowedOrigins,
+		AllowOriginFunc:        corsOptions.AllowOriginFunc,
+		AllowOriginRequestFunc: corsOptions.AllowOriginRequestFunc,
+		AllowedMethods:         corsOptions.AllowedMethods,
+		AllowedHeaders:         corsOptions.AllowedHeaders,
+		ExposedHeaders:         corsOptions.ExposedHeaders,
+		MaxAge:                 corsOptions.MaxAge,
+		AllowCredentials:       corsOptions.AllowCredentials,
+		OptionsPassthrough:     corsOptions.OptionsPassthrough,
+		Debug:                  corsOptions.Debug,
+	})
+	return c.Handler(handler)
+}
+
+func authzHandler(handler http.Handler, authz Authz) (http.Handler, error) {
+	if authz != nil {
+		httpHandler, err := authz.NewHandler(handler)
+		if err != nil {
+			return nil, errors.Trace(err)
+		}
+		return httpHandler, nil
+	}
+	return handler, nil
+}
+
+func profileHandler(handler http.Handler, profileDirectory string) (http.Handler, error) {
+	return xhttp.NewRequestProfiler(handler, profileDirectory, nil, xhttp.LogProfile())
+}
+
+func (server *HTTPServer) defaultHandler(handler http.Handler) http.Handler {
+	corsHandler := corsHandler(handler, server.cors)
+	authz, err := authzHandler(corsHandler, server.authz)
+	if err != nil {
+		panic(errors.ErrorStack(err))
+	}
+	requestLogger := xhttp.NewRequestLogger(authz, server.Name(), serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
+	metrics := xhttp.NewRequestMetrics(requestLogger)
+	status := ready.NewServiceStatusVerifier(server, metrics)
+	requestContext := identity.NewContextHandler(status)
+	if server.httpConfig.GetAllowProfiling() {
+		profile, err := profileHandler(requestContext, server.httpConfig.GetProfilerDir())
+		if err != nil {
+			return requestContext
+		}
+		return profile
+	}
+	return requestContext
+}
+
+// NewMux creates an http handler for the http server based on routing through
+// registered services.
+func (server *HTTPServer) NewMux() http.Handler {
+	router := NewRouter(notFoundHandler)
 
 	for _, f := range server.services {
 		f.Register(router)
@@ -531,30 +583,7 @@ func (server *HTTPServer) NewMux() http.Handler {
 	logger.Debugf("api=NewMux, service=%s, service_count=%d",
 		server.Name(), len(server.services))
 
-	var err error
-	httpHandler := router.Handler()
-
-	logger.Infof("api=NewMux, service=%s, ClientAuth=%s", server.Name(), server.clientAuth)
-
-	if server.authz != nil {
-		httpHandler, err = server.authz.NewHandler(httpHandler)
-		if err != nil {
-			panic(errors.ErrorStack(err))
-		}
-	}
-
-	// logging wrapper
-	httpHandler = xhttp.NewRequestLogger(httpHandler, server.Name(), serverExtraLogger, time.Millisecond, server.httpConfig.GetPackageLogger())
-
-	// metrics wrapper
-	httpHandler = xhttp.NewRequestMetrics(httpHandler)
-
-	// service ready
-	httpHandler = ready.NewServiceStatusVerifier(server, httpHandler)
-
-	// role/contextID wrapper
-	httpHandler = identity.NewContextHandler(httpHandler)
-	return httpHandler
+	return server.defaultHandler(router.Handler())
 }
 
 // ServeHTTP should write reply headers and data to the ResponseWriter
