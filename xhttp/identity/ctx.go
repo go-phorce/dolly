@@ -37,6 +37,7 @@ type RequestContext struct {
 	clientIP      string
 }
 
+// NewRequestContext creates a request context with a specific identity.
 func NewRequestContext(id Identity) *RequestContext {
 	return &RequestContext{
 		identity:      id,

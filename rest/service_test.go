@@ -64,7 +64,8 @@ func (s *service) Register(r rest.Router) {
 func testHandler(s *service) rest.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ rest.Params) {
 		//context.ForRequest(r)
-
+		ctx := r.Context()
+		v := ctx.Value("test")
 		status := http.StatusOK
 		if rc, ok := r.URL.Query()["rc"]; ok {
 			if s, err := strconv.Atoi(rc[0]); err == nil {
@@ -77,7 +78,8 @@ func testHandler(s *service) rest.Handle {
 		fmt.Fprintf(w, "URL: %s\n", r.URL)
 		fmt.Fprintf(w, "Method: %s\n", r.Method)
 		fmt.Fprintf(w, "Agent: %s\n", r.UserAgent())
-		fmt.Fprintf(w, "RemoteAddr\n: %s", r.RemoteAddr)
+		fmt.Fprintf(w, "RemoteAddr: %s\n", r.RemoteAddr)
+		fmt.Fprintf(w, "ContextValue: %s\n", v)
 	}
 }
 
