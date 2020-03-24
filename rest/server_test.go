@@ -6,9 +6,13 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
@@ -196,6 +200,58 @@ func Test_NewServer(t *testing.T) {
 	require.NotNil(t, e)
 }
 
+func Test_NewServerWithCustomHandler(t *testing.T) {
+	cfg := &serverConfig{
+		BindAddr: ":8082",
+	}
+
+	server, err := rest.New("v1.0.123", "", cfg, nil, auditor.NewInMemory(), nil, nil, nil)
+	require.NoError(t, err)
+	require.NotNil(t, server)
+
+	svc := NewService(server)
+	server.AddService(svc)
+
+	defaultHandler := server.NewMux()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), "test", "value in context")
+		r = r.WithContext(ctx)
+		defaultHandler.ServeHTTP(w, r)
+	})
+	server.WithMuxFactory(muxer(handler))
+
+	err = server.StartHTTP()
+	require.NoError(t, err)
+
+	for i := 0; i < 10 && !server.IsReady(); i++ {
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.True(t, server.IsReady())
+
+	url := fmt.Sprintf("http://%s:8082/v1/test", server.HostName())
+	resp, err := http.Get(url)
+	require.NoError(t, err)
+	body, err := ioutil.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Contains(t, string(body), "value in context")
+
+	sigs := make(chan os.Signal, 2)
+	go func() {
+		// Send STOP signal after few seconds,
+		// in production the service should listen to
+		// os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGUSR2, syscall.SIGABRT events
+		time.Sleep(3 * time.Second)
+		fmt.Println("sending syscall.SIGTERM signal")
+		sigs <- syscall.SIGTERM
+	}()
+
+	// register for signals, and wait to be shutdown
+	signal.Notify(sigs, os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGUSR2, syscall.SIGABRT)
+	// Block until a signal is received.
+	<-sigs
+	server.StopHTTP()
+}
+
 func Test_TLSConfig(t *testing.T) {
 	cfg := &serverConfig{
 		BindAddr: ":8081",
@@ -269,6 +325,18 @@ func Test_GetServerURL(t *testing.T) {
 
 		assert.Equal(t, "https://localhost/another/location", u.String())
 	})
+}
+
+type testMuxer struct {
+	handler http.Handler
+}
+
+func (tm *testMuxer) NewMux() http.Handler {
+	return tm.handler
+}
+
+func muxer(handler http.Handler) *testMuxer {
+	return &testMuxer {handler: handler}
 }
 
 type cluster struct {

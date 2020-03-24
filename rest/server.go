@@ -128,6 +128,11 @@ type Server interface {
 	OnEvent(evt ServerEvent, handler ServerEventFunc)
 }
 
+// MuxFactory creates http handlers.
+type MuxFactory interface {
+	NewMux() http.Handler
+}
+
 // HTTPServer is responsible for exposing the collection of the services
 // as a single HTTP server
 type HTTPServer struct {
@@ -140,6 +145,7 @@ type HTTPServer struct {
 	tlsConfig      *tls.Config
 	httpServer     *http.Server
 	cors           *CORSOptions
+	muxFactory     MuxFactory
 	hostname       string
 	port           string
 	ipaddr         string
@@ -191,7 +197,7 @@ func New(
 		auditor:        auditor,
 		tlsConfig:      tlsConfig,
 	}
-
+	s.muxFactory = s
 	if tlsConfig != nil {
 		s.clientAuth = tlsClientAuthToStrMap[tlsConfig.ClientAuth]
 	}
@@ -370,6 +376,11 @@ func (server *HTTPServer) Audit(source string,
 	}
 }
 
+// WithMuxFactory requires the server to use `muxFactory` to create server handler.
+func (server *HTTPServer) WithMuxFactory(muxFactory MuxFactory) {
+	server.muxFactory = muxFactory
+}
+
 // StartHTTP will verify all the TLS related files are present and start the actual HTTPS listener for the server
 func (server *HTTPServer) StartHTTP() error {
 	bindAddr := server.httpConfig.GetBindAddr()
@@ -401,7 +412,7 @@ func (server *HTTPServer) StartHTTP() error {
 		server.httpServer.Addr = bindAddr
 	}
 
-	httpHandler := server.NewMux()
+	httpHandler := server.muxFactory.NewMux()
 
 	if server.httpConfig.GetAllowProfiling() {
 		if httpHandler, err = xhttp.NewRequestProfiler(httpHandler, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
