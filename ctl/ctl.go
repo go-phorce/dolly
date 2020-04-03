@@ -8,14 +8,12 @@ import (
 	"io"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/go-phorce/dolly/xlog/logrotate"
 	"github.com/juju/errors"
 )
 
