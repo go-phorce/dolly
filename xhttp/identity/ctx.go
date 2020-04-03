@@ -40,7 +40,7 @@ type RequestContext struct {
 // NewRequestContext creates a request context with a specific identity.
 func NewRequestContext(id Identity) *RequestContext {
 	return &RequestContext{
-		identity:      id,
+		identity: id,
 	}
 }
 

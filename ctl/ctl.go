@@ -65,9 +65,8 @@ type Control interface {
 type Ctl struct {
 	Control
 
-	params     *ControlDefinition
-	rc         ReturnCode
-	logRotator io.Closer
+	params *ControlDefinition
+	rc     ReturnCode
 
 	serverURL   string
 	contentType string
@@ -294,9 +293,6 @@ func (ctl *Ctl) initGlobalFlags() {
 // will perform any pre-actions and actions defined on the command
 func (ctl *Ctl) Parse(args []string) string {
 	cmd, err := ctl.params.App.Parse(args[1:])
-	if ctl.logRotator != nil {
-		defer ctl.logRotator.Close()
-	}
 	if err != nil {
 		if ctl.rc != RCFailed {
 			ctl.rc = RCUsage
@@ -310,11 +306,7 @@ func (ctl *Ctl) Parse(args []string) string {
 // PopulateControl is a pre-action for kingpin library to populate the
 // control object after all the flags are parsed
 func (ctl *Ctl) PopulateControl() error {
-	var err error
-
 	isDebug := *ctl.flags.debug
-	appName := filepath.Base(os.Args[0])
-	logFolder := filepath.Join(os.TempDir(), appName, "logs")
 	var sink io.Writer
 	if isDebug {
 		sink = os.Stderr
@@ -323,14 +315,6 @@ func (ctl *Ctl) PopulateControl() error {
 	} else {
 		xlog.SetGlobalLogLevel(xlog.TRACE)
 	}
-	logRotator, err := logrotate.Initialize(logFolder, appName, 7, 10, false, sink)
-	if err != nil {
-		logger.Error("unable to initialize log file '%s/%s.log': %s", logFolder, appName, err)
-	} else {
-		logger.Infof("log file: %s/%s.log", logFolder, appName)
-	}
-
-	ctl.logRotator = logRotator
 
 	if ctl.params.WithServer {
 		if *ctl.flags.ctJSON {

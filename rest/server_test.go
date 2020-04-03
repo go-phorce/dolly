@@ -336,7 +336,7 @@ func (tm *testMuxer) NewMux() http.Handler {
 }
 
 func muxer(handler http.Handler) *testMuxer {
-	return &testMuxer {handler: handler}
+	return &testMuxer{handler: handler}
 }
 
 type cluster struct {
