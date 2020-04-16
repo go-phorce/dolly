@@ -3,6 +3,7 @@ package marshal
 import (
 	"bufio"
 	"compress/gzip"
+	goErrors "errors"
 	"io"
 	"net/http"
 	"strings"
@@ -44,6 +45,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 			break
 		}
 	}
+
 	switch bv := body.(type) {
 	case WriteHTTPResponse:
 		// errors.Error impls WriteHTTPResponse, so will take this path and do its thing
@@ -63,6 +65,13 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 		return
 
 	case error:
+		var resp WriteHTTPResponse
+
+		if goErrors.As(bv, resp) {
+			resp.WriteHTTPResponse(w, r)
+			return
+		}
+
 		// you should really be using Error to get a good error response returned
 		logger.Debugf("api=WriteJSON, reason=generic_error, type=%T, err=[%v]", bv, bv)
 		WriteJSON(w, r, httperror.WithUnexpected(bv.Error()))
