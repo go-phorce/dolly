@@ -3,6 +3,7 @@ package marshal
 import (
 	"bufio"
 	"compress/gzip"
+	goErrors "errors"
 	"io"
 	"net/http"
 	"strings"
@@ -44,25 +45,23 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 			break
 		}
 	}
+
 	switch bv := body.(type) {
 	case WriteHTTPResponse:
 		// errors.Error impls WriteHTTPResponse, so will take this path and do its thing
 		bv.WriteHTTPResponse(w, r)
-		if e, ok := bv.(*httperror.Error); ok {
-			if e.HTTPStatus >= 500 {
-				logger.Errorf("INTERNAL_ERROR=%s:%d:%s:%s",
-					r.URL.Path, e.HTTPStatus, e.Code, e.Message)
-			} else {
-				logger.Warningf("API_ERROR=%s:%d:%s:%s",
-					r.URL.Path, e.HTTPStatus, e.Code, e.Message)
-			}
-			if e.Cause != nil {
-				logger.Errorf(errors.ErrorStack(e))
-			}
-		}
+		tryLogHttpError(bv, r)
 		return
 
 	case error:
+		var resp WriteHTTPResponse
+
+		if goErrors.As(bv, resp) {
+			resp.WriteHTTPResponse(w, r)
+			tryLogHttpError(bv, r)
+			return
+		}
+
 		// you should really be using Error to get a good error response returned
 		logger.Debugf("api=WriteJSON, reason=generic_error, type=%T, err=[%v]", bv, bv)
 		WriteJSON(w, r, httperror.WithUnexpected(bv.Error()))
@@ -82,6 +81,21 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 			logger.Warningf("api=WriteJSON, reason=encode, type=%T, err=[%v]", body, err.Error())
 		}
 		bw.Flush()
+	}
+}
+
+func tryLogHttpError(bv interface{}, r *http.Request) {
+	if e, ok := bv.(*httperror.Error); ok {
+		if e.HTTPStatus >= 500 {
+			logger.Errorf("INTERNAL_ERROR=%s:%d:%s:%s",
+				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
+		} else {
+			logger.Warningf("API_ERROR=%s:%d:%s:%s",
+				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
+		}
+		if e.Cause != nil {
+			logger.Errorf(errors.ErrorStack(e))
+		}
 	}
 }
 
