@@ -56,7 +56,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 	case error:
 		var resp WriteHTTPResponse
 
-		if goErrors.As(bv, resp) {
+		if goErrors.As(bv, &resp) {
 			resp.WriteHTTPResponse(w, r)
 			tryLogHttpError(bv, r)
 			return
