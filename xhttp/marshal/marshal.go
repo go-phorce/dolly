@@ -50,7 +50,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 	case WriteHTTPResponse:
 		// errors.Error impls WriteHTTPResponse, so will take this path and do its thing
 		bv.WriteHTTPResponse(w, r)
-		tryLogHttpError(bv, r)
+		tryLogHTTPError(bv, r)
 		return
 
 	case error:
@@ -58,7 +58,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 
 		if goErrors.As(bv, &resp) {
 			resp.WriteHTTPResponse(w, r)
-			tryLogHttpError(bv, r)
+			tryLogHTTPError(bv, r)
 			return
 		}
 
@@ -84,7 +84,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 	}
 }
 
-func tryLogHttpError(bv interface{}, r *http.Request) {
+func tryLogHTTPError(bv interface{}, r *http.Request) {
 	if e, ok := bv.(*httperror.Error); ok {
 		if e.HTTPStatus >= 500 {
 			logger.Errorf("INTERNAL_ERROR=%s:%d:%s:%s",

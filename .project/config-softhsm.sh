@@ -93,7 +93,7 @@ echo "UNAME=$UNAME"
 if [ "$UNAME" = "Darwin" ]; then
   	# OSX Settings: Use `brew install engine_pkcs11 opensc libp11`
   	HSM_SPYMODULE=/usr/local/Cellar/opensc/0.17.0/lib/pkcs11-spy.so
-  	HSM_MODULE=/usr/local/Cellar/softhsm/2.5.0/lib/softhsm/libsofthsm2.so
+  	HSM_MODULE=/usr/local/Cellar/softhsm/2.6.0/lib/softhsm/libsofthsm2.so
 fi
     if [ "$UNAME" = "Linux" ]; then
         OS_REV=`uname -r`
