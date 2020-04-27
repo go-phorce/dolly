@@ -389,8 +389,8 @@ func Test_RetriableTimeout(t *testing.T) {
 	_, status, err := client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
 	require.Error(t, err)
 	assert.Equal(t, 0, status)
-	exp1 := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded", server1.URL)
-	exp2 := fmt.Sprintf("unexpected: Get %s/v1/test: context deadline exceeded", server2.URL)
+	exp1 := fmt.Sprintf("unexpected: Get \"%s/v1/test\": context deadline exceeded", server1.URL)
+	exp2 := fmt.Sprintf("unexpected: Get \"%s/v1/test\": context deadline exceeded", server2.URL)
 	assert.Contains(t, err.Error(), exp1)
 	assert.Contains(t, err.Error(), exp2)
 
@@ -459,7 +459,7 @@ func Test_Retriable_DoWithTimeout(t *testing.T) {
 	})
 	_, err = client.Do(req)
 	require.Error(t, err)
-	exp1 := fmt.Sprintf("Post %s/v1/test/do: context deadline exceeded", server1.URL)
+	exp1 := fmt.Sprintf("Post \"%s/v1/test/do\": context deadline exceeded", server1.URL)
 	assert.Contains(t, err.Error(), exp1)
 }
 
