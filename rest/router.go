@@ -79,6 +79,7 @@ type Router interface {
 	PUT(path string, handle Handle)
 	PATCH(path string, handle Handle)
 	DELETE(path string, handle Handle)
+	CONNECT(path string, handle Handle)
 }
 
 type proxy struct {
@@ -169,4 +170,9 @@ func (p *proxy) PATCH(path string, handle Handle) {
 // DELETE is a shortcut for router.Handle("DELETE", path, handle)
 func (p *proxy) DELETE(path string, handle Handle) {
 	p.router.Handle("DELETE", path, proxyHandle(handle))
+}
+
+// CONNECT is a shortcut for router.Handle("CONNECT", path, handle)
+func (p *proxy) CONNECT(path string, handle Handle) {
+	p.router.Handle("CONNECT", path, proxyHandle(handle))
 }
