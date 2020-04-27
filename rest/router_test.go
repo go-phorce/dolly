@@ -43,6 +43,7 @@ func Test_Router(t *testing.T) {
 	router.PUT("/put", h.handle)
 	router.PATCH("/patch", h.handle)
 	router.DELETE("/del", h.handle)
+	router.CONNECT("/", h.handle)
 
 	assert.Equal(t, 0, h.methods[http.MethodGet])
 	assert.Equal(t, 0, h.methods[http.MethodHead])
@@ -51,6 +52,7 @@ func Test_Router(t *testing.T) {
 	assert.Equal(t, 0, h.methods[http.MethodPut])
 	assert.Equal(t, 0, h.methods[http.MethodPatch])
 	assert.Equal(t, 0, h.methods[http.MethodDelete])
+	assert.Equal(t, 0, h.methods[http.MethodConnect])
 
 	rh := router.Handler()
 	assert.NotNil(t, rh)
@@ -86,6 +88,11 @@ func Test_Router(t *testing.T) {
 	require.NoError(t, err)
 	rh.ServeHTTP(w, r)
 	assert.Equal(t, 1, h.methods[http.MethodDelete])
+
+	r, err = http.NewRequest(http.MethodConnect, "/", nil)
+	require.NoError(t, err)
+	rh.ServeHTTP(w, r)
+	assert.Equal(t, 1, h.methods[http.MethodConnect])
 
 	assert.Equal(t, 1, h.parameters["GET"])
 	assert.Equal(t, 0, h.parameters["DELETE"])
