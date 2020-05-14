@@ -267,6 +267,8 @@ type ControlDefinition struct {
 	DisableGlobalFlags bool
 }
 
+//GetErrorOutput returns the writer to use when outputing errors. This defaults to d.Output but will return d.Error
+//if it is not nil.
 func (d *ControlDefinition) GetErrorOutput() io.Writer {
 	if d.Error != nil {
 		return d.Error
