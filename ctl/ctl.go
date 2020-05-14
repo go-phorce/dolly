@@ -253,6 +253,9 @@ type ControlDefinition struct {
 	// Output is the destination for all output from the command, typically set to os.Stdout
 	Output io.Writer
 
+	// Error is the destinaton for errors. If not set, errors will be written to Output. typically set to os.StdError
+	Error io.Writer
+
 	// WithServer specifies if the CTL operates with a remote server
 	WithServer bool
 	// DefaultServerURL is the default URL that the service to be controlled is accessed on
@@ -262,6 +265,15 @@ type ControlDefinition struct {
 
 	// DisableGlobalFlags specifies if the global command line flags should NOT be populated
 	DisableGlobalFlags bool
+}
+
+//GetErrorOutput returns the writer to use when outputing errors. This defaults to d.Output but will return d.Error
+//if it is not nil.
+func (d *ControlDefinition) GetErrorOutput() io.Writer {
+	if d.Error != nil {
+		return d.Error
+	}
+	return d.Output
 }
 
 // InitGlobalFlags builds a FlagSet configured with the default set of flags & usage formatting.
@@ -295,7 +307,7 @@ func (ctl *Ctl) Parse(args []string) string {
 		if ctl.rc != RCFailed {
 			ctl.rc = RCUsage
 		}
-		fmt.Fprintf(ctl.params.Output, "ERROR: %s\n", err.Error())
+		fmt.Fprintf(ctl.params.GetErrorOutput(), "ERROR: %s\n", err.Error())
 		return ""
 	}
 	return cmd
