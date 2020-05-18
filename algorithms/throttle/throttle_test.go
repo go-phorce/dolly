@@ -83,7 +83,7 @@ func Test_MultiPingInMultiplePeriod(t *testing.T) {
 
 	wg.Wait()
 
-	assert.True(t, count >= 2 && count <= 4)
+	assert.True(t, count >= 2 && count <= 4, "count is expected between 2-4, got %d", count)
 }
 
 func Test_TrailingMultiPingInOnePeriod(t *testing.T) {
