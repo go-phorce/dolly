@@ -84,7 +84,8 @@ func NewKeypairReloaderWithLabel(label, certPath, keyPath string, checkInterval 
 						logger.Warningf("api=NewKeypairReloader, reason=stat, label=%s, file=%q, err=[%v]", result.label, keyPath, err)
 					}
 				}
-				if modified {
+				// reload on modified, or force to reload each hour
+				if modified || result.loadedAt.Add(1*time.Hour).Before(time.Now().UTC()) {
 					err := result.Reload()
 					if err != nil {
 						logger.Errorf("api=NewKeypairReloader, label=%s, err=[%v]", result.label, errors.ErrorStack(err))
@@ -164,7 +165,21 @@ func (k *KeypairReloader) Reload() error {
 // GetKeypairFunc is a callback for TLSConfig to provide TLS certificate and key pair
 func (k *KeypairReloader) GetKeypairFunc() func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	return func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		return k.Keypair(), nil
+		var err error
+		kp := k.Keypair()
+		if kp.Leaf == nil && len(kp.Certificate) > 0 {
+			kp.Leaf, err = x509.ParseCertificate(kp.Certificate[0])
+			if err != nil {
+				logger.Warningf("api=GetKeypairFunc, reason=ParseCertificate, label=%s, err=[%v]", k.label, err)
+			}
+		}
+
+		if kp.Leaf != nil && kp.Leaf.NotAfter.Add(1*time.Hour).Before(time.Now().UTC()) {
+			remote := clientHello.Conn.RemoteAddr().String()
+			logger.Warningf("api=GetKeypairFunc, remote=%q, label=%s, count=%d, cert=%q", remote, k.label, k.count, k.certPath)
+		}
+
+		return kp, nil
 	}
 }
 
