@@ -323,7 +323,7 @@ func (ctl *Ctl) PopulateControl() error {
 		xlog.SetFormatter(xlog.NewColorFormatter(sink, true))
 		xlog.SetGlobalLogLevel(xlog.DEBUG)
 	} else {
-		xlog.SetGlobalLogLevel(xlog.ERROR)
+		xlog.SetGlobalLogLevel(xlog.CRITICAL)
 	}
 
 	if ctl.params.WithServer {

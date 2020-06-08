@@ -162,24 +162,39 @@ func (k *KeypairReloader) Reload() error {
 	return nil
 }
 
-// GetKeypairFunc is a callback for TLSConfig to provide TLS certificate and key pair
+func (k *KeypairReloader) tlsCert() (*tls.Certificate, error) {
+	var err error
+	kp := k.Keypair()
+	if kp.Leaf == nil && len(kp.Certificate) > 0 {
+		kp.Leaf, err = x509.ParseCertificate(kp.Certificate[0])
+		if err != nil {
+			logger.Warningf("api=tlsCert, reason=ParseCertificate, label=%s, err=[%v]", k.label, err)
+		}
+	}
+
+	if kp.Leaf != nil {
+		if kp.Leaf.NotAfter.Add(1 * time.Hour).Before(time.Now().UTC()) {
+			logger.Warningf("api=tlsCert, label=%s, count=%d, cert=%q, expires=%q",
+				k.label, k.count, k.certPath, kp.Leaf.NotAfter.Format(time.RFC3339))
+		} else {
+			logger.Tracef("api=tlsCert, label=%s, count=%d, cert=%q, expires=%q",
+				k.label, k.count, k.certPath, kp.Leaf.NotAfter.Format(time.RFC3339))
+		}
+	}
+	return kp, nil
+}
+
+// GetKeypairFunc is a callback for TLSConfig to provide TLS certificate and key pair for Server
 func (k *KeypairReloader) GetKeypairFunc() func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	return func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		var err error
-		kp := k.Keypair()
-		if kp.Leaf == nil && len(kp.Certificate) > 0 {
-			kp.Leaf, err = x509.ParseCertificate(kp.Certificate[0])
-			if err != nil {
-				logger.Warningf("api=GetKeypairFunc, reason=ParseCertificate, label=%s, err=[%v]", k.label, err)
-			}
-		}
+		return k.tlsCert()
+	}
+}
 
-		if kp.Leaf != nil && kp.Leaf.NotAfter.Add(1*time.Hour).Before(time.Now().UTC()) {
-			remote := clientHello.Conn.RemoteAddr().String()
-			logger.Warningf("api=GetKeypairFunc, remote=%q, label=%s, count=%d, cert=%q", remote, k.label, k.count, k.certPath)
-		}
-
-		return kp, nil
+// GetClientCertificateFunc is a callback for TLSConfig to provide TLS certificate and key pair for Client
+func (k *KeypairReloader) GetClientCertificateFunc() func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	return func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+		return k.tlsCert()
 	}
 }
 
