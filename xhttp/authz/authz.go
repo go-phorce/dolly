@@ -332,11 +332,11 @@ func (c *Provider) isAllowed(path, role string) bool {
 	}
 	res := allowAny || allowRole
 	if res {
-		if allowAny && c.cfg.LogAllowedAny {
-			logger.Infof("api=Authz, status=allowed, reason=AllowAny, role=%q, path=%s, node=%s",
-				role, path, node.value)
-		} else if c.cfg.LogAllowed {
+		if allowRole && c.cfg.LogAllowed {
 			logger.Noticef("api=Authz, status=allowed, role=%q, path=%s, node=%s",
+				role, path, node.value)
+		} else if c.cfg.LogAllowedAny {
+			logger.Infof("api=Authz, status=allowed, reason=AllowAny, role=%q, path=%s, node=%s",
 				role, path, node.value)
 		}
 	} else if c.cfg.LogDenied {
