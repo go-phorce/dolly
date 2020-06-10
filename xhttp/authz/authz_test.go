@@ -224,7 +224,7 @@ func TestConfig_TreeAsText(t *testing.T) {
 }
 
 func Test_AccessLogs(t *testing.T) {
-	c, err := New(&Config{LogAllowed: true, LogDenied: true})
+	c, err := New(&Config{LogAllowed: true, LogDenied: true, LogAllowedAny: true})
 	require.NoError(t, err)
 	c.AllowAny("/")
 	c.Allow("/foo/alice", "svc_alice", "svc_bob")
@@ -245,15 +245,16 @@ func Test_AccessLogs(t *testing.T) {
 
 	t.Run("logs", func(t *testing.T) {
 		buf.Reset()
-		shouldLog("/", "bobby", "authz: api=Authz, status=allowed, role=\"bobby\", path=/, reason=\"AllowAny\", node=\n")
-		shouldLog("/bob", "svc_bob", "authz: api=Authz, status=allowed, role=\"svc_bob\", path=/bob, reason=\"AllowAny\", node=\n")
-		shouldLog("/bar", "svc_bob", "authz: api=Authz, status=allowed, role=\"svc_bob\", path=/bar, reason=\"Role\", node=bar\n")
+		shouldLog("/", "bobby", "authz: api=Authz, status=allowed, reason=AllowAny, role=\"bobby\", path=/, node=\n")
+		shouldLog("/bob", "svc_bob", "authz: api=Authz, status=allowed, reason=AllowAny, role=\"svc_bob\", path=/bob, node=\n")
+		shouldLog("/bar", "svc_bob", "authz: api=Authz, status=allowed, role=\"svc_bob\", path=/bar, node=bar\n")
 		shouldLog("/bar", "svc_eve", "authz: api=Authz, status=denied, role=\"svc_eve\", path=/bar, allowed_roles='svc_bob', node=bar\n")
-		shouldLog("/foo/eve", "svc_eve", "authz: api=Authz, status=allowed, role=\"svc_eve\", path=/foo/eve, reason=\"Role\", node=eve\n")
+		shouldLog("/foo/eve", "svc_eve", "authz: api=Authz, status=allowed, role=\"svc_eve\", path=/foo/eve, node=eve\n")
 		shouldLog("/foo/eve", "svc_bob", "authz: api=Authz, status=denied, role=\"svc_bob\", path=/foo/eve, allowed_roles='svc_alice,svc_eve', node=eve\n")
 	})
 
 	t.Run("nologs", func(t *testing.T) {
+		c.cfg.LogAllowedAny = false
 		c.cfg.LogAllowed = false
 		c.cfg.LogDenied = false
 		buf.Reset()

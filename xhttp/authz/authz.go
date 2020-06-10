@@ -64,6 +64,9 @@ type Config struct {
 	// AllowAnyRole will allow any authenticated request that include a non empty role
 	AllowAnyRole []string
 
+	// LogAllowedAny specifies to log allowed access to nodes in AllowAny list
+	LogAllowedAny bool
+
 	// LogAllowed specifies to log allowed access
 	LogAllowed bool
 
@@ -329,15 +332,12 @@ func (c *Provider) isAllowed(path, role string) bool {
 	}
 	res := allowAny || allowRole
 	if res {
-		var reason string
-		if allowAny {
-			reason = "AllowAny"
-		} else {
-			reason = "Role"
-		}
-		if c.cfg.LogAllowed {
-			logger.Noticef("api=Authz, status=allowed, role=%q, path=%s, reason=%q, node=%s",
-				role, path, reason, node.value)
+		if allowAny && c.cfg.LogAllowedAny {
+			logger.Infof("api=Authz, status=allowed, reason=AllowAny, role=%q, path=%s, node=%s",
+				role, path, node.value)
+		} else if c.cfg.LogAllowed {
+			logger.Noticef("api=Authz, status=allowed, role=%q, path=%s, node=%s",
+				role, path, node.value)
 		}
 	} else if c.cfg.LogDenied {
 		logger.Noticef("api=Authz, status=denied, role=%q, path=%s, allowed_roles='%v', node=%s",
