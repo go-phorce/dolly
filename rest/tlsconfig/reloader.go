@@ -18,6 +18,9 @@ var makeTicker = func(interval time.Duration) (func(), <-chan time.Time) {
 	return t.Stop, t.C
 }
 
+// OnReloadFunc is a callback to handle cert reload
+type OnReloadFunc func(modifiedAt time.Time)
+
 // KeypairReloader keeps necessary info to provide reloaded certificate
 type KeypairReloader struct {
 	label          string
@@ -32,6 +35,7 @@ type KeypairReloader struct {
 	inProgress     bool
 	stopChan       chan<- struct{}
 	closed         bool
+	handlers       []OnReloadFunc
 }
 
 // NewKeypairReloader return an instance of the TLS cert loader
@@ -98,6 +102,17 @@ func NewKeypairReloaderWithLabel(label, certPath, keyPath string, checkInterval 
 	return result, nil
 }
 
+// OnReload allows to add OnReloadFunc handler
+func (k *KeypairReloader) OnReload(f OnReloadFunc) *KeypairReloader {
+	k.lock.Lock()
+	defer k.lock.Unlock()
+
+	if f != nil {
+		k.handlers = append(k.handlers, f)
+	}
+	return k
+}
+
 // Reload will explicitly load TLS certs from the disk
 func (k *KeypairReloader) Reload() error {
 	k.lock.Lock()
@@ -111,6 +126,8 @@ func (k *KeypairReloader) Reload() error {
 	}
 
 	k.inProgress = true
+
+	oldModifiedAt := k.certModifiedAt
 
 	atomic.AddUint32(&k.count, 1)
 	k.loadedAt = time.Now().UTC()
@@ -158,7 +175,15 @@ func (k *KeypairReloader) Reload() error {
 		logger.Warningf("api=Reload, reason=stat, label=%s, file=%q, err=[%v]", k.label, k.keyPath, err)
 	}
 
-	logger.Infof("api=Reload, label=%s, count=%d, cert=%q, key=%q", k.label, k.count, k.certPath, k.keyPath)
+	logger.Infof("api=Reload, label=%s, count=%d, cert=%q, modifiedAt=%q",
+		k.label, k.count, k.certPath, k.certModifiedAt.Format(time.RFC3339))
+
+	if oldModifiedAt != k.certModifiedAt {
+		for _, h := range k.handlers {
+			h(k.certModifiedAt)
+		}
+	}
+
 	return nil
 }
 

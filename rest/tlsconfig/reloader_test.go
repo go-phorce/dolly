@@ -35,6 +35,11 @@ func Test_KeypairReloader(t *testing.T) {
 	require.NotNil(t, k)
 	defer k.Close()
 
+	reloadedCount := 0
+	k.OnReload(func(_ time.Time) {
+		reloadedCount++
+	})
+
 	loadedAt := k.LoadedAt()
 	assert.True(t, loadedAt.After(now), "loaded time must be after test start time")
 	assert.Equal(t, uint32(1), k.LoadedCount())
@@ -68,4 +73,16 @@ func Test_KeypairReloader(t *testing.T) {
 	count = int(k.LoadedCount())
 	assert.True(t, count >= 3 && count <= 5, "must be loaded at start, whithin period and after, loaded: %d", k.LoadedCount())
 	assert.True(t, loadedAt3.After(loadedAt2), "re-loaded time must be after last loaded time")
+	assert.True(t, reloadedCount > 1, "must be reloaded when file modified: %d", reloadedCount)
+
+	getKeypair := k.GetKeypairFunc()
+	kpair, err := getKeypair(nil)
+	require.NoError(t, err)
+	require.NotNil(t, kpair)
+
+	getClientCertificate := k.GetClientCertificateFunc()
+	kpair, err = getClientCertificate(nil)
+	require.NoError(t, err)
+	require.NotNil(t, kpair)
+
 }
