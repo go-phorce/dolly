@@ -56,10 +56,11 @@ func (rm *requestMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		{Name: tags.URI, Value: r.URL.Path},
 	}
 
+	metrics.MeasureSince(keyForHTTPReqPerf, start, tags...)
+
 	if sc >= 400 {
 		metrics.IncrCounter(keyForHTTPReqFailed, 1, tags...)
 	} else {
-		metrics.MeasureSince(keyForHTTPReqPerf, start, tags...)
 		metrics.IncrCounter(keyForHTTPReqSuccessful, 1, tags...)
 	}
 }
