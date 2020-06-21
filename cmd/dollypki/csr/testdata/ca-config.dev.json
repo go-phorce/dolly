@@ -82,30 +82,6 @@
                 "allowed_extensions": [
                     "2.5.29.37"
                 ]
-            },
-            "secure_boot": {
-                "expiry": "8760h",
-                "usages": [
-                    "digital signature",
-                    "code signing",
-                    "key encipherment"
-                ]
-            },
-            "gpg": {
-                "expiry": "8760h",
-                "usages": [
-                    "digital signature",
-                    "code signing",
-                    "key encipherment"
-                ]
-            },
-            "ecdsa": {
-                "expiry": "8760h",
-                "usages": [
-                    "digital signature",
-                    "code signing",
-                    "key encipherment"
-                ]
             }
         }
     }
