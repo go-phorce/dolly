@@ -2,17 +2,12 @@
 
 GO packages for building web apps in go-phorce
 
-[![Build Status](https://travis-ci.org/go-phorce/dolly.svg?branch=master)](https://travis-ci.org/go-phorce/dolly)
+[![Build Status](https://travis-ci.com/go-phorce/dolly.svg?branch=master)](https://travis-ci.com/go-phorce/dolly)
 [![Coverage Status](https://coveralls.io/repos/github/go-phorce/dolly/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/dolly?branch=master)
 
 ## Contribution
 
-Before openning VSCODE or running make, run once:
-    ./vscode.sh
-
 * `make all` complete build and test
-* `make get` fetches the pinned dependencies from repos
-* `make devtools` get the dev tools for local development in VSCODE
 * `make test` run the tests
 * `make testshort` runs the tests skipping the end-to-end tests and the code coverage reporting
 * `make covtest` runs the tests with end-to-end and the code coverage reporting
@@ -21,7 +16,7 @@ Before openning VSCODE or running make, run once:
 * `make fmt` runs go fmt on the project.
 * `make lint` runs the go linter on the project.
 
-run `make get` once, then run `make build` or `make test` as needed.
+run `make all` once, then run `make build` or `make test` as needed.
 
 First run:
 

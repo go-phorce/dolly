@@ -113,7 +113,8 @@ func Test_PrettyFormatter(t *testing.T) {
 }
 
 func Test_WithTracedError(t *testing.T) {
-	wd, _ := os.Getwd() // package dir
+	wd, err := os.Getwd() // package dir
+	require.NoError(t, err)
 
 	cases := []struct {
 		msg           string
@@ -158,7 +159,7 @@ func Test_WithTracedError(t *testing.T) {
 		logger.Errorf("stack=[%v]", errors.ErrorStack(err))
 		result = string(b.Bytes())[prefixLen:]
 		// remove paths from the trace
-		result = strings.Replace(result, wd, "", -1)
+		result = strings.Replace(result, wd, "github.com/go-phorce/dolly/xlog", -1)
 		assert.Equal(t, c.expectedStack, result, "[%d] case failed expectation", idx)
 		b.Reset()
 	}
@@ -210,7 +211,7 @@ func Test_WithAnnotatedError(t *testing.T) {
 		logger.Errorf("stack=[%v]", errors.ErrorStack(err))
 		result = string(b.Bytes())[prefixLen:]
 		// remove paths from the trace
-		result = strings.Replace(result, wd, "", -1)
+		result = strings.Replace(result, wd, "github.com/go-phorce/dolly/xlog", -1)
 		assert.Equal(t, c.expectedStack, result, "[%d] case failed expectation", idx)
 		b.Reset()
 	}

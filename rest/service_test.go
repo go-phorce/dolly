@@ -351,7 +351,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 	defer server.StopHTTP()
 
 	for i := 0; i < 10 && !server.IsReady(); i++ {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 	}
 	s.Require().True(server.IsReady())
 
@@ -375,7 +375,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 
 		w := bytes.NewBuffer([]byte{})
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		_, _, err = client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
@@ -397,7 +397,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 
 		w := bytes.NewBuffer([]byte{})
 
-		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		_, _, err = client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
