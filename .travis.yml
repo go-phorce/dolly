@@ -9,7 +9,7 @@ go:
   - 1.14.x
 
 env:
-  - GO111MODULE=off
+  - GO111MODULE=on
 
 # Only clone the most recent commit.
 git:
@@ -22,7 +22,7 @@ addons:
       - opensc
 
 install:
-  - make gopath tools
+  - make vars tools
 
 # Don't email me the results of the test runs.
 notifications:
