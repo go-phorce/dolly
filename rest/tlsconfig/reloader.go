@@ -116,16 +116,16 @@ func (k *KeypairReloader) OnReload(f OnReloadFunc) *KeypairReloader {
 // Reload will explicitly load TLS certs from the disk
 func (k *KeypairReloader) Reload() error {
 	k.lock.Lock()
-	defer func() {
-		k.inProgress = false
-		k.lock.Unlock()
-	}()
-
 	if k.inProgress {
+		k.lock.Unlock()
 		return nil
 	}
 
 	k.inProgress = true
+	defer func() {
+		k.inProgress = false
+		k.lock.Unlock()
+	}()
 
 	oldModifiedAt := k.certModifiedAt
 
@@ -180,7 +180,7 @@ func (k *KeypairReloader) Reload() error {
 
 	if oldModifiedAt != k.certModifiedAt {
 		for _, h := range k.handlers {
-			h(k.certModifiedAt)
+			go h(k.certModifiedAt)
 		}
 	}
 
