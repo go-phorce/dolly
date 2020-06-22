@@ -79,24 +79,21 @@ func NewReloader(filePath string, checkInterval time.Duration, onChangedFunc OnC
 // Reload will explicitly call the callback function
 func (k *Reloader) Reload() error {
 	k.lock.Lock()
-	defer func() {
-		if r := recover(); r != nil {
-			logger.Errorf("api=Reload, reason=panic, file=%q, err=[%v]", k.filePath, r)
-		}
-		k.inProgress = false
-		k.lock.Unlock()
-	}()
-
 	if k.inProgress {
+		k.lock.Unlock()
 		return nil
 	}
 
 	k.inProgress = true
+	defer func() {
+		k.inProgress = false
+		k.lock.Unlock()
+	}()
 
 	atomic.AddUint32(&k.count, 1)
 	k.loadedAt = time.Now().UTC()
 
-	k.onChangedFunc(k.filePath, k.fileModifiedAt)
+	go k.onChangedFunc(k.filePath, k.fileModifiedAt)
 
 	return nil
 }
