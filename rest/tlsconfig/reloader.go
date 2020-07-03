@@ -19,7 +19,7 @@ var makeTicker = func(interval time.Duration) (func(), <-chan time.Time) {
 }
 
 // OnReloadFunc is a callback to handle cert reload
-type OnReloadFunc func(modifiedAt time.Time)
+type OnReloadFunc func(pair *tls.Certificate)
 
 // KeypairReloader keeps necessary info to provide reloaded certificate
 type KeypairReloader struct {
@@ -123,14 +123,13 @@ func (k *KeypairReloader) Reload() error {
 
 	k.inProgress = true
 	defer func() {
-		k.inProgress = false
-		k.lock.Unlock()
+		if k.inProgress {
+			k.inProgress = false
+			k.lock.Unlock()
+		}
 	}()
 
 	oldModifiedAt := k.certModifiedAt
-
-	atomic.AddUint32(&k.count, 1)
-	k.loadedAt = time.Now().UTC()
 
 	var newCert tls.Certificate
 	var err error
@@ -138,7 +137,7 @@ func (k *KeypairReloader) Reload() error {
 	for i := 0; i < 3; i++ {
 		// sleep a little as notification occurs right after process starts writing the file,
 		// so it needs to finish writing the file
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		newCert, err = tls.LoadX509KeyPair(k.certPath, k.keyPath)
 		if err == nil {
 			break
@@ -149,17 +148,8 @@ func (k *KeypairReloader) Reload() error {
 		return errors.Annotatef(err, "count: %d", k.count)
 	}
 
-	k.keypair = &newCert
-	if newCert.Leaf == nil && len(newCert.Certificate) > 0 {
-		newCert.Leaf, err = x509.ParseCertificate(newCert.Certificate[0])
-		if err != nil {
-			logger.Warningf("api=Reload, reason=ParseCertificate, label=%s, err=[%v]", k.label, err)
-		}
-	}
-	if newCert.Leaf != nil {
-		logger.Noticef("api=Reload, reason=loaded, label=%s, cn=%q, expires=%q",
-			k.label, newCert.Leaf.Subject.CommonName, newCert.Leaf.NotAfter.Format(time.RFC3339))
-	}
+	atomic.AddUint32(&k.count, 1)
+	k.loadedAt = time.Now().UTC()
 
 	certFileInfo, err := os.Stat(k.certPath)
 	if err == nil {
@@ -175,21 +165,27 @@ func (k *KeypairReloader) Reload() error {
 		logger.Warningf("api=Reload, reason=stat, label=%s, file=%q, err=[%v]", k.label, k.keyPath, err)
 	}
 
-	logger.Infof("api=Reload, label=%s, count=%d, cert=%q, modifiedAt=%q",
+	logger.Noticef("api=Reload, label=%s, count=%d, cert=%q, modifiedAt=%q",
 		k.label, k.count, k.certPath, k.certModifiedAt.Format(time.RFC3339))
 
+	k.keypair = &newCert
+	keypair := k.tlsCert()
+	k.inProgress = false
+	k.lock.Unlock()
+
 	if oldModifiedAt != k.certModifiedAt {
+		// execute notifications outside of the lock
 		for _, h := range k.handlers {
-			go h(k.certModifiedAt)
+			go h(keypair)
 		}
 	}
 
 	return nil
 }
 
-func (k *KeypairReloader) tlsCert() (*tls.Certificate, error) {
+func (k *KeypairReloader) tlsCert() *tls.Certificate {
 	var err error
-	kp := k.Keypair()
+	kp := k.keypair
 	if kp.Leaf == nil && len(kp.Certificate) > 0 {
 		kp.Leaf, err = x509.ParseCertificate(kp.Certificate[0])
 		if err != nil {
@@ -206,20 +202,20 @@ func (k *KeypairReloader) tlsCert() (*tls.Certificate, error) {
 				k.label, k.count, k.certPath, kp.Leaf.NotAfter.Format(time.RFC3339))
 		}
 	}
-	return kp, nil
+	return kp
 }
 
 // GetKeypairFunc is a callback for TLSConfig to provide TLS certificate and key pair for Server
 func (k *KeypairReloader) GetKeypairFunc() func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 	return func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-		return k.tlsCert()
+		return k.tlsCert(), nil
 	}
 }
 
 // GetClientCertificateFunc is a callback for TLSConfig to provide TLS certificate and key pair for Client
 func (k *KeypairReloader) GetClientCertificateFunc() func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
 	return func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
-		return k.tlsCert()
+		return k.tlsCert(), nil
 	}
 }
 
@@ -231,7 +227,7 @@ func (k *KeypairReloader) Keypair() *tls.Certificate {
 	k.lock.RLock()
 	defer k.lock.RUnlock()
 
-	return k.keypair
+	return k.tlsCert()
 }
 
 // CertAndKeyFiles returns cert and key files
