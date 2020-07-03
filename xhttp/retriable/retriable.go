@@ -18,7 +18,6 @@ import (
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
-	"golang.org/x/net/http2"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xhttp", "retriable")
@@ -235,22 +234,20 @@ func (c *Client) WithPolicy(policy *Policy) *Client {
 
 // WithTLS modifies TLS configuration.
 func (c *Client) WithTLS(tlsConfig *tls.Config) *Client {
-	var transport http.RoundTripper
-	if tlsConfig != nil {
-		tr := &http.Transport{
-			TLSClientConfig:     tlsConfig,
-			TLSHandshakeTimeout: time.Second * 3,
-			IdleConnTimeout:     time.Hour,
-			MaxIdleConnsPerHost: 2,
-		}
-		err := http2.ConfigureTransport(tr)
-		if err != nil {
-			logger.Errorf("api=WithTLS, err=[%s]", errors.ErrorStack(err))
-		} else {
-			transport = tr
-		}
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	if c.httpClient.Transport == nil {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		tr.TLSClientConfig = tlsConfig
+		c.httpClient.Transport = tr
+
+		logger.Infof("api=WithTLS, reason=new_transport")
+	} else {
+		c.httpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
+		logger.Infof("api=WithTLS, reason=update_transport")
 	}
-	return c.WithTransport(transport)
+	return c
 }
 
 // WithTransport modifies HTTP Transport configuration.
@@ -258,6 +255,7 @@ func (c *Client) WithTransport(transport http.RoundTripper) *Client {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	c.httpClient.Transport = transport
+	logger.Infof("api=WithTransport, reason=update_transport")
 	return c
 }
 

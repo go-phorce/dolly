@@ -33,7 +33,7 @@ require (
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
 	golang.org/x/mod v0.3.0 // indirect
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9
+	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/tools v0.0.0-20200619210111-0f592d2728bb
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
