@@ -6,8 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -20,14 +18,9 @@ import (
 )
 
 func loadP11Provider(t *testing.T) cryptoprov.Provider {
-	wd, err := os.Getwd() // package dir
-	require.NoError(t, err, "unable to determine current directory")
-
-	binCfg, err := filepath.Abs(filepath.Join(wd, projFolder))
-	require.NoError(t, err)
-
-	p11, err := crypto11.ConfigureFromFile(filepath.Join(binCfg, "etc/dev/softhsm_unittest.json"))
-	require.NoError(t, err, "failed to load HSM config in dir: %v", binCfg)
+	f := "/tmp/dolly/softhsm_unittest.json"
+	p11, err := crypto11.ConfigureFromFile(f)
+	require.NoError(t, err, "failed to load HSM config: %s", f)
 
 	prov, supported := interface{}(p11).(cryptoprov.Provider)
 	require.True(t, supported)

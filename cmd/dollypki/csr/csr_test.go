@@ -73,8 +73,6 @@ func Test_CtlSuite(t *testing.T) {
 func (s *testSuite) SetupTest() {
 	cryptoprov.Register("SoftHSM", cryptoprov.Crypto11Loader)
 
-	cfg, err := filepath.Abs(projFolder + "etc/dev/softhsm_unittest.json")
-	s.Require().NoError(err)
 	s.out.Reset()
 
 	app := ctl.NewApplication("cliapp", "test")
@@ -86,9 +84,9 @@ func (s *testSuite) SetupTest() {
 		WithServer: false,
 	})
 
-	s.cli.Parse([]string{"cliapp", "--hsm-cfg", cfg})
+	s.cli.Parse([]string{"cliapp", "--hsm-cfg", "/tmp/dolly/softhsm_unittest.json"})
 
-	err = s.cli.EnsureCryptoProvider()
+	err := s.cli.EnsureCryptoProvider()
 	s.Require().NoError(err)
 
 	s.Require().NotPanics(func() {
@@ -171,8 +169,8 @@ func (s *testSuite) Test_GenCert() {
 	s.Require().Error(err)
 	s.Equal(`CA certificate and key are required`, err.Error())
 
-	caFile := projFolder + "etc/dev/certs/rootca/test_dolly_root_CA.pem"
-	caKeyFile := projFolder + "etc/dev/certs/rootca/test_dolly_root_CA-key.pem"
+	caFile := "/tmp/dolly/certs/test_dolly_root_CA.pem"
+	caKeyFile := "/tmp/dolly/certs/test_dolly_root_CA-key.pem"
 
 	err = s.run(csr.GenCert, &csr.GenCertFlags{
 		CA:    &caFile,
@@ -252,8 +250,8 @@ func (s *testSuite) Test_SignCert() {
 	s.Require().Error(err)
 	s.Equal(`CA certificate and key are required`, err.Error())
 
-	caFile := projFolder + "etc/dev/certs/rootca/test_dolly_root_CA.pem"
-	caKeyFile := projFolder + "etc/dev/certs/rootca/test_dolly_root_CA-key.pem"
+	caFile := "/tmp/dolly/certs/test_dolly_root_CA.pem"
+	caKeyFile := "/tmp/dolly/certs/test_dolly_root_CA-key.pem"
 
 	err = s.run(csr.SignCert, &csr.SignCertFlags{
 		CA:    &caFile,

@@ -35,13 +35,38 @@
             },
             "CA": {
                 "expiry": "43800h",
+                "backdate": "30m",
                 "usages": [
                     "cert sign",
                     "crl sign"
                 ],
                 "ca_constraint": {
                     "is_ca": true,
-                    "pathlen": 1
+                    "max_path_len": 1
+                }
+            },
+            "L1_CA": {
+                "expiry": "43800h",
+                "backdate": "30m",
+                "usages": [
+                    "cert sign",
+                    "crl sign"
+                ],
+                "ca_constraint": {
+                    "is_ca": true,
+                    "max_path_len": 2
+                }
+            },
+            "L2_CA": {
+                "expiry": "43800h",
+                "backdate": "30m",
+                "usages": [
+                    "cert sign",
+                    "crl sign"
+                ],
+                "ca_constraint": {
+                    "is_ca": true,
+                    "max_path_len": 1
                 }
             },
             "CodesignCA": {
