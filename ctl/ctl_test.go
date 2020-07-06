@@ -21,6 +21,107 @@ type barActionParams struct {
 	barflag *string
 }
 
+func Test_NewControl(t *testing.T) {
+	assert.Panics(t, func() {
+		ctl.NewControl(&ctl.ControlDefinition{})
+	})
+}
+
+func Test_NewApplication(t *testing.T) {
+	outusage := &bytes.Buffer{}
+
+	app := ctl.NewApplication("test", "A test command-line tool").
+		Terminate(nil).
+		UsageWriter(outusage)
+
+	cli := ctl.NewControl(&ctl.ControlDefinition{
+		App:       app,
+		Output:    os.Stdout,
+		ErrOutput: os.Stderr,
+	})
+
+	app.Writer(os.Stdout)
+	app.ErrorWriter(os.Stdout)
+	app.UsageWriter(os.Stdout)
+	app.Version("1")
+
+	assert.Equal(t, app, cli.App())
+	assert.Equal(t, os.Stdin, cli.Reader())
+	assert.Equal(t, os.Stdout, cli.Writer())
+	assert.Equal(t, os.Stderr, cli.ErrWriter())
+
+	cli.WithReader(nil)
+	assert.Equal(t, os.Stdin, cli.Reader())
+	cli.WithReader(os.Stdin)
+	assert.Equal(t, os.Stdin, cli.Reader())
+	cli.WithWriter(nil)
+	assert.Equal(t, os.Stdout, cli.Writer())
+	cli.WithErrWriter(nil)
+	assert.Equal(t, os.Stderr, cli.ErrWriter())
+
+	app.Flag("V", "verbose").Default("false").String()
+	app.Flag("H", "hidden").Default("none").Hidden().String()
+	app.Flag("R", "some required flag").Required().Bool()
+
+	sub := app.Command("foo2", "level1 command").
+		PreAction(func() error { return nil }).
+		Action(cli.RegisterAction(func(c ctl.Control, _ interface{}) error {
+			fmt.Fprintf(c.Writer(), "foo2 action executed\n")
+			return nil
+		}, nil))
+	sub.Flag("V1", "another flag").Default("true").Short('v').Bool()
+	sub.Flag("R1", "some required flag").Required().String()
+
+	cmdFoo := app.Command("foo", "foo description").
+		Alias("bar").
+		PreAction(func() error { return nil })
+
+	sub2 := cmdFoo.Command("bar", "level2 command of foo").
+		PreAction(func() error { return nil }).
+		Action(cli.RegisterAction(func(c ctl.Control, _ interface{}) error {
+			fmt.Fprintf(c.Writer(), "bar action executed\n")
+			return nil
+		}, nil))
+	sub2.Flag("V2", "another flag").Default("true").Short('v').Bool()
+	sub2.Flag("R2", "some required flag").Required().String()
+
+	app.UsageWriter(outusage)
+	outusage.Reset()
+	cmd, out := parse(cli, []string{"test", "--R", "help"})
+	assert.Equal(t, "help", cmd)
+	assert.Equal(t, `usage: test --[no-]R [<flags>] <command> [<args> ...]
+
+A test command-line tool
+
+Flags:
+  --help       Show context-sensitive help (also try --help-long and
+               --help-man).
+  --version    Show application version.
+  --V="false"  verbose
+  --R          some required flag
+
+Commands:
+  help [<command>...]
+    Show help.
+
+  foo2 --R1=R1 [<flags>]
+    level1 command
+
+  foo bar --R2=R2 [<flags>]
+    level2 command of foo
+
+
+`, string(outusage.Bytes()))
+
+	cmd, out = parse(cli, []string{"test", "--R", "foo2", "--R1", "param1"})
+	assert.Equal(t, "foo2", cmd)
+	assert.Equal(t, "foo2 action executed\n", out)
+
+	cmd, out = parse(cli, []string{"test", "--R", "foo", "bar", "--R2", "param1"})
+	assert.Equal(t, "foo bar", cmd)
+	assert.Equal(t, "bar action executed\n", out)
+}
+
 func Test_ParseCore(t *testing.T) {
 	app := ctl.NewApplication("test", "A test command-line tool").Terminate(nil)
 	//app.UsageWriter(os.Stderr)

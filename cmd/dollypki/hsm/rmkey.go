@@ -2,7 +2,6 @@ package hsm
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
@@ -72,16 +71,15 @@ func RmKey(c ctl.Control, p interface{}) error {
 			}
 
 			if *flags.Prefix != "" && *flags.ID != "" {
-				return errors.Errorf("--prefix and --id should not be specified together, prefix=%s, id=%s", *flags.Prefix, *flags.ID)
+				return errors.Errorf("--prefix and --id should not be specified together")
 			}
 
 			out := c.Writer()
 			if *flags.ID != "" {
-				err = keyProv.DestroyKeyPairOnSlot(slotID, *flags.ID)
+				err = destroyKey(c, keyProv, slotID, *flags.ID)
 				if err != nil {
-					return errors.Annotatef(err, "failed DestroyKeyPairOnSlot: %s", *flags.ID)
+					return err
 				}
-				fmt.Fprintf(out, "destroyed key: %s", *flags.ID)
 				return nil
 			}
 
@@ -92,8 +90,7 @@ func RmKey(c ctl.Control, p interface{}) error {
 					return nil
 				})
 				if err != nil {
-					fmt.Fprintf(out, "failed to list keys on slot %d: %v\n", slotID, errors.ErrorStack(err))
-					return nil
+					return errors.Annotatef(err, "failed to list keys on slot %d", slotID)
 				}
 
 				if len(keysToDestroy) == 0 {
@@ -101,7 +98,7 @@ func RmKey(c ctl.Control, p interface{}) error {
 					return nil
 				}
 
-				fmt.Fprintf(out, "found %d key with prefix: %s\n", len(keysToDestroy), *flags.Prefix)
+				fmt.Fprintf(out, "found %d key(s) with prefix: %s\n", len(keysToDestroy), *flags.Prefix)
 				for _, keyID := range keysToDestroy {
 					fmt.Fprintf(out, "key: %s\n", keyID)
 				}
@@ -109,13 +106,12 @@ func RmKey(c ctl.Control, p interface{}) error {
 				if *flags.Force {
 					err = destroyKeys(c, keyProv, slotID, keysToDestroy)
 					if err != nil {
-						fmt.Fprintf(out, "failed to destroy keys: [%v]\n", err)
-						return nil
+						return err
 					}
 				} else {
-					isConfirmed, err := ctl.AskForConfirmation(out, os.Stdin, "WARNING: Destroyed keys can not be recovered. Type Y to continue or N to cancel.")
+					isConfirmed, err := ctl.AskForConfirmation(out, c.Reader(), "WARNING: Destroyed keys can not be recovered. Type Y to continue or N to cancel.")
 					if err != nil {
-						return errors.Annotatef(err, "failed to get a confirmation for prefix: %s", *flags.Prefix)
+						return errors.Annotatef(err, "unable to get a confirmation to destroy keys")
 					}
 
 					if !isConfirmed {
@@ -123,8 +119,7 @@ func RmKey(c ctl.Control, p interface{}) error {
 					}
 					err = destroyKeys(c, keyProv, slotID, keysToDestroy)
 					if err != nil {
-						fmt.Fprintf(out, "failed to destroy keys: [%v]\n", err)
-						return nil
+						return err
 					}
 				}
 			}
@@ -137,11 +132,19 @@ func RmKey(c ctl.Control, p interface{}) error {
 
 func destroyKeys(c ctl.Control, keyProv cryptoprov.KeyManager, slotID uint, keys []string) error {
 	for _, keyID := range keys {
-		err := keyProv.DestroyKeyPairOnSlot(slotID, keyID)
+		err := destroyKey(c, keyProv, slotID, keyID)
 		if err != nil {
-			return errors.Annotatef(err, "DestroyKeyPairOnSlot failed: slotID=%d, keyID=%s", slotID, keyID)
+			return err
 		}
-		fmt.Fprintf(c.Writer(), "destroyed key: %s\n", keyID)
 	}
+	return nil
+}
+
+func destroyKey(c ctl.Control, keyProv cryptoprov.KeyManager, slotID uint, keyID string) error {
+	err := keyProv.DestroyKeyPairOnSlot(slotID, keyID)
+	if err != nil {
+		return errors.Annotatef(err, "unable to destroy key %q on slot %d", keyID, slotID)
+	}
+	fmt.Fprintf(c.Writer(), "destroyed key: %s\n", keyID)
 	return nil
 }

@@ -104,7 +104,7 @@ func (s *testSuite) TearDownTest() {
 func (s *testSuite) Test_GenKey() {
 	err := s.run(csr.GenKey, &csr.GenKeyFlags{})
 	s.Require().Error(err)
-	s.Equal(`read CSR profile: open : no such file or directory`, err.Error())
+	s.Equal(`read CSR profile: empty file name`, err.Error())
 
 	label := guid.MustCreate()
 	missingcsrprofile := "testdata/missing.json"
@@ -176,7 +176,7 @@ func (s *testSuite) Test_GenCert() {
 		CAKey: &caKeyFile,
 	})
 	s.Require().Error(err)
-	s.Equal(`read CSR profile: open : no such file or directory`, err.Error())
+	s.Equal(`read CSR profile: empty file name`, err.Error())
 
 	label := "with_ts_*"
 	missingcsrprofile := "testdata/missing.json"
@@ -257,7 +257,7 @@ func (s *testSuite) Test_SignCert() {
 		CAKey: &caKeyFile,
 	})
 	s.Require().Error(err)
-	s.Equal(`read CSR: open : no such file or directory`, err.Error())
+	s.Equal(`read CSR: empty file name`, err.Error())
 
 	missingcsr := "testdata/missing.json"
 	err = s.run(csr.SignCert, &csr.SignCertFlags{

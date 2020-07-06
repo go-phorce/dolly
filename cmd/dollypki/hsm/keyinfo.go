@@ -60,8 +60,11 @@ func KeyInfo(c ctl.Control, p interface{}) error {
 
 	out := c.Writer()
 
+	slotCount := 0
 	printSlot := func(slotID uint, description, label, manufacturer, model, serial string) error {
 		if isDefaultSlot || serial == filterSerial {
+			slotCount++
+
 			fmt.Fprintf(out, "Slot: %d\n", slotID)
 			fmt.Fprintf(out, "  Description:  %s\n", description)
 			fmt.Fprintf(out, "  Token serial: %s\n", serial)
@@ -74,10 +77,10 @@ func KeyInfo(c ctl.Control, p interface{}) error {
 				fmt.Fprintf(out, "  Label: %s\n", label)
 				fmt.Fprintf(out, "  Type:  %s\n", typ)
 				fmt.Fprintf(out, "  Class: %s\n", class)
-				fmt.Fprintf(out, "  CurrentVersionID:  %s\n", currentVersionID)
+				fmt.Fprintf(out, "  Version: %s\n", currentVersionID)
 				fmt.Fprintf(out, "  Public key: \n%s\n", pubKey)
 				if creationTime != nil {
-					fmt.Fprintf(out, "  CreationTime: %s\n", creationTime.Format(time.RFC3339))
+					fmt.Fprintf(out, "  Created: %s\n", creationTime.Format(time.RFC3339))
 				}
 				return nil
 			})
@@ -94,6 +97,9 @@ func KeyInfo(c ctl.Control, p interface{}) error {
 	}
 
 	keyProv.EnumTokens(isDefaultSlot, printSlot)
+	if slotCount == 0 {
+		fmt.Fprintf(out, "no slots found with serial: %s\n", filterSerial)
+	}
 
 	return nil
 }

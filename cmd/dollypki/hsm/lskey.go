@@ -71,15 +71,14 @@ func Keys(c ctl.Control, p interface{}) error {
 				fmt.Fprintf(out, "  Label: %s\n", label)
 				fmt.Fprintf(out, "  Type:  %s\n", typ)
 				fmt.Fprintf(out, "  Class: %s\n", class)
-				fmt.Fprintf(out, "  CurrentVersionID:  %s\n", currentVersionID)
+				fmt.Fprintf(out, "  Version: %s\n", currentVersionID)
 				if creationTime != nil {
-					fmt.Fprintf(out, "  CreationTime: %s\n", creationTime.Format(time.RFC3339))
+					fmt.Fprintf(out, "  Created: %s\n", creationTime.Format(time.RFC3339))
 				}
 				return nil
 			})
 			if err != nil {
-				fmt.Fprintf(out, "failed to list keys on slot %d: %v\n", slotID, err)
-				return nil
+				return errors.Annotatef(err, "failed to list keys on slot %d", slotID)
 			}
 
 			if *flags.Prefix != "" && count == 0 {

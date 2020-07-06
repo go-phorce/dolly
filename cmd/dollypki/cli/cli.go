@@ -17,9 +17,13 @@ import (
 // ReturnCode is the type that your command returns, these map to standard process return codes
 type ReturnCode ctl.ReturnCode
 
+// ReadFileOrStdinFn allows to read from file or Stdin if the name is "-"
+type ReadFileOrStdinFn func(filename string) ([]byte, error)
+
 // Cli is a project specific wrapper to the ctl.Cli struct
 type Cli struct {
 	*ctl.Ctl
+	ReadFileOrStdin ReadFileOrStdinFn
 
 	flags struct {
 		// hsmConfig specifies HSM configuration file
@@ -35,7 +39,8 @@ type Cli struct {
 // New creates an instance of CLI
 func New(d *ctl.ControlDefinition) *Cli {
 	cli := &Cli{
-		Ctl: ctl.NewControl(d),
+		Ctl:             ctl.NewControl(d),
+		ReadFileOrStdin: ReadStdin,
 	}
 
 	cli.flags.hsmConfig = d.App.Flag("hsm-cfg", "HSM provider configuration file").Required().String()
@@ -88,8 +93,16 @@ func (cli *Cli) EnsureCryptoProvider() error {
 	return nil
 }
 
+// WithCryptoProvider sets custom Crypto Provider
+func (cli *Cli) WithCryptoProvider(crypto *cryptoprov.Crypto) {
+	cli.crypto = crypto
+}
+
 // ReadStdin reads from stdin if the file is "-"
 func ReadStdin(filename string) ([]byte, error) {
+	if filename == "" {
+		return nil, errors.New("empty file name")
+	}
 	if filename == "-" {
 		return ioutil.ReadAll(os.Stdin)
 	}

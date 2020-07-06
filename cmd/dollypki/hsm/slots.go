@@ -24,7 +24,7 @@ func Slots(c ctl.Control, _ interface{}) error {
 		return nil
 	})
 	if err != nil {
-		return errors.Trace(err)
+		return errors.Annotate(err, "unable to list slots")
 	}
 
 	return nil
