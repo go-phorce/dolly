@@ -4,7 +4,6 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
-	"path/filepath"
 	"testing"
 
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
@@ -23,7 +22,7 @@ func loadInmemProvider(t *testing.T) cryptoprov.Provider {
 }
 
 func loadProvider(t *testing.T) cryptoprov.Provider {
-	cfgfile := filepath.Join(projFolder, "etc/dev/softhsm_unittest.json")
+	cfgfile := "/tmp/dolly/softhsm_unittest.json"
 
 	err := cryptoprov.Register("SoftHSM", cryptoprov.Crypto11Loader)
 	assert.NoError(t, err)

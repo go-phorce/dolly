@@ -63,9 +63,7 @@ func Test_File(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Empty(t, f)
 
-	f, err = resolve.File("etc/dev/softhsm_unittest.json", "../..")
-	assert.NoError(t, err)
-	assert.NotEmpty(t, f)
+	f = "/tmp/dolly/softhsm_unittest.json"
 
 	// now f is relative to current folder
 	f2, err := resolve.File(f, ".")

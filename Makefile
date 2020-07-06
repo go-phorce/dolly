@@ -38,9 +38,21 @@ build:
 
 hsmconfig:
 	echo "*** Running hsmconfig"
-	mkdir -p ~/softhsm2
-	.project/config-softhsm.sh --pin-file ~/softhsm2/pin_unittest.txt --generate-pin -s dolly_unittest -o ./etc/dev/softhsm_unittest.json --list-slots --list-object --delete
+	mkdir -p ~/softhsm2 /tmp/dolly
+	.project/config-softhsm.sh \
+		--pin-file ~/softhsm2/dolly_pin_unittest.txt \
+		--generate-pin \
+		-s dolly_unittest \
+		-o /tmp/dolly/softhsm_unittest.json \
+		--list-slots --list-object --delete
 
 gen_test_certs:
 	echo "*** Running gen_test_certs"
-	.project/gen_test_certs.sh --ca-config $(PROJ_ROOT)/etc/dev/ca-config.dev.json --out-dir $(PROJ_ROOT) --prefix $(CERTS_PREFIX) --root-ca --ca --server --client --peers --admin
+	mkdir -p /tmp/dolly/certs
+	.project/gen_test_certs.sh \
+		--ca-config $(PROJ_ROOT)/etc/dev/ca-config.dev.json \
+		--csr-dir $(PROJ_ROOT)/etc/dev/certs/csr \
+		--out-dir /tmp/dolly/certs \
+		--prefix $(CERTS_PREFIX) \
+		--root --ca1 --ca2 --bundle \
+		--server --client --peers --admin

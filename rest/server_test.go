@@ -478,9 +478,9 @@ func Test_Authz(t *testing.T) {
 	}
 
 	tlsCfg, err := tlsconfig.NewServerTLSFromFiles(
-		projectPath+"etc/dev/certs/test_dolly_server.pem",
-		projectPath+"etc/dev/certs/test_dolly_server-key.pem",
-		projectPath+"etc/dev/certs/rootca/test_dolly_root_CA.pem",
+		"/tmp/dolly/certs/test_dolly_server.pem",
+		"/tmp/dolly/certs/test_dolly_server-key.pem",
+		"/tmp/dolly/certs/test_dolly_root_CA.pem",
 		tls.RequireAndVerifyClientCert,
 	)
 	require.NoError(t, err)

@@ -23,7 +23,7 @@ func Test_LoadConfig(t *testing.T) {
 	binCfg, err := filepath.Abs(filepath.Join(wd, projFolder))
 	require.NoError(t, err)
 
-	c, err := cryptoprov.LoadTokenConfig(filepath.Join(binCfg, "etc/dev/softhsm_unittest.json"))
+	c, err := cryptoprov.LoadTokenConfig("/tmp/dolly/softhsm_unittest.json")
 	require.NoError(t, err, "failed to load HSM config in dir: %v", binCfg)
 
 	assert.NotEmpty(t, c.Path())
