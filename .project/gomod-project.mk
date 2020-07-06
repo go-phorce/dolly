@@ -84,7 +84,7 @@ export PATH := ${PATH}:${PROJ_BIN}:${TOOLS_BIN}
 # List of all .go files in the project, exluding vendor and tools
 PROJ_GOFILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*" -not -path "./.gopath/*" -not -path "./.tools/*")
 
-COVERAGE_EXCLUSIONS="/rt\.go|/bindata\.go|_test.go|_mock.go"
+COVERAGE_EXCLUSIONS="/rt\.go|/bindata\.go|_test.go|_mock.go|main.go"
 
 # flags
 INTEGRATION_TAG="integration"

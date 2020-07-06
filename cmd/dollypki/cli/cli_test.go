@@ -61,3 +61,13 @@ func Test_CLI(t *testing.T) {
 	assert.Equal(t, ctl.RCOkay, cli.ReturnCode())
 	assert.Contains(t, out.String(), "cmd executed!")
 }
+
+func Test_ReadStdin(t *testing.T) {
+	_, err := cli.ReadStdin("")
+	require.Error(t, err)
+	assert.Equal(t, "empty file name", err.Error())
+
+	b, err := cli.ReadStdin("-")
+	assert.NoError(t, err)
+	assert.Empty(t, b)
+}

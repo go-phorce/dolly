@@ -30,8 +30,6 @@ type GenKeyFlags struct {
 	Output *string
 	// Force to override key file if exists
 	Force *bool
-	// Check if file exists, and exit without error
-	Check *bool
 }
 
 func ensureGenKeyFlags(f *GenKeyFlags) *GenKeyFlags {
@@ -58,9 +56,7 @@ func ensureGenKeyFlags(f *GenKeyFlags) *GenKeyFlags {
 	if f.Force == nil {
 		f.Force = &falseVal
 	}
-	if f.Check == nil {
-		f.Check = &falseVal
-	}
+
 	return f
 }
 
@@ -69,13 +65,6 @@ func GenKey(c ctl.Control, p interface{}) error {
 	flags := ensureGenKeyFlags(p.(*GenKeyFlags))
 
 	cryptoprov := c.(*cli.Cli).CryptoProv()
-	if cryptoprov == nil {
-		return errors.Errorf("unsupported command for this crypto provider")
-	}
-
-	if *flags.Check && *flags.Output != "" && fileutil.FileExists(*flags.Output) == nil {
-		return errors.Errorf("%q file exists, specify --force flag to override\n", *flags.Output)
-	}
 
 	if !*flags.Force && *flags.Output != "" && fileutil.FileExists(*flags.Output) == nil {
 		return errors.Errorf("%q file exists, specify --force flag to override", *flags.Output)

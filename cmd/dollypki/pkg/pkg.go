@@ -12,7 +12,7 @@ import (
 
 // ParseAndRun will parse parameters and execute the command
 func ParseAndRun(cmdname string, args []string, out io.Writer, errout io.Writer) ctl.ReturnCode {
-	app := ctl.NewApplication(cmdname, " command-line utility for managing HSM keys and creating certificates")
+	app := ctl.NewApplication(cmdname, "command-line utility for managing HSM keys and creating certificates")
 	app.UsageWriter(out)
 
 	cli := cli.New(&ctl.ControlDefinition{
@@ -45,7 +45,6 @@ func ParseAndRun(cmdname string, args []string, out io.Writer, errout io.Writer)
 	hsmGenKeyFlags.Label = cmdHsmGenKey.Flag("label", "Label for generated key").String()
 	hsmGenKeyFlags.Output = cmdHsmGenKey.Flag("output", "Optional output file name").String()
 	hsmGenKeyFlags.Force = cmdHsmGenKey.Flag("force", "Override output file if exists").Bool()
-	hsmGenKeyFlags.Check = cmdHsmGenKey.Flag("check", "Check if file exists").Bool()
 
 	hsmRmKeyFlags := new(hsm.RmKeyFlags)
 	cmdRmKey := cmdHsm.Command("rmkey", "Destroy key").Action(cli.RegisterAction(hsm.RmKey, hsmRmKeyFlags))

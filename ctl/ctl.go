@@ -34,7 +34,11 @@ type ControlAction func(c Control, flags interface{}) error
 // Control is an interface for CLI
 type Control interface {
 	App() Application
+	// Reader is the source to read from, typically set to os.Stdin
+	Reader() io.Reader
+	// Writer is the destination for all output from the command, typically set to os.Stdout
 	Writer() io.Writer
+	// ErrWriter is the destinaton for errors, typically set to os.Stderr
 	ErrWriter() io.Writer
 
 	Fail(msg string, err error) error
@@ -78,9 +82,32 @@ func (ctl *Ctl) App() Application {
 	return ctl.params.App
 }
 
+// Reader is the source to read from, typically set to os.Stdin
+func (ctl *Ctl) Reader() io.Reader {
+	if ctl.params.Stdin == nil {
+		return os.Stdin
+	}
+	return ctl.params.Stdin
+}
+
+// WithReader allows to specify a custom reader
+func (ctl *Ctl) WithReader(reader io.Reader) *Ctl {
+	ctl.params.Stdin = reader
+	return ctl
+}
+
 // Writer returns a writer for control output
 func (ctl *Ctl) Writer() io.Writer {
+	if ctl.params.Output == nil {
+		return os.Stdout
+	}
 	return ctl.params.Output
+}
+
+// WithWriter allows to specify a custom writer
+func (ctl *Ctl) WithWriter(out io.Writer) *Ctl {
+	ctl.params.Output = out
+	return ctl
 }
 
 // ErrWriter returns a writer for control output
@@ -89,6 +116,12 @@ func (ctl *Ctl) ErrWriter() io.Writer {
 		return ctl.params.ErrOutput
 	}
 	return os.Stderr
+}
+
+// WithErrWriter allows to specify a custom error writer
+func (ctl *Ctl) WithErrWriter(out io.Writer) *Ctl {
+	ctl.params.ErrOutput = out
+	return ctl
 }
 
 // ReturnCode returns execution code
@@ -113,9 +146,10 @@ func (ctl *Ctl) Reset(out io.Writer, errout io.Writer) {
 // ControlDefinition contains the default settings for control application
 type ControlDefinition struct {
 	App Application
+	// Stdin is the source to read from, typically set to os.Stdin
+	Stdin io.Reader
 	// Output is the destination for all output from the command, typically set to os.Stdout
 	Output io.Writer
-
 	// ErrOutput is the destinaton for errors.
 	// If not set, errors will be written to os.StdError
 	ErrOutput io.Writer

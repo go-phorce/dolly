@@ -79,7 +79,8 @@ func (a *proxyapp) Command(name, help string) *CmdClause {
 // Alias adds an alias for this command.
 func (c *CmdClause) Alias(name string) *CmdClause {
 	kpc := (*kp.CmdClause)(c)
-	return (*CmdClause)(kpc.Alias(name))
+	kpc.Alias(name)
+	return c
 }
 
 // Command adds a new sub-command.
@@ -88,13 +89,14 @@ func (c *CmdClause) Command(name, help string) *CmdClause {
 	return (*CmdClause)(kpc.Command(name, help))
 }
 
-// Action adds a action for this command.
+// Action adds an action for this command.
 func (c *CmdClause) Action(action Action) *CmdClause {
 	kpc := (*kp.CmdClause)(c)
 	kpa := func(*kp.ParseContext) error {
 		return action()
 	}
-	return (*CmdClause)(kpc.Action(kpa))
+	kpc.Action(kpa)
+	return c
 }
 
 // PreAction adds a pre-action for this command.
@@ -103,7 +105,15 @@ func (c *CmdClause) PreAction(action Action) *CmdClause {
 	kpa := func(*kp.ParseContext) error {
 		return action()
 	}
-	return (*CmdClause)(kpc.PreAction(kpa))
+	kpc.PreAction(kpa)
+	return c
+}
+
+// Flag defines a new flag with the given long name and help.
+func (c *CmdClause) Flag(name, help string) *FlagClause {
+	kpc := (*kp.CmdClause)(c)
+	f := kpc.Flag(name, help)
+	return (*FlagClause)(f)
 }
 
 func (a *proxyapp) Flag(name, help string) *FlagClause {
@@ -114,25 +124,29 @@ func (a *proxyapp) Flag(name, help string) *FlagClause {
 // Default values for this flag. They *must* be parseable by the value of the flag.
 func (f *FlagClause) Default(values ...string) *FlagClause {
 	kpf := (*kp.FlagClause)(f)
-	return (*FlagClause)(kpf.Default(values...))
+	kpf.Default(values...)
+	return f
 }
 
 // Hidden hides a flag from usage but still allows it to be used.
 func (f *FlagClause) Hidden() *FlagClause {
 	kpf := (*kp.FlagClause)(f)
-	return (*FlagClause)(kpf.Hidden())
+	kpf.Hidden()
+	return f
 }
 
 // Required makes the flag required. You can not provide a Default() value to a Required() flag.
 func (f *FlagClause) Required() *FlagClause {
 	kpf := (*kp.FlagClause)(f)
-	return (*FlagClause)(kpf.Required())
+	kpf.Required()
+	return f
 }
 
 // Short sets the short flag name.
 func (f *FlagClause) Short(name rune) *FlagClause {
 	kpf := (*kp.FlagClause)(f)
-	return (*FlagClause)(kpf.Short(name))
+	kpf.Short(name)
+	return f
 }
 
 // Bool makes this flag a boolean flag.
