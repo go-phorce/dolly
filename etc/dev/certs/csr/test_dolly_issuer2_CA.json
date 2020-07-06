@@ -1,5 +1,5 @@
 {
-    "CN": "[TEST] Issuing CA 1",
+    "CN": "[TEST] Dolly Level 2 CA",
     "key": {
         "algo": "rsa",
         "size": 4096

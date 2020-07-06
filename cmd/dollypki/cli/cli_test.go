@@ -36,7 +36,7 @@ func Test_CLI(t *testing.T) {
 
 	cmd.Command("subcmd", "Test sub command").Action(cli.RegisterAction(cmdAction, nil))
 
-	cfg, err := filepath.Abs(projFolder + "etc/dev/softhsm_unittest.json")
+	cfg, err := filepath.Abs("/tmp/dolly/softhsm_unittest.json")
 	require.NoError(t, err)
 
 	cryptoprov.Register("SoftHSM", cryptoprov.Crypto11Loader)

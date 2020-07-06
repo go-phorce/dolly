@@ -51,9 +51,9 @@ func Test_New(t *testing.T) {
 
 	// TLS
 	clientTls, err := tlsconfig.NewClientTLSFromFiles(
-		projectPath+"etc/dev/certs/test_dolly_client.pem",
-		projectPath+"etc/dev/certs/test_dolly_client-key.pem",
-		projectPath+"etc/dev/certs/rootca/test_dolly_root_CA.pem")
+		"/tmp/dolly/certs/test_dolly_client.pem",
+		"/tmp/dolly/certs/test_dolly_client-key.pem",
+		"/tmp/dolly/certs/test_dolly_root_CA.pem")
 	require.NoError(t, err)
 	c = retriable.New().WithTLS(clientTls)
 	assert.NotNil(t, c)

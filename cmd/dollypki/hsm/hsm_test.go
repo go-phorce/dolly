@@ -2,7 +2,6 @@ package hsm_test
 
 import (
 	"bytes"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -50,8 +49,6 @@ func Test_CtlSuite(t *testing.T) {
 func (s *testSuite) SetupTest() {
 	cryptoprov.Register("SoftHSM", cryptoprov.Crypto11Loader)
 
-	cfg, err := filepath.Abs(projFolder + "etc/dev/softhsm_unittest.json")
-	s.Require().NoError(err)
 	s.out.Reset()
 
 	app := ctl.NewApplication("cliapp", "test")
@@ -63,9 +60,9 @@ func (s *testSuite) SetupTest() {
 		WithServer: false,
 	})
 
-	s.cli.Parse([]string{"cliapp", "--hsm-cfg", cfg})
+	s.cli.Parse([]string{"cliapp", "--hsm-cfg", "/tmp/dolly/softhsm_unittest.json"})
 
-	err = s.cli.EnsureCryptoProvider()
+	err := s.cli.EnsureCryptoProvider()
 	s.Require().NoError(err)
 
 	s.Require().NotPanics(func() {

@@ -2,7 +2,6 @@ package pkg_test
 
 import (
 	"bytes"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -45,10 +44,7 @@ func Test_CtlSuite(t *testing.T) {
 }
 
 func (s *testSuite) SetupTest() {
-	cfg, err := filepath.Abs(projFolder + "etc/dev/softhsm_unittest.json")
-	s.Require().NoError(err)
-
-	s.baseArgs = []string{"dollypki", "--hsm-cfg", cfg}
+	s.baseArgs = []string{"dollypki", "--hsm-cfg", "/tmp/dolly/softhsm_unittest.json"}
 	s.out.Reset()
 }
 

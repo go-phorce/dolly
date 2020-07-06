@@ -8,8 +8,7 @@ import (
 )
 
 func Test_LoadConfigTwice(t *testing.T) {
-	f, err := findConfigFilePath("./etc/dev/softhsm_unittest.json")
-	require.NoError(t, err)
+	f := "/tmp/dolly/softhsm_unittest.json"
 
 	c, err := LoadTokenConfig(f)
 	require.NoError(t, err, "failed to load HSM config in dir: %s", f)

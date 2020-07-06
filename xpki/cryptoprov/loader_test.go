@@ -22,7 +22,7 @@ func inmemloader(_ cryptoprov.TokenConfig) (cryptoprov.Provider, error) {
 func Test_LoadProvider(t *testing.T) {
 	_, _ = cryptoprov.Unregister("SoftHSM")
 
-	cfgfile := filepath.Join(projFolder, "etc/dev/softhsm_unittest.json")
+	cfgfile := "/tmp/dolly/softhsm_unittest.json"
 	_, err := cryptoprov.LoadProvider(cfgfile)
 	assert.Error(t, err)
 
@@ -43,7 +43,7 @@ func Test_Load(t *testing.T) {
 	defer cryptoprov.Unregister("inmem")
 
 	cp, err := cryptoprov.Load(
-		filepath.Join(projFolder, "etc/dev/softhsm_unittest.json"),
+		"/tmp/dolly/softhsm_unittest.json",
 		[]string{filepath.Join(projFolder, "xpki/cryptoprov/testdata/inmem_testprov.json")})
 	require.NoError(t, err)
 	assert.Equal(t, "SoftHSM", cp.Default().Manufacturer())

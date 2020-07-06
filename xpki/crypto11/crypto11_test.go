@@ -28,11 +28,9 @@ func findConfigFilePath(baseName string) (string, error) {
 }
 
 func loadConfigAndInitP11() error {
-	f, err := findConfigFilePath("./etc/dev/softhsm_unittest.json")
-	if err != nil {
-		return errors.Annotate(err, "unable to find: softhsm_unittest.json")
-	}
+	f := "/tmp/dolly/softhsm_unittest.json"
 
+	var err error
 	p11lib, err = ConfigureFromFile(f)
 	if err != nil {
 		return errors.Annotatef(err, "failed to load HSM config in dir: %s", f)
