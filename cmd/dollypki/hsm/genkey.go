@@ -74,8 +74,7 @@ func GenKey(c ctl.Control, p interface{}) error {
 	}
 
 	if *flags.Check && *flags.Output != "" && fileutil.FileExists(*flags.Output) == nil {
-		c.Printf("%q file exists, specify --force flag to override\n", *flags.Output)
-		return nil
+		return errors.Errorf("%q file exists, specify --force flag to override\n", *flags.Output)
 	}
 
 	if !*flags.Force && *flags.Output != "" && fileutil.FileExists(*flags.Output) == nil {

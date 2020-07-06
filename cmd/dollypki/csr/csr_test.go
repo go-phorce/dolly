@@ -79,9 +79,8 @@ func (s *testSuite) SetupTest() {
 	app.UsageWriter(&s.out)
 
 	s.cli = cli.New(&ctl.ControlDefinition{
-		App:        app,
-		Output:     &s.out,
-		WithServer: false,
+		App:    app,
+		Output: &s.out,
 	})
 
 	s.cli.Parse([]string{"cliapp", "--hsm-cfg", "/tmp/dolly/softhsm_unittest.json"})

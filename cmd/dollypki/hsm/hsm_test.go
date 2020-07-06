@@ -2,6 +2,7 @@ package hsm_test
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -55,9 +56,8 @@ func (s *testSuite) SetupTest() {
 	app.UsageWriter(&s.out)
 
 	s.cli = cli.New(&ctl.ControlDefinition{
-		App:        app,
-		Output:     &s.out,
-		WithServer: false,
+		App:    app,
+		Output: &s.out,
 	})
 
 	s.cli.Parse([]string{"cliapp", "--hsm-cfg", "/tmp/dolly/softhsm_unittest.json"})
@@ -114,7 +114,7 @@ func (s *testSuite) Test_HsmKeyDel() {
 		ID: &id,
 	})
 	s.Require().NoError(err)
-	s.Empty(s.out.String())
+	s.Equal(fmt.Sprintf("destroyed key: %s", id), s.out.String())
 
 	encrypt := "e"
 	label := "Test"

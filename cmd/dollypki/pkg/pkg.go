@@ -11,14 +11,14 @@ import (
 )
 
 // ParseAndRun will parse parameters and execute the command
-func ParseAndRun(cmdname string, args []string, out io.Writer) ctl.ReturnCode {
+func ParseAndRun(cmdname string, args []string, out io.Writer, errout io.Writer) ctl.ReturnCode {
 	app := ctl.NewApplication(cmdname, " command-line utility for managing HSM keys and creating certificates")
 	app.UsageWriter(out)
 
 	cli := cli.New(&ctl.ControlDefinition{
-		App:        app,
-		Output:     out,
-		WithServer: false,
+		App:       app,
+		Output:    out,
+		ErrOutput: errout,
 	})
 
 	//app.HelpFlag.Short('h')

@@ -1,6 +1,7 @@
 package hsm
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -74,11 +75,13 @@ func RmKey(c ctl.Control, p interface{}) error {
 				return errors.Errorf("--prefix and --id should not be specified together, prefix=%s, id=%s", *flags.Prefix, *flags.ID)
 			}
 
+			out := c.Writer()
 			if *flags.ID != "" {
 				err = keyProv.DestroyKeyPairOnSlot(slotID, *flags.ID)
 				if err != nil {
 					return errors.Annotatef(err, "failed DestroyKeyPairOnSlot: %s", *flags.ID)
 				}
+				fmt.Fprintf(out, "destroyed key: %s", *flags.ID)
 				return nil
 			}
 
@@ -89,28 +92,28 @@ func RmKey(c ctl.Control, p interface{}) error {
 					return nil
 				})
 				if err != nil {
-					c.Printf("failed to list keys on slot %d: %v\n", slotID, errors.ErrorStack(err))
+					fmt.Fprintf(out, "failed to list keys on slot %d: %v\n", slotID, errors.ErrorStack(err))
 					return nil
 				}
 
 				if len(keysToDestroy) == 0 {
-					c.Printf("no keys found with prefix: %s\n", *flags.Prefix)
+					fmt.Fprintf(out, "no keys found with prefix: %s\n", *flags.Prefix)
 					return nil
 				}
 
-				c.Printf("found %d key with prefix: %s\n", len(keysToDestroy), *flags.Prefix)
+				fmt.Fprintf(out, "found %d key with prefix: %s\n", len(keysToDestroy), *flags.Prefix)
 				for _, keyID := range keysToDestroy {
-					c.Printf("key: %s\n", keyID)
+					fmt.Fprintf(out, "key: %s\n", keyID)
 				}
 
 				if *flags.Force {
 					err = destroyKeys(c, keyProv, slotID, keysToDestroy)
 					if err != nil {
-						c.Printf("failed to destroy keys: [%v]\n", err)
+						fmt.Fprintf(out, "failed to destroy keys: [%v]\n", err)
 						return nil
 					}
 				} else {
-					isConfirmed, err := c.AskForConfirmation(os.Stdin, "WARNING: Destroyed keys can not be recovered. Type Y to continue or N to cancel.")
+					isConfirmed, err := ctl.AskForConfirmation(out, os.Stdin, "WARNING: Destroyed keys can not be recovered. Type Y to continue or N to cancel.")
 					if err != nil {
 						return errors.Annotatef(err, "failed to get a confirmation for prefix: %s", *flags.Prefix)
 					}
@@ -120,7 +123,7 @@ func RmKey(c ctl.Control, p interface{}) error {
 					}
 					err = destroyKeys(c, keyProv, slotID, keysToDestroy)
 					if err != nil {
-						c.Printf("failed to destroy keys: [%v]\n", err)
+						fmt.Fprintf(out, "failed to destroy keys: [%v]\n", err)
 						return nil
 					}
 				}
@@ -138,7 +141,7 @@ func destroyKeys(c ctl.Control, keyProv cryptoprov.KeyManager, slotID uint, keys
 		if err != nil {
 			return errors.Annotatef(err, "DestroyKeyPairOnSlot failed: slotID=%d, keyID=%s", slotID, keyID)
 		}
-		c.Printf("destroyed key: %s\n", keyID)
+		fmt.Fprintf(c.Writer(), "destroyed key: %s\n", keyID)
 	}
 	return nil
 }

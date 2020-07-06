@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -15,7 +16,7 @@ import (
 const projFolder = "../../../"
 
 func cmdAction(c ctl.Control, p interface{}) error {
-	c.Println("cmd executed!")
+	fmt.Fprintf(c.Writer(), "cmd executed!\n")
 	return nil
 }
 
@@ -25,9 +26,8 @@ func Test_CLI(t *testing.T) {
 	app.UsageWriter(out)
 
 	cli := cli.New(&ctl.ControlDefinition{
-		App:        app,
-		Output:     out,
-		WithServer: false,
+		App:    app,
+		Output: out,
 	})
 
 	cmd := app.Command("cmd", "Test command").

@@ -64,6 +64,8 @@ func Test_KeypairReloader(t *testing.T) {
 	require.NoError(t, err)
 	err = ioutil.WriteFile(keyFile, pemKey, os.ModePerm)
 	require.NoError(t, err)
+	time.Sleep(200 * time.Millisecond)
+
 	err = ioutil.WriteFile(pemFile, pemCert, os.ModePerm)
 	require.NoError(t, err)
 	err = ioutil.WriteFile(keyFile, pemKey, os.ModePerm)

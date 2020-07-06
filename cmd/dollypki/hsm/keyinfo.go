@@ -1,6 +1,7 @@
 package hsm
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
@@ -56,34 +57,37 @@ func KeyInfo(c ctl.Control, p interface{}) error {
 	if isDefaultSlot {
 		filterSerial = "--@--"
 	}
+
+	out := c.Writer()
+
 	printSlot := func(slotID uint, description, label, manufacturer, model, serial string) error {
 		if isDefaultSlot || serial == filterSerial {
-			c.Printf("Slot: %d\n", slotID)
-			c.Printf("  Description:  %s\n", description)
-			c.Printf("  Token serial: %s\n", serial)
+			fmt.Fprintf(out, "Slot: %d\n", slotID)
+			fmt.Fprintf(out, "  Description:  %s\n", description)
+			fmt.Fprintf(out, "  Token serial: %s\n", serial)
 
 			count := 0
 			err := keyProv.KeyInfo(slotID, *flags.ID, *flags.Public, func(id, label, typ, class, currentVersionID, pubKey string, creationTime *time.Time) error {
 				count++
-				c.Printf("[%d]\n", count)
-				c.Printf("  Id:    %s\n", id)
-				c.Printf("  Label: %s\n", label)
-				c.Printf("  Type:  %s\n", typ)
-				c.Printf("  Class: %s\n", class)
-				c.Printf("  CurrentVersionID:  %s\n", currentVersionID)
-				c.Printf("  Public key: \n%s\n", pubKey)
+				fmt.Fprintf(out, "[%d]\n", count)
+				fmt.Fprintf(out, "  Id:    %s\n", id)
+				fmt.Fprintf(out, "  Label: %s\n", label)
+				fmt.Fprintf(out, "  Type:  %s\n", typ)
+				fmt.Fprintf(out, "  Class: %s\n", class)
+				fmt.Fprintf(out, "  CurrentVersionID:  %s\n", currentVersionID)
+				fmt.Fprintf(out, "  Public key: \n%s\n", pubKey)
 				if creationTime != nil {
-					c.Printf("  CreationTime: %s\n", creationTime.Format(time.RFC3339))
+					fmt.Fprintf(out, "  CreationTime: %s\n", creationTime.Format(time.RFC3339))
 				}
 				return nil
 			})
 			if err != nil {
-				c.Printf("failed to get key info on slot %d, keyID %s: %v\n", slotID, *flags.ID, err)
+				fmt.Fprintf(out, "failed to get key info on slot %d, keyID %s: %v\n", slotID, *flags.ID, err)
 				return nil
 			}
 
 			if count == 0 {
-				c.Printf("no keys found with ID: %s\n", *flags.ID)
+				fmt.Fprintf(out, "no keys found with ID: %s\n", *flags.ID)
 			}
 		}
 		return nil

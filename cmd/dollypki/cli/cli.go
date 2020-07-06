@@ -3,10 +3,13 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 
 	"github.com/go-phorce/dolly/ctl"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
 	"github.com/juju/errors"
 )
@@ -21,6 +24,9 @@ type Cli struct {
 	flags struct {
 		// hsmConfig specifies HSM configuration file
 		hsmConfig *string
+
+		debug   *bool
+		verbose *bool
 	}
 
 	crypto *cryptoprov.Crypto
@@ -33,8 +39,15 @@ func New(d *ctl.ControlDefinition) *Cli {
 	}
 
 	cli.flags.hsmConfig = d.App.Flag("hsm-cfg", "HSM provider configuration file").Required().String()
+	cli.flags.verbose = d.App.Flag("verbose", "Verbose output").Short('V').Bool()
+	cli.flags.debug = d.App.Flag("debug", "Redirect logs to stderr").Short('d').Bool()
 
 	return cli
+}
+
+// Verbose specifies if verbose output is enabled
+func (cli *Cli) Verbose() bool {
+	return *cli.flags.verbose
 }
 
 // CryptoProv returns crypto provider
@@ -105,8 +118,24 @@ func (cli *Cli) PrintCert(key, csrBytes, cert []byte) {
 
 	jsonOut, err := json.Marshal(out)
 	if err != nil {
-		cli.Printf("unable to encode output: %s", err.Error())
+		fmt.Fprintf(cli.ErrWriter(), "unable to encode output: %s", err.Error())
 		return
 	}
-	cli.Printf("%s\n", jsonOut)
+	fmt.Fprintf(cli.Writer(), "%s\n", jsonOut)
+}
+
+// PopulateControl is a pre-action for kingpin library to populate the
+// control object after all the flags are parsed
+func (cli *Cli) PopulateControl() error {
+	isDebug := *cli.flags.debug
+	var sink io.Writer
+	if isDebug {
+		sink = cli.ErrWriter()
+		xlog.SetFormatter(xlog.NewColorFormatter(sink, true))
+		xlog.SetGlobalLogLevel(xlog.DEBUG)
+	} else {
+		xlog.SetGlobalLogLevel(xlog.CRITICAL)
+	}
+
+	return nil
 }

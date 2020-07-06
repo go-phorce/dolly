@@ -19,7 +19,7 @@ type testSuite struct {
 }
 
 func (s *testSuite) run(additionalFlags ...string) ctl.ReturnCode {
-	rc := pkg.ParseAndRun("dollypki", append(s.baseArgs, additionalFlags...), &s.out)
+	rc := pkg.ParseAndRun("dollypki", append(s.baseArgs, additionalFlags...), &s.out, &s.out)
 	return rc
 }
 
