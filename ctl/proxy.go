@@ -22,6 +22,7 @@ type Application interface {
 	Command(name, help string) *CmdClause
 	Flag(name, help string) *FlagClause
 	Terminate(terminate func(int)) Application
+	Writer(w io.Writer) Application
 	ErrorWriter(w io.Writer) Application
 	UsageWriter(w io.Writer) Application
 }
@@ -44,6 +45,12 @@ func (a *proxyapp) Terminate(terminate func(int)) Application {
 
 func (a *proxyapp) Parse(args []string) (command string, err error) {
 	return a.Application.Parse(args)
+}
+
+// Writer sets the io.Writer to use for output.
+func (a *proxyapp) Writer(w io.Writer) Application {
+	a.Application.Writer(w)
+	return a
 }
 
 // ErrorWriter sets the io.Writer to use for errors.
