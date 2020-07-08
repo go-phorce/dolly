@@ -97,7 +97,7 @@ func Test_ServerWithServicesOverHTTP(t *testing.T) {
 	startedCount := 0
 	stoppedCount := 0
 
-	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, nil, nil, nil, nil, nil)
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -139,7 +139,7 @@ func Test_ServerWithCORS(t *testing.T) {
 	startedCount := 0
 	stoppedCount := 0
 
-	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, nil, nil, nil, nil, nil)
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -250,10 +250,12 @@ func (s *testSuite) Test_ServerWithServicesOverHTTPS() {
 		BindAddr: getAvailableBinding(),
 	}
 
-	server, err := rest.New("v1.0.123", "", cfg, tlsInfo, auditor.NewInMemory(), nil, nil, nil)
+	server, err := rest.New("v1.0.123", "", cfg, tlsInfo)
 	s.Require().NoError(err)
 	s.Require().NotNil(server)
 	s.Equal("https", server.Protocol())
+
+	server.WithAuditor(auditor.NewInMemory())
 
 	svc := NewService(server)
 	server.AddService(svc)
@@ -336,7 +338,7 @@ func (s *testSuite) Test_UntrustedServerWithServicesOverHTTPS() {
 		BindAddr: getAvailableBinding(),
 	}
 
-	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsInfo, nil, nil, nil, nil)
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsInfo)
 	s.Require().NoError(err)
 	s.Require().NotNil(server)
 	s.Equal("https", server.Protocol())

@@ -51,44 +51,8 @@ const (
 // ServerEventFunc is a callback to handle server events
 type ServerEventFunc func(evt ServerEvent)
 
-// ClusterMember provides information about cluster member
-type ClusterMember struct {
-	// ID is the member ID for this member.
-	ID string `protobuf:"bytes,1,opt,name=ID,proto3" json:"id,omitempty"`
-	// Name is the human-readable name of the member. If the member is not started, the name will be an empty string.
-	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	// ListenPeerURLs is the list of URLs the member exposes to the cluster for communication,
-	// the node accepts incoming requests from its peers on the specified scheme://IP:port combinations.
-	ListenPeerURLs []string `protobuf:"bytes,3,rep,name=listen_peer_urls" json:"listen_peer_urls,omitempty"`
-}
-
-// ClusterInfo is an interface to provide basic info about the cluster
-type ClusterInfo interface {
-	// NodeID returns the ID of the node in the cluster
-	NodeID() string
-
-	// NodeName returns the name of the node in the cluster
-	NodeName() string
-
-	// LeaderID returns the ID of the leader
-	LeaderID() string
-
-	// ClusterMembers returns the list of members in the cluster
-	ClusterMembers() ([]*ClusterMember, error)
-}
-
-// ClusterManager is an interface to provide basic cluster management
-type ClusterManager interface {
-	// AddNode returns created node and a list of peers after adding the node to the cluster.
-	AddNode(ctx context.Context, peerAddrs []string) (member *ClusterMember, peers []*ClusterMember, err error)
-	// RemoveNode returns a list of peers after removing the node from the cluster.
-	RemoveNode(ctx context.Context, nodeID string) (peers []*ClusterMember, err error)
-}
-
 // Server is an interface to provide server status
 type Server interface {
-	ClusterInfo
-	ClusterManager
 	http.Handler
 	Name() string
 	Version() string
@@ -105,13 +69,13 @@ type Server interface {
 	// IsReady indicates that all subservices are ready to serve
 	IsReady() bool
 
-	// Audit records an auditable event
-	// source indicates the area that the event was triggered by
-	// eventType indicates the specific event that occured
-	// identity specifies the identity of the user that triggered this event, typically this is <role>/<cn>
-	// contextID specifies the request ContextID that the event was triggered in [this can be used for cross service correlation of logs]
-	// raftIndex indicates the index# of the raft log in RAFT that the event occured in [if applicable]
-	// message contains any additional information about this event that is eventType specific
+	// Audit records an auditable event.
+	// 	source indicates the area that the event was triggered by
+	// 	eventType indicates the specific event that occured
+	// 	identity specifies the identity of the user that triggered this event, typically this is <role>/<cn>
+	// 	contextID specifies the request ContextID that the event was triggered in [this can be used for cross service correlation of logs]
+	// 	raftIndex indicates the index# of the raft log in RAFT that the event occured in [if applicable]
+	// 	message contains any additional information about this event that is eventType specific
 	Audit(source string,
 		eventType string,
 		identity string,
@@ -137,26 +101,24 @@ type MuxFactory interface {
 // as a single HTTP server
 type HTTPServer struct {
 	Server
-	auditor        Auditor
-	authz          Authz
-	clusterInfo    ClusterInfo
-	clusterManager ClusterManager
-	httpConfig     HTTPServerConfig
-	tlsConfig      *tls.Config
-	httpServer     *http.Server
-	cors           *CORSOptions
-	muxFactory     MuxFactory
-	hostname       string
-	port           string
-	ipaddr         string
-	version        string
-	serving        bool
-	startedAt      time.Time
-	clientAuth     string
-	scheduler      tasks.Scheduler
-	services       map[string]Service
-	evtHandlers    map[ServerEvent][]ServerEventFunc
-	lock           sync.RWMutex
+	auditor     Auditor
+	authz       Authz
+	httpConfig  HTTPServerConfig
+	tlsConfig   *tls.Config
+	httpServer  *http.Server
+	cors        *CORSOptions
+	muxFactory  MuxFactory
+	hostname    string
+	port        string
+	ipaddr      string
+	version     string
+	serving     bool
+	startedAt   time.Time
+	clientAuth  string
+	scheduler   tasks.Scheduler
+	services    map[string]Service
+	evtHandlers map[ServerEvent][]ServerEventFunc
+	lock        sync.RWMutex
 }
 
 // New creates a new instance of the server
@@ -165,10 +127,6 @@ func New(
 	ipaddr string,
 	httpConfig HTTPServerConfig,
 	tlsConfig *tls.Config,
-	auditor Auditor,
-	authz Authz,
-	clusterInfo ClusterInfo,
-	clusterManager ClusterManager,
 ) (*HTTPServer, error) {
 	var err error
 
@@ -181,21 +139,17 @@ func New(
 	}
 
 	s := &HTTPServer{
-		services:       map[string]Service{},
-		scheduler:      tasks.NewScheduler(),
-		startedAt:      time.Now().UTC(),
-		version:        version,
-		ipaddr:         ipaddr,
-		evtHandlers:    make(map[ServerEvent][]ServerEventFunc),
-		clientAuth:     tlsClientAuthToStrMap[tls.NoClientCert],
-		httpConfig:     httpConfig,
-		hostname:       GetHostName(httpConfig.GetBindAddr()),
-		port:           GetPort(httpConfig.GetBindAddr()),
-		authz:          authz,
-		clusterInfo:    clusterInfo,
-		clusterManager: clusterManager,
-		auditor:        auditor,
-		tlsConfig:      tlsConfig,
+		services:    map[string]Service{},
+		scheduler:   tasks.NewScheduler(),
+		startedAt:   time.Now().UTC(),
+		version:     version,
+		ipaddr:      ipaddr,
+		evtHandlers: make(map[ServerEvent][]ServerEventFunc),
+		clientAuth:  tlsClientAuthToStrMap[tls.NoClientCert],
+		httpConfig:  httpConfig,
+		hostname:    GetHostName(httpConfig.GetBindAddr()),
+		port:        GetPort(httpConfig.GetBindAddr()),
+		tlsConfig:   tlsConfig,
 	}
 	s.muxFactory = s
 	if tlsConfig != nil {
@@ -203,6 +157,24 @@ func New(
 	}
 
 	return s, nil
+}
+
+// WithAuditor enables to use auditor
+func (server *HTTPServer) WithAuditor(auditor Auditor) *HTTPServer {
+	server.auditor = auditor
+	return server
+}
+
+// WithAuthz enables to use Authz
+func (server *HTTPServer) WithAuthz(authz Authz) *HTTPServer {
+	server.authz = authz
+	return server
+}
+
+// WithScheduler enables to use custom scheduler
+func (server *HTTPServer) WithScheduler(scheduler tasks.Scheduler) *HTTPServer {
+	server.scheduler = scheduler
+	return server
 }
 
 // WithCORS enables CORS options
@@ -251,14 +223,6 @@ func (server *HTTPServer) HostName() string {
 	return server.hostname
 }
 
-// NodeName returns the node name in the cluster
-func (server *HTTPServer) NodeName() string {
-	if server.clusterInfo != nil {
-		return server.clusterInfo.NodeName()
-	}
-	return server.HostName()
-}
-
 // Port returns the port name of the server
 func (server *HTTPServer) Port() string {
 	return server.port
@@ -305,46 +269,6 @@ func (server *HTTPServer) HTTPConfig() HTTPServerConfig {
 // TLSConfig returns TLSConfig
 func (server *HTTPServer) TLSConfig() *tls.Config {
 	return server.tlsConfig
-}
-
-// AddNode returns created node and a list of peers after adding the node to the cluster.
-func (server *HTTPServer) AddNode(ctx context.Context, peerAddrs []string) (*ClusterMember, []*ClusterMember, error) {
-	if server.clusterManager == nil {
-		return nil, nil, errors.NotSupportedf("cluster")
-	}
-	return server.clusterManager.AddNode(ctx, peerAddrs)
-}
-
-// RemoveNode returns a list of peers after removing the node from the cluster.
-func (server *HTTPServer) RemoveNode(ctx context.Context, nodeID string) (peers []*ClusterMember, err error) {
-	if server.clusterManager == nil {
-		return nil, errors.NotSupportedf("cluster")
-	}
-	return server.clusterManager.RemoveNode(ctx, nodeID)
-}
-
-// NodeID returns the ID of the node in the cluster
-func (server *HTTPServer) NodeID() string {
-	if server.clusterInfo == nil {
-		return ""
-	}
-	return server.clusterInfo.NodeID()
-}
-
-// LeaderID returns the ID of the leader
-func (server *HTTPServer) LeaderID() string {
-	if server.clusterInfo == nil {
-		return ""
-	}
-	return server.clusterInfo.LeaderID()
-}
-
-// ClusterMembers returns the list of members in the cluster
-func (server *HTTPServer) ClusterMembers() ([]*ClusterMember, error) {
-	if server.clusterInfo == nil {
-		return nil, errors.NotSupportedf("cluster")
-	}
-	return server.clusterInfo.ClusterMembers()
 }
 
 // IsReady returns true when the server is ready to serve
@@ -438,6 +362,7 @@ func (server *HTTPServer) StartHTTP() error {
 		logger.Infof("api=StartHTTP, service=%s, port=%v, status=starting, protocol=%s",
 			server.Name(), bindAddr, server.Protocol())
 
+		// this is a blocking call to serve
 		if err := serve(); err != nil {
 			server.serving = false
 			//panic, only if not Serve error while stopping the server,
@@ -449,26 +374,29 @@ func (server *HTTPServer) StartHTTP() error {
 		}
 	}()
 
-	if server.httpConfig.GetHeartbeatSecs() > 0 {
-		task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).
-			Do("hearbeat", hearbeatMetricsTask, server)
-		server.Scheduler().Add(task)
-		task.Run()
+	if server.scheduler != nil {
+		if server.httpConfig.GetHeartbeatSecs() > 0 {
+			task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).
+				Do("hearbeat", hearbeatMetricsTask, server)
+			server.Scheduler().Add(task)
+			task.Run()
 
-		task = tasks.NewTaskAtIntervals(60, tasks.Seconds).Do("uptime", uptimeMetricsTask, server)
-		server.Scheduler().Add(task)
-		task.Run()
+			task = tasks.NewTaskAtIntervals(60, tasks.Seconds).Do("uptime", uptimeMetricsTask, server)
+			server.Scheduler().Add(task)
+			task.Run()
+		}
+
+		server.scheduler.Start()
 	}
 
-	server.scheduler.Start()
 	server.Audit(
 		EvtSourceStatus,
 		EvtServiceStarted,
-		server.NodeName(),
-		server.NodeID(),
+		server.HostName(),
+		server.LocalIP(),
 		0,
-		fmt.Sprintf("node=%q, address=%q, ClientAuth=%s",
-			server.NodeName(), strings.TrimPrefix(bindAddr, ":"), server.clientAuth),
+		fmt.Sprintf("address=%q, ClientAuth=%s",
+			strings.TrimPrefix(bindAddr, ":"), server.clientAuth),
 	)
 
 	return nil
@@ -495,8 +423,10 @@ func uptimeMetricsTask(server *HTTPServer) {
 // it is expected that you don't try and use the server instance again
 // after this. [i.e. if you want to start it again, create another server instance]
 func (server *HTTPServer) StopHTTP() {
-	// stop scheduled tasks
-	server.scheduler.Stop()
+	if server.scheduler != nil {
+		// stop scheduled tasks
+		server.scheduler.Stop()
+	}
 
 	// close services
 	for _, f := range server.services {
@@ -519,10 +449,10 @@ func (server *HTTPServer) StopHTTP() {
 	server.Audit(
 		EvtSourceStatus,
 		EvtServiceStopped,
-		server.NodeName(),
-		server.NodeID(),
+		server.HostName(),
+		server.LocalIP(),
 		0,
-		fmt.Sprintf("node=%s, uptime=%s", server.NodeName(), ut),
+		fmt.Sprintf("uptime=%s", ut),
 	)
 }
 
@@ -616,31 +546,4 @@ func GetServerBaseURL(s Server) *url.URL {
 		Scheme: s.Protocol(),
 		Host:   s.HostName() + ":" + s.Port(),
 	}
-}
-
-// GetNodeListenPeerURLs returns a list of URLs to listen on for peer traffic.
-func GetNodeListenPeerURLs(c ClusterInfo, nodeID string) ([]*url.URL, error) {
-	members, err := c.ClusterMembers()
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	list := make([]*url.URL, 0, len(members))
-	for _, m := range members {
-		if m.ID == nodeID {
-			for _, peerURL := range m.ListenPeerURLs {
-				u, err := url.Parse(peerURL)
-				if err == nil {
-					list = append(list, u)
-				} else {
-					logger.Errorf("api=GetNodeListenPeerURLs, nodeID=%s, url=%q, err=[%v]",
-						nodeID, peerURL, err)
-				}
-			}
-		}
-	}
-	if len(list) == 0 {
-		return nil, errors.NotFoundf("node: %q", nodeID)
-	}
-	return list, nil
 }
