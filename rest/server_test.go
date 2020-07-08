@@ -9,14 +9,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
 	"testing"
 	"time"
 
-	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/metrics"
 	"github.com/go-phorce/dolly/rest"
 	"github.com/go-phorce/dolly/rest/tlsconfig"
@@ -123,20 +121,17 @@ func Test_NewServer(t *testing.T) {
 
 	audit := auditor.NewInMemory()
 
-	server, err := rest.New("v1.0.123", "", cfg, nil, audit, nil, nil, nil)
+	server, err := rest.New("v1.0.123", "", cfg, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
+
+	server.WithAuditor(audit)
 
 	if _, ok := interface{}(server).(rest.Server); !ok {
 		require.Fail(t, "ensure interface")
 	}
 
 	require.NoError(t, err)
-	assert.NotNil(t, server.AddNode)
-	assert.NotNil(t, server.RemoveNode)
-	assert.NotNil(t, server.NodeName)
-	assert.NotNil(t, server.LeaderID)
-	assert.NotNil(t, server.NodeID)
 	assert.NotNil(t, server.Version)
 	assert.NotNil(t, server.HostName)
 	assert.NotNil(t, server.LocalIP)
@@ -153,9 +148,6 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.Scheduler)
 	assert.NotNil(t, server.HTTPConfig)
 	assert.NotNil(t, server.OnEvent)
-	assert.NotEmpty(t, server.NodeName())
-	assert.Empty(t, server.LeaderID())
-	assert.Empty(t, server.NodeID())
 	assert.NotEmpty(t, server.Version())
 	assert.NotEmpty(t, server.HostName())
 	assert.NotEmpty(t, server.LocalIP())
@@ -167,19 +159,6 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.Scheduler())
 	assert.NotNil(t, server.HTTPConfig())
 	assert.Equal(t, cfg, server.HTTPConfig())
-
-	_, _, err = server.AddNode(nil, []string{"https://localhost:9443"})
-	assert.Error(t, err)
-	assert.Equal(t, "cluster not supported", err.Error())
-
-	_, err = server.RemoveNode(nil, "https://localhost:9443")
-	assert.Error(t, err)
-	assert.Equal(t, "cluster not supported", err.Error())
-
-	peersURLs, err := rest.GetNodeListenPeerURLs(server, server.NodeID())
-	assert.Error(t, err)
-	assert.Equal(t, "cluster not supported", err.Error())
-	assert.Empty(t, peersURLs)
 
 	assert.Equal(t, fmt.Sprintf("http://%s:8081", server.HostName()), rest.GetServerBaseURL(server).String())
 
@@ -205,10 +184,10 @@ func Test_NewServerWithCustomHandler(t *testing.T) {
 		BindAddr: ":8082",
 	}
 
-	server, err := rest.New("v1.0.123", "", cfg, nil, auditor.NewInMemory(), nil, nil, nil)
+	server, err := rest.New("v1.0.123", "", cfg, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
-
+	server.WithAuditor(auditor.NewInMemory())
 	svc := NewService(server)
 	server.AddService(svc)
 
@@ -260,9 +239,10 @@ func Test_TLSConfig(t *testing.T) {
 	audit := auditor.NewInMemory()
 
 	tlsConfig := &tls.Config{}
-	server, err := rest.New("v1.0.123", "", cfg, tlsConfig, audit, nil, nil, nil)
+	server, err := rest.New("v1.0.123", "", cfg, tlsConfig)
 	require.NoError(t, err)
 	require.NotNil(t, server)
+	server.WithAuditor(audit)
 
 	assert.NotNil(t, server.TLSConfig)
 	assert.Equal(t, tlsConfig, server.TLSConfig())
@@ -274,7 +254,7 @@ func Test_ResolveTCPAddr(t *testing.T) {
 		BindAddr:    "0-0-0-0",
 	}
 
-	server, err := rest.New("wrong", "", cfg, nil, nil, nil, nil, nil)
+	server, err := rest.New("wrong", "", cfg, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -289,7 +269,7 @@ func Test_GetServerURL(t *testing.T) {
 		BindAddr: "hostname:8081",
 	}
 
-	server, err := rest.New("wrong", "", cfg, nil, nil, nil, nil, nil)
+	server, err := rest.New("wrong", "", cfg, nil)
 	require.NoError(t, err)
 	require.NotNil(t, server)
 
@@ -337,102 +317,6 @@ func (tm *testMuxer) NewMux() http.Handler {
 
 func muxer(handler http.Handler) *testMuxer {
 	return &testMuxer{handler: handler}
-}
-
-type cluster struct {
-	this    int
-	leader  int
-	members []*rest.ClusterMember
-}
-
-// AddNode returns created node and a list of peers after adding the node to the cluster.
-func (c *cluster) AddNode(_ context.Context, peerAddrs []string) (*rest.ClusterMember, []*rest.ClusterMember, error) {
-	member := &rest.ClusterMember{
-		ID:             guid.MustCreate(),
-		Name:           fmt.Sprintf("node%d", 1+len(c.members)),
-		ListenPeerURLs: peerAddrs,
-	}
-	c.members = append(c.members, member)
-	return member, c.members, nil
-}
-
-// RemoveNode returns a list of peers after removing the node from the cluster.
-func (c *cluster) RemoveNode(_ context.Context, nodeID string) ([]*rest.ClusterMember, error) {
-	members := c.members
-	for i, n := range c.members {
-		if n.ID == nodeID {
-			last := len(members) - 1
-			members[i] = members[last]
-			members[last] = nil
-			c.members = members[:last]
-
-			return c.members[:], nil
-		}
-	}
-
-	return nil, errors.NotFoundf("node %s", nodeID)
-}
-
-func (c *cluster) NodeID() string {
-	return c.members[c.this].ID
-}
-
-func (c *cluster) NodeName() string {
-	return c.members[c.this].Name
-}
-
-func (c *cluster) LeaderID() string {
-	return c.members[c.leader].ID
-}
-
-func (c *cluster) ClusterMembers() ([]*rest.ClusterMember, error) {
-	return c.members[:], nil
-}
-
-func (c *cluster) ListenPeerURLs(nodeID string) ([]*url.URL, error) {
-	return rest.GetNodeListenPeerURLs(c, nodeID)
-}
-
-func Test_ClusterInfo(t *testing.T) {
-	cfg := &serverConfig{
-		BindAddr: "hostname:8081",
-	}
-
-	clstr := &cluster{
-		this:   0,
-		leader: 0,
-		members: []*rest.ClusterMember{
-			{ID: "0000", Name: "node0", ListenPeerURLs: []string{"https://host0:8080", "https://127.0.0.1:8080"}},
-			{ID: "1111", Name: "node1", ListenPeerURLs: []string{"https://host1:8081"}},
-			{ID: "2222", Name: "node2", ListenPeerURLs: []string{"https://host2:8082"}},
-		},
-	}
-
-	server, err := rest.New("v1.0.123", "", cfg, nil, nil, nil, clstr, clstr)
-	require.NoError(t, err)
-	require.NotNil(t, server)
-
-	assert.Equal(t, "0000", server.LeaderID())
-
-	l, err := rest.GetNodeListenPeerURLs(server, "0000")
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(l))
-
-	l, err = rest.GetNodeListenPeerURLs(server, "3333")
-	require.Error(t, err)
-
-	m, p, err := server.AddNode(nil, []string{"https://host2:8083"})
-	require.NoError(t, err)
-	assert.Equal(t, []string{"https://host2:8083"}, m.ListenPeerURLs)
-	assert.Equal(t, 4, len(p))
-	_, err = rest.GetNodeListenPeerURLs(server, m.ID)
-	require.NoError(t, err)
-
-	p, err = server.RemoveNode(nil, "2222")
-	require.NoError(t, err)
-	assert.Equal(t, 3, len(p))
-	_, err = rest.GetNodeListenPeerURLs(server, "2222")
-	require.Error(t, err)
 }
 
 type response struct {
@@ -498,18 +382,10 @@ func Test_Authz(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	clusterInfo := &cluster{
-		this:   0,
-		leader: 0,
-		members: []*rest.ClusterMember{
-			{ID: "0", Name: "localhost", ListenPeerURLs: []string{"https://localhost:8081"}},
-		},
-	}
-
-	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsCfg, nil, authz, clusterInfo, clusterInfo)
+	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsCfg)
 	require.NoError(t, err)
 	require.NotNil(t, server)
-
+	server.WithAuthz(authz)
 	service := newService(t, server, "authztest", false)
 	server.AddService(service)
 

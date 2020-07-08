@@ -39,10 +39,11 @@ func ExampleServer() {
 		BindAddr: ":8181",
 	}
 
-	server, err := rest.New("v1.0.123", "", cfg, tlsInfo, auditor.NewInMemory(), nil, nil, nil)
+	server, err := rest.New("v1.0.123", "", cfg, tlsInfo)
 	if err != nil {
 		panic("unable to create the server")
 	}
+	server.WithAuditor(auditor.NewInMemory())
 
 	// execute and schedule
 	go certExpirationPublisherTask(tlsloader)
