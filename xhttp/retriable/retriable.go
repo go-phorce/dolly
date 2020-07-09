@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -163,6 +164,26 @@ func WithTimeout(timeout time.Duration) ClientOption {
 	})
 }
 
+// WithDNSServer is a ClientOption that allows to use custom
+// dns server for resolution
+// dns server must be specified in <host>:<port> format
+//
+//   retriable.New(retriable.WithDNSServer(dns))
+//
+// This option cannot be provided for constructors which produce result
+// objects.
+// Note that WithDNSServer applies changes to http client Transport object
+// and hence if used in conjuction with WithTransport method,
+// WithDNSServer should be called after WithTransport is called.
+//
+// retriable.New(retriable.WithTransport(t).WithDNSServer(dns))
+//
+func WithDNSServer(dns string) ClientOption {
+	return optionFunc(func(c *Client) {
+		c.WithDNSServer(dns)
+	})
+}
+
 // Client is custom implementation of http.Client
 type Client struct {
 	lock       sync.RWMutex
@@ -264,6 +285,34 @@ func (c *Client) WithTimeout(timeout time.Duration) *Client {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	c.httpClient.Timeout = timeout
+	return c
+}
+
+// WithDNSServer modifies DNS server.
+// dns must be specified in <host>:<port> format
+func (c *Client) WithDNSServer(dns string) *Client {
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+
+	if c.httpClient.Transport == nil {
+		tr := http.DefaultTransport.(*http.Transport).Clone()
+		c.httpClient.Transport = tr
+
+		logger.Infof("api=WithDNSServer, reason=new_transport")
+	} else {
+		logger.Infof("api=WithDNSServer, reason=update_transport")
+	}
+	c.httpClient.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		d := net.Dialer{}
+		d.Resolver = &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				d := net.Dialer{}
+				return d.DialContext(ctx, network, dns)
+			},
+		}
+		return d.DialContext(ctx, network, addr)
+	}
 	return c
 }
 

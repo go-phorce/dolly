@@ -16,7 +16,7 @@ all: clean tools generate hsmconfig gen_test_certs covtest
 # clean produced files
 #
 clean:
-	go clean
+	go clean ./...
 	rm -rf \
 		${COVPATH} \
 		${PROJ_BIN}
