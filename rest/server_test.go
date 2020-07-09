@@ -156,7 +156,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.StartedAt())
 	assert.Nil(t, server.Service("abc"))
 	assert.False(t, server.IsReady())
-	assert.NotNil(t, server.Scheduler())
+	assert.Nil(t, server.Scheduler())
 	assert.NotNil(t, server.HTTPConfig())
 	assert.Equal(t, cfg, server.HTTPConfig())
 

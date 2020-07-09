@@ -140,7 +140,6 @@ func New(
 
 	s := &HTTPServer{
 		services:    map[string]Service{},
-		scheduler:   tasks.NewScheduler(),
 		startedAt:   time.Now().UTC(),
 		version:     version,
 		ipaddr:      ipaddr,
@@ -171,7 +170,8 @@ func (server *HTTPServer) WithAuthz(authz Authz) *HTTPServer {
 	return server
 }
 
-// WithScheduler enables to use custom scheduler
+// WithScheduler enables to schedule tasks, such as heartbeat, uptime etc
+// If a scheduler is not provided, then tasks will not be schedduled.
 func (server *HTTPServer) WithScheduler(scheduler tasks.Scheduler) *HTTPServer {
 	server.scheduler = scheduler
 	return server
@@ -374,19 +374,13 @@ func (server *HTTPServer) StartHTTP() error {
 		}
 	}()
 
-	if server.scheduler != nil {
+	if server.Scheduler() != nil {
 		if server.httpConfig.GetHeartbeatSecs() > 0 {
 			task := tasks.NewTaskAtIntervals(uint64(server.httpConfig.GetHeartbeatSecs()), tasks.Seconds).
 				Do("hearbeat", hearbeatMetricsTask, server)
 			server.Scheduler().Add(task)
 			task.Run()
-
-			task = tasks.NewTaskAtIntervals(60, tasks.Seconds).Do("uptime", uptimeMetricsTask, server)
-			server.Scheduler().Add(task)
-			task.Run()
 		}
-
-		server.scheduler.Start()
 	}
 
 	server.Audit(
@@ -404,9 +398,6 @@ func (server *HTTPServer) StartHTTP() error {
 
 func hearbeatMetricsTask(server *HTTPServer) {
 	metricsutil.PublishHeartbeat(server.httpConfig.GetServiceName())
-}
-
-func uptimeMetricsTask(server *HTTPServer) {
 	metricsutil.PublishUptime(server.httpConfig.GetServiceName(), server.Uptime())
 }
 
@@ -423,11 +414,6 @@ func uptimeMetricsTask(server *HTTPServer) {
 // it is expected that you don't try and use the server instance again
 // after this. [i.e. if you want to start it again, create another server instance]
 func (server *HTTPServer) StopHTTP() {
-	if server.scheduler != nil {
-		// stop scheduled tasks
-		server.scheduler.Stop()
-	}
-
 	// close services
 	for _, f := range server.services {
 		logger.Tracef("api=StopHTTP, service=%q", f.Name())
