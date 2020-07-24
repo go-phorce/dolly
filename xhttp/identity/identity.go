@@ -96,7 +96,7 @@ func WithTestIdentity(r *http.Request, identity Identity) *http.Request {
 	ctx := &RequestContext{
 		identity:      identity,
 		correlationID: extractCorrelationID(r),
-		clientIP:      nodeInfo.LocalIP(),
+		clientIP:      nodeInfoFactory().LocalIP(),
 	}
 	c := context.WithValue(r.Context(), keyContext, ctx)
 	return r.WithContext(c)

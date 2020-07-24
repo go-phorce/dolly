@@ -5,6 +5,7 @@ package identity
 import (
 	"context"
 	"net/http"
+	"sync"
 
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/netutil"
@@ -12,7 +13,6 @@ import (
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "xhttp/context")
@@ -24,9 +24,12 @@ const (
 	keyIdentity
 )
 
+// NodeInfoFactory returns NodeInfo
+type NodeInfoFactory func() netutil.NodeInfo
+
 var (
-	nodeInfo       netutil.NodeInfo
-	identityMapper Mapper = GuestIdentityMapper
+	nodeInfoFactory        = newNodeInfoFactory()
+	identityMapper  Mapper = GuestIdentityMapper
 )
 
 // RequestContext represents user contextual information about a request being processed by the server,
@@ -52,12 +55,29 @@ type Context interface {
 	ClientIP() string
 }
 
-func init() {
-	n, err := netutil.NewNodeInfo(nil)
-	if err != nil {
-		logger.Panicf("context package not initialized: %s", errors.ErrorStack(err))
+type defaultNodeInfoFactory struct {
+	lock     sync.Mutex
+	nodeInfo netutil.NodeInfo
+}
+
+func (f *defaultNodeInfoFactory) getNodeInfo() netutil.NodeInfo {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	if f.nodeInfo == nil {
+		nodeInfo, err := netutil.NewNodeInfo(nil)
+		if err != nil {
+			logger.Panicf("api=getNodeInfo, err=[%v]", err.Error())
+		}
+		f.nodeInfo = nodeInfo
 	}
-	SetGlobalNodeInfo(n)
+
+	return f.nodeInfo
+}
+
+func newNodeInfoFactory() NodeInfoFactory {
+	factory := &defaultNodeInfoFactory{}
+	return factory.getNodeInfo
 }
 
 // SetGlobalNodeInfo applies NodeInfo for the application
@@ -65,7 +85,8 @@ func SetGlobalNodeInfo(n netutil.NodeInfo) {
 	if n == nil {
 		logger.Panic("NodeInfo must not be nil")
 	}
-	nodeInfo = n
+	factory := &defaultNodeInfoFactory{nodeInfo: n}
+	nodeInfoFactory = factory.getNodeInfo
 }
 
 // SetGlobalIdentityMapper applies global IdentityMapper for the application
@@ -113,7 +134,7 @@ func ForRequest(r *http.Request) *RequestContext {
 func NewContextHandler(delegate http.Handler) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		// Set XHostname on the response
-		w.Header().Set(header.XHostname, nodeInfo.HostName())
+		w.Header().Set(header.XHostname, nodeInfoFactory().HostName())
 
 		var rctx *RequestContext
 		v := r.Context().Value(keyContext)
