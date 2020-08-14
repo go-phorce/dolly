@@ -119,6 +119,7 @@ type HTTPServer struct {
 	services    map[string]Service
 	evtHandlers map[ServerEvent][]ServerEventFunc
 	lock        sync.RWMutex
+	gracefulShutdownTimeoutSeconds uint32
 }
 
 // New creates a new instance of the server
@@ -149,6 +150,7 @@ func New(
 		hostname:    GetHostName(httpConfig.GetBindAddr()),
 		port:        GetPort(httpConfig.GetBindAddr()),
 		tlsConfig:   tlsConfig,
+		gracefulShutdownTimeoutSeconds: 5, //default
 	}
 	s.muxFactory = s
 	if tlsConfig != nil {
@@ -180,6 +182,12 @@ func (server *HTTPServer) WithScheduler(scheduler tasks.Scheduler) *HTTPServer {
 // WithCORS enables CORS options
 func (server *HTTPServer) WithCORS(cors *CORSOptions) *HTTPServer {
 	server.cors = cors
+	return server
+}
+
+// WithGracefulShutdownTimeoutSeconds sets the connection draining timeouts on server shutdown
+func (server *HTTPServer) WithGracefulShutdownTimeoutSeconds(timeout uint32)  *HTTPServer {
+	server.gracefulShutdownTimeoutSeconds = timeout
 	return server
 }
 
@@ -420,7 +428,7 @@ func (server *HTTPServer) StopHTTP() {
 		f.Close()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(server.gracefulShutdownTimeoutSeconds)*time.Second)
 	defer cancel()
 	err := server.httpServer.Shutdown(ctx)
 	if err != nil {
