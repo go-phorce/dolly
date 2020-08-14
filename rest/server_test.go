@@ -179,6 +179,72 @@ func Test_NewServer(t *testing.T) {
 	require.NotNil(t, e)
 }
 
+func Test_NewServerWithGracefulShutdownSet(t *testing.T) {
+	cfg := &serverConfig{
+		BindAddr: ":8081",
+	}
+
+	audit := auditor.NewInMemory()
+
+	server, err := rest.New("v1.0.123", "", cfg, nil)
+	require.NoError(t, err)
+	require.NotNil(t, server)
+
+	server.WithAuditor(audit)
+	server.WithGracefulShutdownTimeout(time.Second * 5)
+
+	if _, ok := interface{}(server).(rest.Server); !ok {
+		require.Fail(t, "ensure interface")
+	}
+
+	require.NoError(t, err)
+	assert.NotNil(t, server.Version)
+	assert.NotNil(t, server.HostName)
+	assert.NotNil(t, server.LocalIP)
+	assert.NotNil(t, server.Port)
+	assert.NotNil(t, server.Protocol)
+	assert.NotNil(t, server.StartedAt)
+	assert.NotNil(t, server.Uptime)
+	assert.NotNil(t, server.Service)
+	assert.NotNil(t, server.IsReady)
+	assert.NotNil(t, server.Audit)
+	assert.NotNil(t, server.AddService)
+	assert.NotNil(t, server.StartHTTP)
+	assert.NotNil(t, server.StopHTTP)
+	assert.NotNil(t, server.Scheduler)
+	assert.NotNil(t, server.HTTPConfig)
+	assert.NotNil(t, server.OnEvent)
+	assert.NotEmpty(t, server.Version())
+	assert.NotEmpty(t, server.HostName())
+	assert.NotEmpty(t, server.LocalIP())
+	assert.NotEmpty(t, server.Port())
+	assert.Equal(t, "http", server.Protocol())
+	assert.NotNil(t, server.StartedAt())
+	assert.Nil(t, server.Service("abc"))
+	assert.False(t, server.IsReady())
+	assert.Nil(t, server.Scheduler())
+	assert.NotNil(t, server.HTTPConfig())
+	assert.Equal(t, cfg, server.HTTPConfig())
+
+	assert.Equal(t, fmt.Sprintf("http://%s:8081", server.HostName()), rest.GetServerBaseURL(server).String())
+
+	//	assert.NotNil(t, server.AddService())
+	err = server.StartHTTP()
+	require.NoError(t, err)
+	e := audit.Find(rest.EvtSourceStatus, rest.EvtServiceStarted)
+	require.NotNil(t, e)
+	assert.Contains(t, e.Message, "ClientAuth=NoClientCert")
+
+	for i := 0; i < 10 && !server.IsReady(); i++ {
+		time.Sleep(100 * time.Millisecond)
+	}
+	require.True(t, server.IsReady())
+
+	server.StopHTTP()
+	e = audit.Find(rest.EvtSourceStatus, rest.EvtServiceStopped)
+	require.NotNil(t, e)
+}
+
 func Test_NewServerWithCustomHandler(t *testing.T) {
 	cfg := &serverConfig{
 		BindAddr: ":8082",

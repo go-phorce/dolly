@@ -101,25 +101,25 @@ type MuxFactory interface {
 // as a single HTTP server
 type HTTPServer struct {
 	Server
-	auditor     Auditor
-	authz       Authz
-	httpConfig  HTTPServerConfig
-	tlsConfig   *tls.Config
-	httpServer  *http.Server
-	cors        *CORSOptions
-	muxFactory  MuxFactory
-	hostname    string
-	port        string
-	ipaddr      string
-	version     string
-	serving     bool
-	startedAt   time.Time
-	clientAuth  string
-	scheduler   tasks.Scheduler
-	services    map[string]Service
-	evtHandlers map[ServerEvent][]ServerEventFunc
-	lock        sync.RWMutex
-	gracefulShutdownTimeoutSeconds uint32
+	auditor                 Auditor
+	authz                   Authz
+	httpConfig              HTTPServerConfig
+	tlsConfig               *tls.Config
+	httpServer              *http.Server
+	cors                    *CORSOptions
+	muxFactory              MuxFactory
+	hostname                string
+	port                    string
+	ipaddr                  string
+	version                 string
+	serving                 bool
+	startedAt               time.Time
+	clientAuth              string
+	scheduler               tasks.Scheduler
+	services                map[string]Service
+	evtHandlers             map[ServerEvent][]ServerEventFunc
+	lock                    sync.RWMutex
+	gracefulShutdownTimeout time.Duration
 }
 
 // New creates a new instance of the server
@@ -140,17 +140,17 @@ func New(
 	}
 
 	s := &HTTPServer{
-		services:    map[string]Service{},
-		startedAt:   time.Now().UTC(),
-		version:     version,
-		ipaddr:      ipaddr,
-		evtHandlers: make(map[ServerEvent][]ServerEventFunc),
-		clientAuth:  tlsClientAuthToStrMap[tls.NoClientCert],
-		httpConfig:  httpConfig,
-		hostname:    GetHostName(httpConfig.GetBindAddr()),
-		port:        GetPort(httpConfig.GetBindAddr()),
-		tlsConfig:   tlsConfig,
-		gracefulShutdownTimeoutSeconds: 5, //default
+		services:                map[string]Service{},
+		startedAt:               time.Now().UTC(),
+		version:                 version,
+		ipaddr:                  ipaddr,
+		evtHandlers:             make(map[ServerEvent][]ServerEventFunc),
+		clientAuth:              tlsClientAuthToStrMap[tls.NoClientCert],
+		httpConfig:              httpConfig,
+		hostname:                GetHostName(httpConfig.GetBindAddr()),
+		port:                    GetPort(httpConfig.GetBindAddr()),
+		tlsConfig:               tlsConfig,
+		gracefulShutdownTimeout: time.Duration(5) * time.Second,
 	}
 	s.muxFactory = s
 	if tlsConfig != nil {
@@ -185,9 +185,9 @@ func (server *HTTPServer) WithCORS(cors *CORSOptions) *HTTPServer {
 	return server
 }
 
-// WithGracefulShutdownTimeoutSeconds sets the connection draining timeouts on server shutdown
-func (server *HTTPServer) WithGracefulShutdownTimeoutSeconds(timeout uint32)  *HTTPServer {
-	server.gracefulShutdownTimeoutSeconds = timeout
+// WithGracefulShutdownTimeout sets the connection draining timeouts on server shutdown
+func (server *HTTPServer) WithGracefulShutdownTimeout(timeout time.Duration) *HTTPServer {
+	server.gracefulShutdownTimeout = timeout
 	return server
 }
 
@@ -428,7 +428,7 @@ func (server *HTTPServer) StopHTTP() {
 		f.Close()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(server.gracefulShutdownTimeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), server.gracefulShutdownTimeout)
 	defer cancel()
 	err := server.httpServer.Shutdown(ctx)
 	if err != nil {
