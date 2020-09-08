@@ -191,7 +191,7 @@ func Test_NewServerWithGracefulShutdownSet(t *testing.T) {
 	require.NotNil(t, server)
 
 	server.WithAuditor(audit)
-	server.WithGracefulShutdownTimeout(time.Second * 5)
+	server.WithShutdownTimeout(time.Second * 5)
 
 	if _, ok := interface{}(server).(rest.Server); !ok {
 		require.Fail(t, "ensure interface")

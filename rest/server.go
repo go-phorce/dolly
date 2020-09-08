@@ -22,6 +22,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
+	"google.golang.org/grpc"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
@@ -46,6 +47,8 @@ const (
 	ServerStartedEvent ServerEvent = iota
 	// ServerStoppedEvent is fired after server stopped
 	ServerStoppedEvent
+	// ServerStoppingEvent is fired before server stopped
+	ServerStoppingEvent
 )
 
 // ServerEventFunc is a callback to handle server events
@@ -101,25 +104,28 @@ type MuxFactory interface {
 // as a single HTTP server
 type HTTPServer struct {
 	Server
-	auditor                 Auditor
-	authz                   Authz
-	httpConfig              HTTPServerConfig
-	tlsConfig               *tls.Config
-	httpServer              *http.Server
-	cors                    *CORSOptions
-	muxFactory              MuxFactory
-	hostname                string
-	port                    string
-	ipaddr                  string
-	version                 string
-	serving                 bool
-	startedAt               time.Time
-	clientAuth              string
-	scheduler               tasks.Scheduler
-	services                map[string]Service
-	evtHandlers             map[ServerEvent][]ServerEventFunc
-	lock                    sync.RWMutex
-	gracefulShutdownTimeout time.Duration
+	auditor         Auditor
+	authz           Authz
+	httpConfig      HTTPServerConfig
+	tlsConfig       *tls.Config
+	httpServer      *http.Server
+	cors            *CORSOptions
+	muxFactory      MuxFactory
+	hostname        string
+	port            string
+	ipaddr          string
+	version         string
+	serving         bool
+	startedAt       time.Time
+	clientAuth      string
+	scheduler       tasks.Scheduler
+	services        map[string]Service
+	evtHandlers     map[ServerEvent][]ServerEventFunc
+	lock            sync.RWMutex
+	shutdownTimeout time.Duration
+
+	serviceRegister func(*grpc.Server)
+	gopts           []grpc.ServerOption
 }
 
 // New creates a new instance of the server
@@ -140,17 +146,17 @@ func New(
 	}
 
 	s := &HTTPServer{
-		services:                map[string]Service{},
-		startedAt:               time.Now().UTC(),
-		version:                 version,
-		ipaddr:                  ipaddr,
-		evtHandlers:             make(map[ServerEvent][]ServerEventFunc),
-		clientAuth:              tlsClientAuthToStrMap[tls.NoClientCert],
-		httpConfig:              httpConfig,
-		hostname:                GetHostName(httpConfig.GetBindAddr()),
-		port:                    GetPort(httpConfig.GetBindAddr()),
-		tlsConfig:               tlsConfig,
-		gracefulShutdownTimeout: time.Duration(5) * time.Second,
+		services:        map[string]Service{},
+		startedAt:       time.Now().UTC(),
+		version:         version,
+		ipaddr:          ipaddr,
+		evtHandlers:     make(map[ServerEvent][]ServerEventFunc),
+		clientAuth:      tlsClientAuthToStrMap[tls.NoClientCert],
+		httpConfig:      httpConfig,
+		hostname:        GetHostName(httpConfig.GetBindAddr()),
+		port:            GetPort(httpConfig.GetBindAddr()),
+		tlsConfig:       tlsConfig,
+		shutdownTimeout: time.Duration(5) * time.Second,
 	}
 	s.muxFactory = s
 	if tlsConfig != nil {
@@ -185,9 +191,9 @@ func (server *HTTPServer) WithCORS(cors *CORSOptions) *HTTPServer {
 	return server
 }
 
-// WithGracefulShutdownTimeout sets the connection draining timeouts on server shutdown
-func (server *HTTPServer) WithGracefulShutdownTimeout(timeout time.Duration) *HTTPServer {
-	server.gracefulShutdownTimeout = timeout
+// WithShutdownTimeout sets the connection draining timeouts on server shutdown
+func (server *HTTPServer) WithShutdownTimeout(timeout time.Duration) *HTTPServer {
+	server.shutdownTimeout = timeout
 	return server
 }
 
@@ -428,7 +434,7 @@ func (server *HTTPServer) StopHTTP() {
 		f.Close()
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), server.gracefulShutdownTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), server.shutdownTimeout)
 	defer cancel()
 	err := server.httpServer.Shutdown(ctx)
 	if err != nil {

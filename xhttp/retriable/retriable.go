@@ -276,7 +276,6 @@ func (c *Client) WithTransport(transport http.RoundTripper) *Client {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 	c.httpClient.Transport = transport
-	logger.Infof("api=WithTransport, reason=update_transport")
 	return c
 }
 
@@ -297,10 +296,8 @@ func (c *Client) WithDNSServer(dns string) *Client {
 	if c.httpClient.Transport == nil {
 		tr := http.DefaultTransport.(*http.Transport).Clone()
 		c.httpClient.Transport = tr
-
-		logger.Infof("api=WithDNSServer, reason=new_transport")
 	} else {
-		logger.Infof("api=WithDNSServer, reason=update_transport")
+		logger.Trace("api=WithDNSServer, reason=update_transport")
 	}
 	c.httpClient.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		d := net.Dialer{}

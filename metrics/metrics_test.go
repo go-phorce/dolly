@@ -44,19 +44,19 @@ func Test_NewMetricSinkFromURL_InMem(t *testing.T) {
 func Test_NewMetricSinkFromURL_InMem_InvalidParams(t *testing.T) {
 	_, err := metrics.NewMetricSinkFromURL("inmem://localhost?interval=1s")
 	require.Error(t, err)
-	assert.Equal(t, "bad 'retain' param: time: invalid duration ", err.Error())
+	assert.Equal(t, "bad 'retain' param: time: invalid duration \"\"", err.Error())
 
 	_, err = metrics.NewMetricSinkFromURL("inmem://localhost?interval=1s&retain=xxx")
 	require.Error(t, err)
-	assert.Equal(t, "bad 'retain' param: time: invalid duration xxx", err.Error())
+	assert.Equal(t, "bad 'retain' param: time: invalid duration \"xxx\"", err.Error())
 
 	_, err = metrics.NewMetricSinkFromURL("inmem://localhost?retain=1s")
 	require.Error(t, err)
-	assert.Equal(t, "bad 'interval' param: time: invalid duration ", err.Error())
+	assert.Equal(t, "bad 'interval' param: time: invalid duration \"\"", err.Error())
 
 	_, err = metrics.NewMetricSinkFromURL("inmem://localhost?retain=1s&interval=yyy")
 	require.Error(t, err)
-	assert.Equal(t, "bad 'interval' param: time: invalid duration yyy", err.Error())
+	assert.Equal(t, "bad 'interval' param: time: invalid duration \"yyy\"", err.Error())
 }
 
 func Test_SetProviderDatadog(t *testing.T) {

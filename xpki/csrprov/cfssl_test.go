@@ -129,7 +129,7 @@ func Test_MakeCAPolicy(t *testing.T) {
 			req: csrprov.CertificateRequest{CA: &csrprov.CAConfig{
 				Expiry: "~hh",
 			}},
-			experr: "time: invalid duration ~hh",
+			experr: "time: invalid duration \"~hh\"",
 		},
 		{
 			name: "Backdate 1h",
@@ -143,7 +143,7 @@ func Test_MakeCAPolicy(t *testing.T) {
 			req: csrprov.CertificateRequest{CA: &csrprov.CAConfig{
 				Backdate: "~hh",
 			}},
-			experr: "time: invalid duration ~hh",
+			experr: "time: invalid duration \"~hh\"",
 		},
 		{
 			name: "Expiry 1h, Backdate 1h",
