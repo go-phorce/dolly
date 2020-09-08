@@ -26,6 +26,7 @@ type configuration struct {
 	crldpURL              []string
 	issuingCertificateURL []string
 	ocspServer            []string
+	dnsNames              []string
 }
 
 func (c *configuration) generate() *Entity {
@@ -41,6 +42,7 @@ func (c *configuration) generate() *Entity {
 		IssuingCertificateURL: c.issuingCertificateURL,
 		OCSPServer:            c.ocspServer,
 		CRLDistributionPoints: c.crldpURL,
+		DNSNames:              c.dnsNames,
 	}
 
 	var (
@@ -258,6 +260,13 @@ func OCSPServer(value ...string) Option {
 func CrlDpURL(value ...string) Option {
 	return func(c *configuration) {
 		c.crldpURL = append(c.crldpURL, value...)
+	}
+}
+
+// DNSName is an Option for setting the SAN.
+func DNSName(value ...string) Option {
+	return func(c *configuration) {
+		c.dnsNames = append(c.dnsNames, value...)
 	}
 }
 

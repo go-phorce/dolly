@@ -62,6 +62,7 @@ func (s *testSuite) SetupTest() {
 				CommonName: "localhost",
 			}),
 			testca.ExtKeyUsage(x509.ExtKeyUsageServerAuth),
+			testca.DNSName("localhost", "127.0.0.1"),
 		)
 	)
 

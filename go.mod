@@ -3,7 +3,6 @@ module github.com/go-phorce/dolly
 go 1.14
 
 require (
-	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/DataDog/datadog-go v0.0.0-20180330214955-e67964b4021a
 	github.com/GeertJohan/go.rice v1.0.0 // indirect
 	github.com/cloudflare/cfssl v0.0.0-20181102015659-ea4033a214e7
@@ -24,7 +23,6 @@ require (
 	github.com/mattn/goveralls v0.0.6
 	github.com/miekg/pkcs11 v0.0.0-20181023194645-95e2e42e3ece
 	github.com/prometheus/client_golang v1.1.0
-	github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4 // indirect
 	github.com/prometheus/procfs v0.0.4 // indirect
 	github.com/rs/cors v1.6.0
 	github.com/stretchr/objx v0.2.0 // indirect
@@ -35,6 +33,7 @@ require (
 	golang.org/x/mod v0.3.0 // indirect
 	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/tools v0.0.0-20200619210111-0f592d2728bb
+	google.golang.org/grpc v1.31.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0-20170531160350-a96e63847dc3
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
