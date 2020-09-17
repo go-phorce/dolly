@@ -22,7 +22,6 @@ import (
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
-	"google.golang.org/grpc"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
@@ -123,9 +122,6 @@ type HTTPServer struct {
 	evtHandlers     map[ServerEvent][]ServerEventFunc
 	lock            sync.RWMutex
 	shutdownTimeout time.Duration
-
-	serviceRegister func(*grpc.Server)
-	gopts           []grpc.ServerOption
 }
 
 // New creates a new instance of the server

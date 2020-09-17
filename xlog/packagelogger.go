@@ -124,11 +124,17 @@ func (p *PackageLogger) Error(entries ...interface{}) {
 
 // Warningf is implementation for stdlib compatibility
 func (p *PackageLogger) Warningf(format string, args ...interface{}) {
+	if p.level < WARNING {
+		return
+	}
 	p.Logf(WARNING, format, args...)
 }
 
 // Warning is implementation for stdlib compatibility
 func (p *PackageLogger) Warning(entries ...interface{}) {
+	if p.level < WARNING {
+		return
+	}
 	p.internalLog(calldepth, WARNING, entries...)
 }
 
@@ -136,11 +142,17 @@ func (p *PackageLogger) Warning(entries ...interface{}) {
 
 // Noticef is implementation for stdlib compatibility
 func (p *PackageLogger) Noticef(format string, args ...interface{}) {
+	if p.level < NOTICE {
+		return
+	}
 	p.Logf(NOTICE, format, args...)
 }
 
 // Notice is implementation for stdlib compatibility
 func (p *PackageLogger) Notice(entries ...interface{}) {
+	if p.level < NOTICE {
+		return
+	}
 	p.internalLog(calldepth, NOTICE, entries...)
 }
 
@@ -148,11 +160,17 @@ func (p *PackageLogger) Notice(entries ...interface{}) {
 
 // Infof is implementation for stdlib compatibility
 func (p *PackageLogger) Infof(format string, args ...interface{}) {
+	if p.level < INFO {
+		return
+	}
 	p.Logf(INFO, format, args...)
 }
 
 // Info is implementation for stdlib compatibility
 func (p *PackageLogger) Info(entries ...interface{}) {
+	if p.level < INFO {
+		return
+	}
 	p.internalLog(calldepth, INFO, entries...)
 }
 

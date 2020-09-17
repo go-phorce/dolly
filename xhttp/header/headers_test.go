@@ -11,6 +11,7 @@ func Test_Headers(t *testing.T) {
 	assert.Equal(t, "Accept", header.Accept)
 	assert.Equal(t, "application/json", header.ApplicationJSON)
 	assert.Equal(t, "application/jose+json", header.ApplicationJoseJSON)
+	assert.Equal(t, "application/grpc", header.ApplicationGRPC)
 	assert.Equal(t, "application/timestamp-query", header.ApplicationTimestampQuery)
 	assert.Equal(t, "application/timestamp-reply", header.ApplicationTimestampReply)
 	assert.Equal(t, "Authorization", header.Authorization)
