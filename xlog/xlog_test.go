@@ -244,24 +244,35 @@ func Test_PrettyFormatterDebug(t *testing.T) {
 	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, true))
 	xlog.SetGlobalLogLevel(xlog.INFO)
 
-	logger.Infof("Test Info\n")
+	logger.Trace("Test trace\n")
+	logger.Tracef("Test trace\n")
 	result := string(b.Bytes())
-	expected := "I | xlog_test: Test Info\n"
+	expected := "T | xlog_test: Test trace\n"
+	assert.NotContains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Info("Test Info\n")
+	logger.Infof("Test Info\n")
+	result = string(b.Bytes())
+	expected = "I | xlog_test: Test Info\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
+	logger.Error("Test Error\n")
 	logger.Errorf("Test Error\n")
 	result = string(b.Bytes())
 	expected = "E | xlog_test: Test Error\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
+	logger.Notice("Test Notice\n")
 	logger.Noticef("Test Notice\n")
 	result = string(b.Bytes())
 	expected = "N | xlog_test: Test Notice\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
+	logger.Warning("Test Warning\n")
 	logger.Warningf("Test Warning\n")
 	result = string(b.Bytes())
 	expected = "W | xlog_test: Test Warning\n"
@@ -269,18 +280,31 @@ func Test_PrettyFormatterDebug(t *testing.T) {
 	b.Reset()
 
 	// Debug level is disabled
+	logger.Debug("Test Debug\n")
 	logger.Debugf("Test Debug\n")
 	result = string(b.Bytes())
-	expected = "[packagelogger.go:166] D | xlog_test: Test Debug\n"
+	expected = "xlog_test: Test Debug"
 	assert.NotContains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	xlog.SetGlobalLogLevel(xlog.DEBUG)
+	logger.Debug("Test Debug\n")
 	logger.Debugf("Test Debug\n")
 	result = string(b.Bytes())
-	expected = "[packagelogger.go:166] D | xlog_test: Test Debug\n"
+	expected = "[packagelogger.go:184] D | xlog_test: Test Debug\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
+
+	xlog.SetGlobalLogLevel(xlog.TRACE)
+
+	logger.Trace("Test trace\n")
+	logger.Tracef("Test trace\n")
+	result = string(b.Bytes())
+	expected = "T | xlog_test: Test trace\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Flush()
 }
 
 func Test_StringFormatter(t *testing.T) {

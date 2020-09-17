@@ -7,6 +7,8 @@ const (
 	ApplicationJSON = "application/json"
 	// ApplicationJoseJSON is HTTP header value for "application/jose+json"
 	ApplicationJoseJSON = "application/jose+json"
+	// ApplicationGRPC is HTTP header value for "application/grpc"
+	ApplicationGRPC = "application/grpc"
 	// ApplicationTimestampQuery is HTTP header value for RFC3161 Timestamp request
 	ApplicationTimestampQuery = "application/timestamp-query"
 	// ApplicationTimestampReply is HTTP header value for RFC3161 Timestamp response

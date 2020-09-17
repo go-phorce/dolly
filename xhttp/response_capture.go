@@ -47,3 +47,10 @@ func (r *ResponseCapture) WriteHeader(sc int) {
 	r.statusCode = sc
 	r.delegate.WriteHeader(sc)
 }
+
+// Flush sends any buffered data to the client.
+func (r *ResponseCapture) Flush() {
+	if flusher, ok := r.delegate.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
