@@ -427,12 +427,12 @@ func parseTaskFormat(format string) (*task, error) {
 				if err != nil {
 					return nil, errors.Trace(errTimeFormat)
 				}
-				j.at(hour, min)
 				if j.unit == Never {
 					j.unit = Days
 				} else if j.unit != Days && j.unit != Weeks {
 					return nil, errors.Trace(errTimeFormat)
 				}
+				j.at(hour, min)
 			} else {
 				if j.interval > 1 {
 					return nil, errors.Trace(errTimeFormat)
