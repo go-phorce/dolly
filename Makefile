@@ -1,6 +1,6 @@
 include .project/gomod-project.mk
 export GO111MODULE=on
-BUILD_FLAGS=-mod=vendor
+BUILD_FLAGS=
 
 CERTS_PREFIX=test_${PROJ_NAME}_
 

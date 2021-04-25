@@ -2,6 +2,7 @@
 /.coverage
 /.rpm
 /.tools
+/vendor
 
 coverage.out
 bin/
