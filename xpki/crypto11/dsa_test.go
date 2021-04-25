@@ -62,7 +62,13 @@ func (signer *DSAPrivateKey) Public() crypto.PublicKey {
 func TestNativeDSA(t *testing.T) {
 	var err error
 	for psize, params := range dsaSizes {
-		var key = &dsa.PrivateKey{PublicKey: dsa.PublicKey{Parameters: *params, Y: nil}, X: nil}
+		var key = &dsa.PrivateKey{
+			PublicKey: dsa.PublicKey{
+				Parameters: *params,
+				Y:          nil,
+			},
+			X: nil,
+		}
 		err = dsa.GenerateKey(key, rand.Reader)
 		require.NoError(t, err, "crypto11.dsa.GenerateKey: %v", err)
 
@@ -115,9 +121,12 @@ func testDsaSigningWithHash(t *testing.T, key crypto.Signer, hashFunction crypto
 	h := hashFunction.New()
 	h.Write(plaintext)
 	plaintextHash := h.Sum([]byte{}) // weird API
-	// crypto.dsa.Sign doesn't truncate the hash!
-	qbytes := (dsaSizes[psize].Q.BitLen() + 7) / 8
-	plaintextHash = plaintextHash[:qbytes]
+	// According to FIPS 186-3, section 4.6, the hash should be truncated to the byte-length of the subgroup
+	// if it is longer than the subgroup length, but crypto/dsa doesn't do it automatically.
+	subgroupSize := (dsaSizes[psize].Q.BitLen() + 7) / 8
+	if len(plaintextHash) > subgroupSize {
+		plaintextHash = plaintextHash[:subgroupSize]
+	}
 	sigDER, err = key.Sign(rand.Reader, plaintextHash, hashFunction)
 	require.NoError(t, err, "crypto11.Sign: %v", err)
 

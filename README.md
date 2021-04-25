@@ -5,6 +5,11 @@ GO packages for building web apps in go-phorce
 [![Build Status](https://travis-ci.com/go-phorce/dolly.svg?branch=master)](https://travis-ci.com/go-phorce/dolly)
 [![Coverage Status](https://coveralls.io/repos/github/go-phorce/dolly/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/dolly?branch=master)
 
+## Requirements
+
+1. GoLang 1.16+
+1. SoftHSM 2.6+
+
 ## Contribution
 
 * `make all` complete build and test
