@@ -41,7 +41,7 @@ jobs:
       run: make vars tools generate hsmconfig
 
     - name: UnitTest
-      run: make gen_test_certs covtest
+      run: make gen_test_certs build covtest
 
     - name: coveralls
       if: github.event_name == 'pull_request'

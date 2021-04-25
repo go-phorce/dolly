@@ -56,3 +56,7 @@ gen_test_certs:
 		--prefix $(CERTS_PREFIX) \
 		--root --ca1 --ca2 --bundle \
 		--server --client --peers --admin
+
+coveralls-github:
+	echo "Running coveralls"
+	goveralls -v -coverprofile=coverage.out -service=github -package ./...
