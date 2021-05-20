@@ -20,6 +20,9 @@ type Identity interface {
 // Mapper returns Identity from supplied HTTP request
 type Mapper func(*http.Request) (Identity, error)
 
+// MapperFromContext returns Identity from supplied context
+type MapperFromContext func(ctx context.Context) (Identity, error)
+
 // NewIdentity returns a new Identity instance with the indicated role
 func NewIdentity(role, name, userID string) Identity {
 	return identity{
