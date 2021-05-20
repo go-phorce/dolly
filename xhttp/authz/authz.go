@@ -29,6 +29,7 @@ package authz
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,6 +43,9 @@ import (
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/jinzhu/copier"
 	"github.com/juju/errors"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "authz")
@@ -52,6 +56,40 @@ var (
 	// ErrNoPathsConfigured is returned by NewHandler if you call NewHandler, but haven't configured any paths to be accessible
 	ErrNoPathsConfigured = errors.New("you must have at least one path before being able to create a http.Handler")
 )
+
+// Authz represents an Authorization provider interface,
+// You can call Allow or AllowAny to specify which roles are allowed
+// access to which path segments.
+// once configured you can create a http.Handler that enforces that
+// configuration for you by calling NewHandler
+type Authz interface {
+	// SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
+	SetRoleMapper(func(*http.Request) string)
+	// NewHandler returns a http.Handler that enforces the current authorization configuration
+	// The handler has its own copy of the configuration changes to the Provider after calling
+	// NewHandler won't affect previously created Handlers.
+	// The returned handler will extract the role and verify that the role has access to the
+	// URI being request, and either return an error, or pass the request on to the supplied
+	// delegate handler
+	NewHandler(delegate http.Handler) (http.Handler, error)
+}
+
+// GRPCAuthz represents an Authorization provider interface,
+// You can call Allow or AllowAny to specify which roles are allowed
+// access to which path segments.
+// once configured you can create a Unary interceptor that enforces that
+// configuration for you by calling NewUnaryInterceptor
+type GRPCAuthz interface {
+	// SetGRPCRoleMapper configures the function that provides
+	// the mapping from a gRPC request to a role name
+	SetGRPCRoleMapper(m func(ctx context.Context) string)
+	// NewUnaryInterceptor returns grpc.UnaryServerInterceptor that enforces the current
+	// authorization configuration.
+	// The returned interceptor will extract the role and verify that the role has access to the
+	// URI being request, and either return an error, or pass the request on to the supplied
+	// delegate handler
+	NewUnaryInterceptor() grpc.UnaryServerInterceptor
+}
 
 // Config contains configuration for the authorization module
 type Config struct {
@@ -80,9 +118,10 @@ type Config struct {
 // once configured you can create a http.Handler that enforces that
 // configuration for you by calling NewHandler
 type Provider struct {
-	roleMapper func(r *http.Request) string
-	pathRoot   *pathNode
-	cfg        *Config
+	requestRoleMapper func(*http.Request) string
+	grpcRoleMapper    func(context.Context) string
+	pathRoot          *pathNode
+	cfg               *Config
 }
 
 type allowTypes int8
@@ -117,11 +156,23 @@ var defaultRoleMapper = func(r *http.Request) string {
 	return identity.GuestRoleName
 }
 
+var defaultGrpcRoleMapper = func(ctx context.Context) string {
+	rt := identity.FromContext(ctx)
+	if rt != nil {
+		id := rt.Identity()
+		if id != nil {
+			return id.Role()
+		}
+	}
+	return identity.GuestRoleName
+}
+
 // New returns new Authz provider
 func New(cfg *Config) (*Provider, error) {
 	az := &Provider{
-		cfg:        cfg,
-		roleMapper: defaultRoleMapper,
+		cfg:               cfg,
+		requestRoleMapper: defaultRoleMapper,
+		grpcRoleMapper:    defaultGrpcRoleMapper,
 	}
 
 	for _, s := range cfg.AllowAny {
@@ -244,9 +295,10 @@ func (n *pathNode) allowRole(r string) bool {
 // Clone returns a deep copy of this Provider
 func (c *Provider) Clone() *Provider {
 	p := &Provider{
-		roleMapper: c.roleMapper,
-		pathRoot:   c.pathRoot.clone(),
-		cfg:        &Config{},
+		requestRoleMapper: c.requestRoleMapper,
+		grpcRoleMapper:    c.grpcRoleMapper,
+		pathRoot:          c.pathRoot.clone(),
+		cfg:               &Config{},
 	}
 
 	copier.Copy(p.cfg, c.cfg)
@@ -256,7 +308,12 @@ func (c *Provider) Clone() *Provider {
 
 // SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
 func (c *Provider) SetRoleMapper(m func(r *http.Request) string) {
-	c.roleMapper = m
+	c.requestRoleMapper = m
+}
+
+// SetGRPCRoleMapper configures the function that provides the mapping from a gRPC request to a role name
+func (c *Provider) SetGRPCRoleMapper(m func(ctx context.Context) string) {
+	c.grpcRoleMapper = m
 }
 
 // AllowAny will allow any authenticated request access to this path and its children
@@ -353,7 +410,7 @@ func (c *Provider) checkAccess(r *http.Request) error {
 		return nil
 	}
 
-	role := c.roleMapper(r)
+	role := c.requestRoleMapper(r)
 	if role == "" {
 		role = identity.GuestRoleName
 	}
@@ -371,7 +428,7 @@ func (c *Provider) checkAccess(r *http.Request) error {
 // URI being request, and either return an error, or pass the request on to the supplied
 // delegate handler
 func (c *Provider) NewHandler(delegate http.Handler) (http.Handler, error) {
-	if c.roleMapper == nil {
+	if c.requestRoleMapper == nil {
 		return nil, errors.Trace(ErrNoRoleMapperSpecified)
 	}
 	if c.pathRoot == nil {
@@ -396,5 +453,20 @@ func (a *authHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.delegate.ServeHTTP(w, r)
 	} else {
 		marshal.WriteJSON(w, r, httperror.WithUnauthorized(err.Error()))
+	}
+}
+
+// NewUnaryInterceptor returns grpc.UnaryServerInterceptor to check access
+func (c *Provider) NewUnaryInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		role := c.grpcRoleMapper(ctx)
+		if role == "" {
+			role = identity.GuestRoleName
+		}
+		if !c.isAllowed(info.FullMethod, role) {
+			return nil, status.Errorf(codes.PermissionDenied, "the %q role is not allowed", role)
+		}
+
+		return handler(ctx, req)
 	}
 }

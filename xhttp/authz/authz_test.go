@@ -2,17 +2,18 @@ package authz
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"sort"
 	"testing"
 
-	"github.com/go-phorce/dolly/xlog"
-
 	"github.com/go-phorce/dolly/xhttp/header"
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 func Test_NewConfig(t *testing.T) {
@@ -286,8 +287,8 @@ func TestConfig_Clone(t *testing.T) {
 	c.Allow("/", "bob")
 	clone := c.Clone()
 	c.Allow("/foo", "alice")
-	require.NotNil(t, clone.roleMapper, "Config.Clone() didn't clone roleMapper")
-	assert.Equal(t, "bob", clone.roleMapper(nil), "Config.Clone() has a roleMapper set, but it doesn't appear to be ours!")
+	require.NotNil(t, clone.requestRoleMapper, "Config.Clone() didn't clone roleMapper")
+	assert.Equal(t, "bob", clone.requestRoleMapper(nil), "Config.Clone() has a roleMapper set, but it doesn't appear to be ours!")
 	assert.False(t, clone.isAllowed("/foo", "alice"), "Config.Clone() returns a clone that was mutated by mutating the original instance (should be a deep copy)")
 	assert.True(t, clone.isAllowed("/foo", "bob"), "Config.Clone() return a clone that's missing an Allow() from the source")
 }
@@ -364,6 +365,36 @@ func TestConfig_Handler(t *testing.T) {
 	testHandler("/alice/more", false)
 	testHandler("/somewhereElse", false)
 	testHandler("/", false)
+}
+
+func TestNewUnaryInterceptor(t *testing.T) {
+	c, err := New(&Config{
+		AllowAny: []string{
+			"/pb.Service/method1",
+		},
+		Allow: []string{
+			"/pb.Service/method2:bob",
+		},
+	})
+	require.NoError(t, err)
+
+	unary := c.NewUnaryInterceptor()
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return nil, nil
+	}
+
+	si := &grpc.UnaryServerInfo{
+		FullMethod: "/pb.Service/method1",
+	}
+	_, err = unary(context.Background(), nil, si, handler)
+	require.NoError(t, err)
+
+	si = &grpc.UnaryServerInfo{
+		FullMethod: "/pb.Service/method2",
+	}
+	_, err = unary(context.Background(), nil, si, handler)
+	require.Error(t, err)
+	assert.Equal(t, `rpc error: code = PermissionDenied desc = the "guest" role is not allowed`, err.Error())
 }
 
 func testHTTPHandler(w http.ResponseWriter, r *http.Request) {

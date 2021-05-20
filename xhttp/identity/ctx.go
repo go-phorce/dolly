@@ -13,6 +13,9 @@ import (
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "xhttp/context")
@@ -28,8 +31,9 @@ const (
 type NodeInfoFactory func() netutil.NodeInfo
 
 var (
-	nodeInfoFactory        = newNodeInfoFactory()
-	identityMapper  Mapper = GuestIdentityMapper
+	nodeInfoFactory                      = newNodeInfoFactory()
+	identityMapper     Mapper            = GuestIdentityMapper
+	gRPCIdentityMapper MapperFromContext = nil
 )
 
 // RequestContext represents user contextual information about a request being processed by the server,
@@ -97,6 +101,11 @@ func SetGlobalIdentityMapper(e Mapper) {
 	identityMapper = e
 }
 
+// SetGlobalGRPCIdentityMapper applies global IdentityMapper for the application
+func SetGlobalGRPCIdentityMapper(e MapperFromContext) {
+	gRPCIdentityMapper = e
+}
+
 //FromContext extracts the RequestContext stored inside a go context. Returns null if no such value exists.
 func FromContext(ctx context.Context) *RequestContext {
 	ret, _ := ctx.Value(keyContext).(*RequestContext)
@@ -162,6 +171,29 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 		delegate.ServeHTTP(w, r)
 	}
 	return http.HandlerFunc(h)
+}
+
+var grpcGuestIdentity = NewIdentity(GuestRoleName, "", "")
+
+// NewAuthUnaryInterceptor returns grpc.UnaryServerInterceptor that
+// identity to the context
+func NewAuthUnaryInterceptor() grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		var id Identity
+		if gRPCIdentityMapper != nil {
+			var err error
+			id, err = gRPCIdentityMapper(ctx)
+			if err != nil {
+				return nil, status.Errorf(codes.PermissionDenied, "unable to get identity: %v", err)
+			}
+		}
+		if id == nil {
+			id = grpcGuestIdentity
+		}
+		ctx = AddToContext(ctx, NewRequestContext(id))
+
+		return handler(ctx, req)
+	}
 }
 
 // Identity returns request's identity

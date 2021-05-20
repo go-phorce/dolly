@@ -25,6 +25,8 @@ func TestMain(m *testing.M) {
 func Test_SetGlobal(t *testing.T) {
 	assert.Panics(t, func() { SetGlobalIdentityMapper(nil) })
 	assert.Panics(t, func() { SetGlobalNodeInfo(nil) })
+
+	assert.NotPanics(t, func() { SetGlobalGRPCIdentityMapper(nil) })
 }
 
 func Test_Identity(t *testing.T) {
@@ -134,6 +136,52 @@ func Test_FromContext(t *testing.T) {
 		require.NoError(t, marshal.Decode(resp.Body, rn))
 		assert.Equal(t, GuestRoleName, rn.Role)
 		assert.Equal(t, "dolly", rn.Name)
+	})
+}
+
+func Test_grpcFromContext(t *testing.T) {
+	unary := NewAuthUnaryInterceptor()
+
+	t.Run("default_guest", func(t *testing.T) {
+		unary(context.Background(), nil, nil, func(ctx context.Context, req interface{}) (interface{}, error) {
+			rt := FromContext(ctx)
+			require.NotNil(t, rt)
+			require.NotNil(t, rt.Identity())
+			assert.Equal(t, "guest", rt.Identity().Role())
+			return nil, nil
+		})
+	})
+
+	t.Run("with_custom_id", func(t *testing.T) {
+		def := func(ctx context.Context) (Identity, error) {
+			return NewIdentity("test", "", ""), nil
+		}
+		SetGlobalGRPCIdentityMapper(def)
+		// restore
+		defer SetGlobalGRPCIdentityMapper(nil)
+
+		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+			rt := FromContext(ctx)
+			require.NotNil(t, rt)
+			require.NotNil(t, rt.Identity())
+			assert.Equal(t, "test", rt.Identity().Role())
+			return nil, nil
+		}
+		unary(context.Background(), nil, nil, handler)
+	})
+
+	t.Run("with_error", func(t *testing.T) {
+		def := func(ctx context.Context) (Identity, error) {
+			return nil, errors.New("invalid request")
+		}
+		SetGlobalGRPCIdentityMapper(def)
+		// restore
+		defer SetGlobalGRPCIdentityMapper(nil)
+		_, err := unary(context.Background(), nil, nil, func(ctx context.Context, req interface{}) (interface{}, error) {
+			return nil, errors.New("some error")
+		})
+		require.Error(t, err)
+		assert.Equal(t, "rpc error: code = PermissionDenied desc = unable to get identity: invalid request", err.Error())
 	})
 }
 
