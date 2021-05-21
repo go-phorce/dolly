@@ -17,11 +17,11 @@ type Identity interface {
 	UserInfo() interface{}
 }
 
-// Mapper returns Identity from supplied HTTP request
-type Mapper func(*http.Request) (Identity, error)
+// ProviderFromRequest returns Identity from supplied HTTP request
+type ProviderFromRequest func(*http.Request) (Identity, error)
 
-// MapperFromContext returns Identity from supplied context
-type MapperFromContext func(ctx context.Context) (Identity, error)
+// ProviderFromContext returns Identity from supplied context
+type ProviderFromContext func(ctx context.Context) (Identity, error)
 
 // NewIdentity returns a new Identity instance with the indicated role
 func NewIdentity(role, name, userID string) Identity {
@@ -92,6 +92,11 @@ func GuestIdentityMapper(r *http.Request) (Identity, error) {
 		name = r.TLS.PeerCertificates[0].Subject.CommonName
 	}
 	return NewIdentity(GuestRoleName, name, ""), nil
+}
+
+// GuestIdentityForContext always returns "guest" for the role
+func GuestIdentityForContext(ctx context.Context) (Identity, error) {
+	return NewIdentity(GuestRoleName, "", ""), nil
 }
 
 // WithTestIdentity is used in unit tests to set HTTP request identity

@@ -23,10 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func Test_SetGlobal(t *testing.T) {
-	assert.Panics(t, func() { SetGlobalIdentityMapper(nil) })
 	assert.Panics(t, func() { SetGlobalNodeInfo(nil) })
-
-	assert.NotPanics(t, func() { SetGlobalGRPCIdentityMapper(nil) })
 }
 
 func Test_Identity(t *testing.T) {
@@ -44,7 +41,7 @@ func Test_Identity(t *testing.T) {
 
 func Test_ForRequest(t *testing.T) {
 	r, _ := http.NewRequest(http.MethodGet, "/", nil)
-	ctx := ForRequest(r)
+	ctx := FromRequest(r)
 	assert.NotNil(t, ctx)
 }
 
@@ -53,7 +50,7 @@ func Test_HostnameHeader(t *testing.T) {
 
 	})
 	rw := httptest.NewRecorder()
-	handler := NewContextHandler(d)
+	handler := NewContextHandler(d, GuestIdentityMapper)
 	r, err := http.NewRequest("GET", "/test", nil)
 	assert.NoError(t, err)
 	handler.ServeHTTP(rw, r)
@@ -62,12 +59,12 @@ func Test_HostnameHeader(t *testing.T) {
 
 func Test_ClientIP(t *testing.T) {
 	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		caller := ForRequest(r)
+		caller := FromRequest(r)
 		assert.Equal(t, "10.0.0.1", caller.ClientIP())
 		assert.NotEmpty(t, caller.CorrelationID())
 	})
 	rw := httptest.NewRecorder()
-	handler := NewContextHandler(d)
+	handler := NewContextHandler(d, GuestIdentityMapper)
 	r, err := http.NewRequest("GET", "/test", nil)
 	require.NoError(t, err)
 	r.RemoteAddr = "10.0.0.1"
@@ -108,7 +105,7 @@ func Test_FromContext(t *testing.T) {
 		marshal.WriteJSON(w, r, res)
 	}
 
-	handler := NewContextHandler(http.HandlerFunc(h))
+	handler := NewContextHandler(http.HandlerFunc(h), GuestIdentityMapper)
 
 	t.Run("default_extractor", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
@@ -140,9 +137,8 @@ func Test_FromContext(t *testing.T) {
 }
 
 func Test_grpcFromContext(t *testing.T) {
-	unary := NewAuthUnaryInterceptor()
-
 	t.Run("default_guest", func(t *testing.T) {
+		unary := NewAuthUnaryInterceptor(GuestIdentityForContext)
 		unary(context.Background(), nil, nil, func(ctx context.Context, req interface{}) (interface{}, error) {
 			rt := FromContext(ctx)
 			require.NotNil(t, rt)
@@ -156,10 +152,7 @@ func Test_grpcFromContext(t *testing.T) {
 		def := func(ctx context.Context) (Identity, error) {
 			return NewIdentity("test", "", ""), nil
 		}
-		SetGlobalGRPCIdentityMapper(def)
-		// restore
-		defer SetGlobalGRPCIdentityMapper(nil)
-
+		unary := NewAuthUnaryInterceptor(def)
 		handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 			rt := FromContext(ctx)
 			require.NotNil(t, rt)
@@ -174,9 +167,7 @@ func Test_grpcFromContext(t *testing.T) {
 		def := func(ctx context.Context) (Identity, error) {
 			return nil, errors.New("invalid request")
 		}
-		SetGlobalGRPCIdentityMapper(def)
-		// restore
-		defer SetGlobalGRPCIdentityMapper(nil)
+		unary := NewAuthUnaryInterceptor(def)
 		_, err := unary(context.Background(), nil, nil, func(ctx context.Context, req interface{}) (interface{}, error) {
 			return nil, errors.New("some error")
 		})
@@ -192,7 +183,7 @@ func Test_RequestorIdentity(t *testing.T) {
 	}
 
 	h := func(w http.ResponseWriter, r *http.Request) {
-		ctx := ForRequest(r)
+		ctx := FromRequest(r)
 		identity := ctx.Identity()
 		res := &roleName{
 			Role: identity.Role(),
@@ -201,9 +192,8 @@ func Test_RequestorIdentity(t *testing.T) {
 		marshal.WriteJSON(w, r, res)
 	}
 
-	handler := NewContextHandler(http.HandlerFunc(h))
-
 	t.Run("default_extractor", func(t *testing.T) {
+		handler := NewContextHandler(http.HandlerFunc(h), GuestIdentityMapper)
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
@@ -232,9 +222,7 @@ func Test_RequestorIdentity(t *testing.T) {
 	})
 
 	t.Run("cn_extractor", func(t *testing.T) {
-		SetGlobalIdentityMapper(identityMapperFromCN)
-		// restore
-		defer SetGlobalIdentityMapper(GuestIdentityMapper)
+		handler := NewContextHandler(http.HandlerFunc(h), identityMapperFromCN)
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
@@ -262,9 +250,7 @@ func Test_RequestorIdentity(t *testing.T) {
 	})
 
 	t.Run("cn_extractor_must", func(t *testing.T) {
-		SetGlobalIdentityMapper(identityMapperFromCNMust)
-		// restore
-		defer SetGlobalIdentityMapper(GuestIdentityMapper)
+		handler := NewContextHandler(http.HandlerFunc(h), identityMapperFromCNMust)
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
@@ -274,14 +260,11 @@ func Test_RequestorIdentity(t *testing.T) {
 
 		assert.Equal(t, `{"code":"unauthorized","message":"missing client certificate"}`, string(w.Body.Bytes()))
 	})
-	t.Run("cn_extractor_must_ForRequest", func(t *testing.T) {
-		SetGlobalIdentityMapper(identityMapperFromCNMust)
-		// restore
-		defer SetGlobalIdentityMapper(GuestIdentityMapper)
+	t.Run("ForRequest", func(t *testing.T) {
 		r, err := http.NewRequest(http.MethodGet, "/dolly", nil)
 		require.NoError(t, err)
 
-		ctx := ForRequest(r)
+		ctx := FromRequest(r)
 		assert.Equal(t, GuestRoleName, ctx.Identity().Role())
 	})
 }

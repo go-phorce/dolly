@@ -448,19 +448,33 @@ func Test_Authz(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsCfg)
-	require.NoError(t, err)
-	require.NotNil(t, server)
-	server.WithAuthz(authz)
-	service := newService(t, server, "authztest", false)
-	server.AddService(service)
+	bindport := 18123
+	startServer := func(ready bool, idprov identity.ProviderFromRequest) (*rest.HTTPServer, *serviceX) {
+		bindport++
+		cfg.BindAddr = fmt.Sprintf(":%d", bindport)
 
-	err = server.StartHTTP()
-	require.NoError(t, err)
-	defer server.StopHTTP()
-	time.Sleep(time.Second)
+		server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsCfg)
+		require.NoError(t, err)
+		require.NotNil(t, server)
+		server.WithAuthz(authz)
+
+		if idprov != nil {
+			server.WithIdentityProvider(idprov)
+		}
+
+		service := newService(t, server, "authztest", ready)
+		server.AddService(service)
+
+		err = server.StartHTTP()
+		require.NoError(t, err)
+
+		return server, service
+	}
 
 	t.Run("service not ready", func(t *testing.T) {
+		server, _ := startServer(false, nil)
+		defer server.StopHTTP()
+
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allowany", nil)
 		server.ServeHTTP(w, r)
@@ -468,12 +482,13 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
-		assert.Equal(t, `{"code":"not_ready","message":"the service is not ready yet"}`, string(w.Body.Bytes()))
+		assert.Equal(t, `{"code":"not_ready","message":"the service is not ready yet"}`, w.Body.String())
 	})
 
-	service.setReady()
-
 	t.Run("connection is not over TLS", func(t *testing.T) {
+		server, _ := startServer(true, nil)
+		defer server.StopHTTP()
+
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allowany", nil)
 		server.ServeHTTP(w, r)
@@ -484,6 +499,9 @@ func Test_Authz(t *testing.T) {
 	})
 
 	t.Run("guest_to_allow_401", func(t *testing.T) {
+		server, _ := startServer(true, nil)
+		defer server.StopHTTP()
+
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
 		r.TLS = tlsConnectionForClient
@@ -491,14 +509,15 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Equal(t, `{"code":"unauthorized","message":"the \"guest\" role is not allowed"}`, string(w.Body.Bytes()))
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"guest\" role is not allowed"}`, w.Body.String())
 
-		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+		assertCounter("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow", 1)
 	})
 
-	identity.SetGlobalIdentityMapper(identityMapperFromCNMust)
-
 	t.Run("must_have_TLS", func(t *testing.T) {
+		server, _ := startServer(true, identityMapperFromCNMust)
+		defer server.StopHTTP()
+
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
 		server.ServeHTTP(w, r)
@@ -506,10 +525,11 @@ func Test_Authz(t *testing.T) {
 		assert.Empty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 
-		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+		assertCounter("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow", 1)
 	})
 
-	identity.SetGlobalIdentityMapper(identityMapperFromCN)
+	server, _ := startServer(true, identityMapperFromCN)
+	defer server.StopHTTP()
 
 	t.Run("admin_to_allow_200", func(t *testing.T) {
 		w := httptest.NewRecorder()
@@ -520,11 +540,14 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		assertCounter(fmt.Sprintf("authztest.http.request.status.successful;method=GET;role=admin;status=200;uri=/v1/allow"), 1)
-		assertSample(fmt.Sprintf("authztest.http.request.perf;method=GET;role=admin;status=200;uri=/v1/allow"))
+		assertCounter("authztest.http.request.status.successful;method=GET;role=admin;status=200;uri=/v1/allow", 1)
+		assertSample("authztest.http.request.perf;method=GET;role=admin;status=200;uri=/v1/allow")
 	})
 
 	t.Run("any_root_admin_to_allow_200", func(t *testing.T) {
+		server, _ := startServer(true, identityMapperFromCN)
+		defer server.StopHTTP()
+
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
 		r.TLS = tlsConnectionForAdminUntrusted
@@ -532,9 +555,9 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusOK, w.Code)
-		assert.Equal(t, `{"Method":"GET","Path":"/v1/allow"}`, string(w.Body.Bytes()))
+		assert.Equal(t, `{"Method":"GET","Path":"/v1/allow"}`, w.Body.String())
 
-		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+		assertCounter("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow", 1)
 	})
 
 	t.Run("client_to_allow_401", func(t *testing.T) {
@@ -545,9 +568,9 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Equal(t, `{"code":"unauthorized","message":"the \"client\" role is not allowed"}`, string(w.Body.Bytes()))
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"client\" role is not allowed"}`, w.Body.String())
 
-		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+		assertCounter("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow", 1)
 	})
 
 	t.Run("other_org_client_to_allow_401", func(t *testing.T) {
@@ -558,9 +581,9 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XHostname))
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
-		assert.Equal(t, `{"code":"unauthorized","message":"the \"client\" role is not allowed"}`, string(w.Body.Bytes()))
+		assert.Equal(t, `{"code":"unauthorized","message":"the \"client\" role is not allowed"}`, w.Body.String())
 
-		assertCounter(fmt.Sprintf("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow"), 1)
+		assertCounter("authztest.http.request.status.failed;method=GET;role=guest;status=401;uri=/v1/allow", 1)
 	})
 
 	t.Run("client_to_allowany_200", func(t *testing.T) {
@@ -572,8 +595,8 @@ func Test_Authz(t *testing.T) {
 		assert.NotEmpty(t, w.Header().Get(header.XCorrelationID))
 		assert.Equal(t, http.StatusOK, w.Code)
 
-		assertCounter(fmt.Sprintf("authztest.http.request.status.successful;method=GET;role=client;status=200;uri=/v1/allowany"), 1)
-		assertSample(fmt.Sprintf("authztest.http.request.perf;method=GET;role=client;status=200;uri=/v1/allowany"))
+		assertCounter("authztest.http.request.status.successful;method=GET;role=client;status=200;uri=/v1/allowany", 1)
+		assertSample("authztest.http.request.perf;method=GET;role=client;status=200;uri=/v1/allowany")
 	})
 }
 

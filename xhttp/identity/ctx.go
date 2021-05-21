@@ -31,9 +31,7 @@ const (
 type NodeInfoFactory func() netutil.NodeInfo
 
 var (
-	nodeInfoFactory                      = newNodeInfoFactory()
-	identityMapper     Mapper            = GuestIdentityMapper
-	gRPCIdentityMapper MapperFromContext = nil
+	nodeInfoFactory = newNodeInfoFactory()
 )
 
 // RequestContext represents user contextual information about a request being processed by the server,
@@ -93,22 +91,14 @@ func SetGlobalNodeInfo(n netutil.NodeInfo) {
 	nodeInfoFactory = factory.getNodeInfo
 }
 
-// SetGlobalIdentityMapper applies global IdentityMapper for the application
-func SetGlobalIdentityMapper(e Mapper) {
-	if e == nil {
-		logger.Panic("IdentityMapper must not be nil")
-	}
-	identityMapper = e
-}
-
-// SetGlobalGRPCIdentityMapper applies global IdentityMapper for the application
-func SetGlobalGRPCIdentityMapper(e MapperFromContext) {
-	gRPCIdentityMapper = e
-}
-
-//FromContext extracts the RequestContext stored inside a go context. Returns null if no such value exists.
+// FromContext extracts the RequestContext stored inside a go context. Returns null if no such value exists.
 func FromContext(ctx context.Context) *RequestContext {
 	ret, _ := ctx.Value(keyContext).(*RequestContext)
+	if ret == nil {
+		ret = &RequestContext{
+			identity: guestIdentity,
+		}
+	}
 	return ret
 }
 
@@ -117,30 +107,15 @@ func AddToContext(ctx context.Context, rq *RequestContext) context.Context {
 	return context.WithValue(ctx, keyContext, rq)
 }
 
-// ForRequest returns the full context ascocicated with this http request.
-func ForRequest(r *http.Request) *RequestContext {
-	v := r.Context().Value(keyContext)
-	if v == nil {
-		clientIP := ClientIPFromRequest(r)
-		identity, err := identityMapper(r)
-		if err != nil {
-			logger.Errorf("api=ForRequest, reason=identityMapper, ip=%q, err=[%v]", clientIP, err.Error())
-			identity = NewIdentity(GuestRoleName, clientIP, "")
-		}
-
-		return &RequestContext{
-			identity:      identity,
-			correlationID: extractCorrelationID(r),
-			clientIP:      clientIP,
-		}
-	}
-	return v.(*RequestContext)
+// FromRequest returns the full context ascocicated with this http request.
+func FromRequest(r *http.Request) *RequestContext {
+	return FromContext(r.Context())
 }
 
 // NewContextHandler returns a handler that will extact the role & contextID from the request
 // and stash them away in the request context for later handlers to use.
 // Also adds header to indicate which host is currently servicing the request
-func NewContextHandler(delegate http.Handler) http.Handler {
+func NewContextHandler(delegate http.Handler, identityMapper ProviderFromRequest) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
 		// Set XHostname on the response
 		w.Header().Set(header.XHostname, nodeInfoFactory().HostName())
@@ -173,22 +148,20 @@ func NewContextHandler(delegate http.Handler) http.Handler {
 	return http.HandlerFunc(h)
 }
 
-var grpcGuestIdentity = NewIdentity(GuestRoleName, "", "")
+var guestIdentity = NewIdentity(GuestRoleName, "", "")
 
 // NewAuthUnaryInterceptor returns grpc.UnaryServerInterceptor that
 // identity to the context
-func NewAuthUnaryInterceptor() grpc.UnaryServerInterceptor {
+func NewAuthUnaryInterceptor(identityMapper ProviderFromContext) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 		var id Identity
-		if gRPCIdentityMapper != nil {
-			var err error
-			id, err = gRPCIdentityMapper(ctx)
-			if err != nil {
-				return nil, status.Errorf(codes.PermissionDenied, "unable to get identity: %v", err)
-			}
+		var err error
+		id, err = identityMapper(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.PermissionDenied, "unable to get identity: %v", err)
 		}
 		if id == nil {
-			id = grpcGuestIdentity
+			id = guestIdentity
 		}
 		ctx = AddToContext(ctx, NewRequestContext(id))
 

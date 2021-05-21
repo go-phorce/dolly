@@ -1,27 +1,9 @@
 package rest
 
 import (
-	"net/http"
 	"os"
 	"strings"
 )
-
-// Authz represents an Authorization provider interface,
-// You can call Allow or AllowAny to specify which roles are allowed
-// access to which path segments.
-// once configured you can create a http.Handler that enforces that
-// configuration for you by calling NewHandler
-type Authz interface {
-	// SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
-	SetRoleMapper(func(*http.Request) string)
-	// NewHandler returns a http.Handler that enforces the current authorization configuration
-	// The handler has its own copy of the configuration changes to the Provider after calling
-	// NewHandler won't affect previously created Handlers.
-	// The returned handler will extract the role and verify that the role has access to the
-	// URI being request, and either return an error, or pass the request on to the supplied
-	// delegate handler
-	NewHandler(delegate http.Handler) (http.Handler, error)
-}
 
 // TLSInfoConfig contains configuration info for the TLS
 type TLSInfoConfig interface {

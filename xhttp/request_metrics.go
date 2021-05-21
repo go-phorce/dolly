@@ -46,7 +46,7 @@ func (rm *requestMetrics) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now().UTC()
 	rc := NewResponseCapture(w)
 	rm.handler.ServeHTTP(rc, r)
-	role := identity.ForRequest(r).Identity().Role()
+	role := identity.FromRequest(r).Identity().Role()
 	sc := rc.StatusCode()
 
 	tags := []metrics.Tag{
