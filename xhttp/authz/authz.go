@@ -149,7 +149,7 @@ type pathNode struct {
 }
 
 var defaultRoleMapper = func(r *http.Request) string {
-	id := identity.ForRequest(r).Identity()
+	id := identity.FromRequest(r).Identity()
 	if id != nil {
 		return id.Role()
 	}
@@ -157,12 +157,9 @@ var defaultRoleMapper = func(r *http.Request) string {
 }
 
 var defaultGrpcRoleMapper = func(ctx context.Context) string {
-	rt := identity.FromContext(ctx)
-	if rt != nil {
-		id := rt.Identity()
-		if id != nil {
-			return id.Role()
-		}
+	id := identity.FromContext(ctx).Identity()
+	if id != nil {
+		return id.Role()
 	}
 	return identity.GuestRoleName
 }

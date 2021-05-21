@@ -22,14 +22,14 @@ func Test_extractIdentityFromRequest(t *testing.T) {
 		ip, err := netutil.GetLocalIP()
 		require.NoError(t, err)
 
-		idn, _ := identityMapper(r)
+		idn, _ := GuestIdentityMapper(r)
 		assert.Equal(t, "guest/"+ip, idn.String())
 	})
 
 	t.Run("when IP is set", func(t *testing.T) {
 		r.RemoteAddr = "10.0.1.2:443"
 
-		idn, _ := identityMapper(r)
+		idn, _ := GuestIdentityMapper(r)
 		assert.Equal(t, "guest/10.0.1.2", idn.String())
 	})
 
@@ -45,7 +45,7 @@ func Test_extractIdentityFromRequest(t *testing.T) {
 			},
 		}
 
-		idn, _ := identityMapper(r)
+		idn, _ := GuestIdentityMapper(r)
 		assert.Equal(t, "guest/dolly", idn.String())
 	})
 }
@@ -55,7 +55,7 @@ func Test_WithTestIdentityDirect(t *testing.T) {
 	require.NoError(t, err)
 
 	r = WithTestIdentity(r, NewIdentity("role1", "name1", ""))
-	ctx := ForRequest(r)
+	ctx := FromRequest(r)
 
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
 	assert.NotEmpty(t, ctx.CorrelationID())
@@ -67,7 +67,7 @@ func Test_WithDeviceID(t *testing.T) {
 	r.Header.Set(header.XDeviceID, "12345678")
 
 	r = WithTestIdentity(r, NewIdentity("role1", "name1", ""))
-	ctx := ForRequest(r)
+	ctx := FromRequest(r)
 
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
 	assert.Equal(t, "12345678", ctx.CorrelationID())
@@ -84,7 +84,7 @@ func Test_NewIdentityWithUserInfo(t *testing.T) {
 
 	u := &userinfo{1, "denis@ekspand.com"}
 	r = WithTestIdentity(r, NewIdentityWithUserInfo("role1", "name1", "123", u))
-	ctx := ForRequest(r)
+	ctx := FromRequest(r)
 
 	assert.Equal(t, "123", ctx.Identity().UserID())
 	assert.Equal(t, "role1/name1", ctx.Identity().String())
@@ -93,11 +93,11 @@ func Test_NewIdentityWithUserInfo(t *testing.T) {
 
 func Test_WithTestIdentityServeHTTP(t *testing.T) {
 	d := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		caller := ForRequest(r)
+		caller := FromRequest(r)
 		assert.Equal(t, "role1/name2", caller.Identity().String())
 	})
 	rw := httptest.NewRecorder()
-	handler := NewContextHandler(d)
+	handler := NewContextHandler(d, nil)
 	r, _ := http.NewRequest("GET", "/test", nil)
 	r = WithTestIdentity(r, NewIdentity("role1", "name2", ""))
 	handler.ServeHTTP(rw, r)

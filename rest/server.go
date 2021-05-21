@@ -16,6 +16,7 @@ import (
 	"github.com/go-phorce/dolly/rest/ready"
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/xhttp"
+	"github.com/go-phorce/dolly/xhttp/authz"
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xhttp/identity"
@@ -104,7 +105,8 @@ type MuxFactory interface {
 type HTTPServer struct {
 	Server
 	auditor         Auditor
-	authz           Authz
+	authz           authz.Authz
+	identityMapper  identity.ProviderFromRequest
 	httpConfig      HTTPServerConfig
 	tlsConfig       *tls.Config
 	httpServer      *http.Server
@@ -169,8 +171,14 @@ func (server *HTTPServer) WithAuditor(auditor Auditor) *HTTPServer {
 }
 
 // WithAuthz enables to use Authz
-func (server *HTTPServer) WithAuthz(authz Authz) *HTTPServer {
+func (server *HTTPServer) WithAuthz(authz authz.Authz) *HTTPServer {
 	server.authz = authz
+	return server
+}
+
+// WithIdentityProvider enables to set idenity on each request
+func (server *HTTPServer) WithIdentityProvider(provider identity.ProviderFromRequest) *HTTPServer {
+	server.identityMapper = provider
 	return server
 }
 
@@ -473,6 +481,9 @@ func (server *HTTPServer) NewMux() http.Handler {
 
 	logger.Infof("api=NewMux, service=%s, ClientAuth=%s", server.Name(), server.clientAuth)
 
+	// service ready
+	httpHandler = ready.NewServiceStatusVerifier(server, httpHandler)
+
 	if server.authz != nil {
 		httpHandler, err = server.authz.NewHandler(httpHandler)
 		if err != nil {
@@ -486,11 +497,12 @@ func (server *HTTPServer) NewMux() http.Handler {
 	// metrics wrapper
 	httpHandler = xhttp.NewRequestMetrics(httpHandler)
 
-	// service ready
-	httpHandler = ready.NewServiceStatusVerifier(server, httpHandler)
-
 	// role/contextID wrapper
-	httpHandler = identity.NewContextHandler(httpHandler)
+	if server.identityMapper != nil {
+		httpHandler = identity.NewContextHandler(httpHandler, server.identityMapper)
+	} else {
+		httpHandler = identity.NewContextHandler(httpHandler, identity.GuestIdentityMapper)
+	}
 	return httpHandler
 }
 
@@ -508,7 +520,7 @@ func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func serverExtraLogger(resp *xhttp.ResponseCapture, req *http.Request) []string {
-	return []string{identity.ForRequest(req).CorrelationID()}
+	return []string{identity.FromRequest(req).CorrelationID()}
 }
 
 // GetServerURL returns complete server URL for given relative end-point
