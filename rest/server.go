@@ -105,7 +105,7 @@ type MuxFactory interface {
 type HTTPServer struct {
 	Server
 	auditor         Auditor
-	authz           authz.Authz
+	authz           authz.HTTPAuthz
 	identityMapper  identity.ProviderFromRequest
 	httpConfig      HTTPServerConfig
 	tlsConfig       *tls.Config
@@ -171,7 +171,7 @@ func (server *HTTPServer) WithAuditor(auditor Auditor) *HTTPServer {
 }
 
 // WithAuthz enables to use Authz
-func (server *HTTPServer) WithAuthz(authz authz.Authz) *HTTPServer {
+func (server *HTTPServer) WithAuthz(authz authz.HTTPAuthz) *HTTPServer {
 	server.authz = authz
 	return server
 }
