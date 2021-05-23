@@ -57,12 +57,12 @@ var (
 	ErrNoPathsConfigured = errors.New("you must have at least one path before being able to create a http.Handler")
 )
 
-// Authz represents an Authorization provider interface,
+// HTTPAuthz represents an Authorization provider interface,
 // You can call Allow or AllowAny to specify which roles are allowed
 // access to which path segments.
 // once configured you can create a http.Handler that enforces that
 // configuration for you by calling NewHandler
-type Authz interface {
+type HTTPAuthz interface {
 	// SetRoleMapper configures the function that provides the mapping from an HTTP request to a role name
 	SetRoleMapper(func(*http.Request) string)
 	// NewHandler returns a http.Handler that enforces the current authorization configuration
