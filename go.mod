@@ -27,7 +27,7 @@ require (
 	github.com/rs/cors v1.6.0
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
-	github.com/ugorji/go v1.1.1
+	github.com/ugorji/go v1.1.4
 	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
 	golang.org/x/mod v0.3.0 // indirect
