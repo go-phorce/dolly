@@ -19,13 +19,8 @@ package xlog
 
 // Logger interface for generic logger
 type Logger interface {
-	Print(args ...interface{})
-	Printf(format string, args ...interface{})
-	Println(args ...interface{})
-
 	Fatal(args ...interface{})
 	Fatalf(format string, args ...interface{})
-	Fatalln(args ...interface{})
 
 	Panic(args ...interface{})
 	Panicf(format string, args ...interface{})
@@ -47,4 +42,11 @@ type Logger interface {
 
 	Trace(entries ...interface{})
 	Tracef(format string, args ...interface{})
+
+	// KV logs entries in "key1=value1, ..., keyN=valueN" format
+	KV(level LogLevel, entries ...interface{})
+
+	// WithValues adds some key-value pairs of context to a logger.
+	// See Info for documentation on how key/value pairs work.
+	WithValues(keysAndValues ...interface{}) Logger
 }
