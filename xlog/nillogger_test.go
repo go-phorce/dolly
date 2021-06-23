@@ -27,9 +27,6 @@ func Test_NewNilLogger(t *testing.T) {
 	logger.Tracef("%d", 2)
 	logger.Notice("1")
 	logger.Noticef("%d", 2)
-	logger.Print("1")
-	logger.Println("1")
-	logger.Printf("%d", 2)
 
 	assert.Empty(t, b.Bytes())
 }

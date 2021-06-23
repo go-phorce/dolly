@@ -16,6 +16,7 @@ package xlog_test
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -65,11 +66,31 @@ func Test_NewLogger(t *testing.T) {
 
 	xlog.SetGlobalLogLevel(xlog.INFO)
 	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, false))
-	logger.Infof("Test Log")
+	logger.Infof("Info log")
+	logger.Errorf("Error log")
+	logger.Noticef("Notice log")
+	logger.Log(xlog.INFO, "log log")
+	logger.Logf(xlog.INFO, "log %s", "log")
 
-	result := string(b.Bytes())
-	expected := "I | xlog_test: Test Log\n"
-	assert.Contains(t, result, expected, "Log format does not match")
+	result := b.String()
+	assert.Contains(t, result, "I | xlog_test: Info log\n")
+	assert.Contains(t, result, "E | xlog_test: Error log\n")
+	assert.Contains(t, result, "N | xlog_test: Notice log\n")
+	assert.Contains(t, result, "I | xlog_test: log log\n")
+
+	b.Reset()
+	xlog.GetFormatter().WithCaller(true)
+	logger.Infof("Info log")
+	logger.Errorf("Error log")
+	logger.Noticef("Notice log")
+	logger.Log(xlog.INFO, "log log")
+	logger.Logf(xlog.INFO, "log %s", "log")
+
+	result = b.String()
+	assert.Contains(t, result, "I | xlog_test: src=Test_NewLogger, Info log\n")
+	assert.Contains(t, result, "E | xlog_test: src=Test_NewLogger, Error log\n")
+	assert.Contains(t, result, "N | xlog_test: src=Test_NewLogger, Notice log\n")
+	assert.Contains(t, result, "I | xlog_test: src=Test_NewLogger, log log\n")
 }
 
 func Test_PrettyFormatter(t *testing.T) {
@@ -77,37 +98,53 @@ func Test_PrettyFormatter(t *testing.T) {
 	writer := bufio.NewWriter(&b)
 
 	xlog.SetGlobalLogLevel(xlog.INFO)
-	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, false))
+	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, false).WithCaller(true))
 
-	logger.Infof("Test Info\n")
-	result := string(b.Bytes())
-	expected := "I | xlog_test: Test Info\n"
+	logger.Info("Test Info")
+	result := b.String()
+	expected := "I | xlog_test: src=Test_PrettyFormatter, Test Info\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Errorf("Test Error\n")
-	result = string(b.Bytes())
-	expected = "E | xlog_test: Test Error\n"
+	logger.Infof("Test Infof")
+	result = b.String()
+	expected = "I | xlog_test: src=Test_PrettyFormatter, Test Infof\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Warningf("Test Warning\n")
-	result = string(b.Bytes())
-	expected = "W | xlog_test: Test Warning\n"
+	k3 := struct {
+		Foo string
+	}{Foo: "bar"}
+
+	logger.KV(xlog.INFO, "k1", 1, "k2", false, "k3", k3)
+	result = b.String()
+	expected = "I | xlog_test: src=Test_PrettyFormatter, k1=1, k2=false, k3={\"Foo\":\"bar\"}\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Errorf("Test Error")
+	result = b.String()
+	expected = "E | xlog_test: src=Test_PrettyFormatter, Test Error\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Warningf("Test Warning")
+	result = b.String()
+	expected = "W | xlog_test: src=Test_PrettyFormatter, Test Warning\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	// Debug level is disabled
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
-	expected = "D | xlog_test: Test Debug\n"
+	logger.Debugf("Test Debug")
+	result = b.String()
+	expected = "D | xlog_test: src=Test_PrettyFormatter, Test Debug\n"
 	assert.NotContains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	xlog.SetGlobalLogLevel(xlog.DEBUG)
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
-	expected = "D | xlog_test: Test Debug\n"
+	logger.Debugf("Test Debug")
+	result = b.String()
+	expected = "D | xlog_test: src=Test_PrettyFormatter, Test Debug\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 }
@@ -126,13 +163,13 @@ func Test_WithTracedError(t *testing.T) {
 			"Test_WithTracedError(1)",
 			1,
 			"E | xlog_test: err=[originateError: msg=Test_WithTracedError(1), level=0]\n",
-			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:37: originateError: msg=Test_WithTracedError(1), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:44: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:42: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:38: originateError: msg=Test_WithTracedError(1), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:45: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:43: ]\n",
 		},
 		{
 			"Test_WithTracedError(4)",
 			2,
 			"E | xlog_test: err=[originateError: msg=Test_WithTracedError(4), level=0]\n",
-			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:37: originateError: msg=Test_WithTracedError(4), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:44: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:42: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:42: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:38: originateError: msg=Test_WithTracedError(4), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:45: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:43: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:43: ]\n",
 		},
 	}
 
@@ -147,17 +184,17 @@ func Test_WithTracedError(t *testing.T) {
 		require.Error(t, err)
 
 		logger.Errorf("err=[%v]", err)
-		result := string(b.Bytes())[prefixLen:]
+		result := b.String()[prefixLen:]
 		assert.Equal(t, c.expectedErr, result, "[%d] case failed expectation", idx)
 		b.Reset()
 
 		logger.Errorf("err=[%v]", err.Error())
-		result = string(b.Bytes())[prefixLen:]
+		result = b.String()[prefixLen:]
 		assert.Equal(t, c.expectedErr, result, "[%d] case failed expectation", idx)
 		b.Reset()
 
 		logger.Errorf("stack=[%v]", errors.ErrorStack(err))
-		result = string(b.Bytes())[prefixLen:]
+		result = b.String()[prefixLen:]
 		// remove paths from the trace
 		result = strings.Replace(result, wd, "github.com/go-phorce/dolly/xlog", -1)
 		assert.Equal(t, c.expectedStack, result, "[%d] case failed expectation", idx)
@@ -178,13 +215,13 @@ func Test_WithAnnotatedError(t *testing.T) {
 			"Test_WithAnnotatedError(1)",
 			1,
 			"E | xlog_test: err=[annotateError, level=0: originateError: msg=Test_WithAnnotatedError(1), level=0]\n",
-			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:37: originateError: msg=Test_WithAnnotatedError(1), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:51: annotateError, level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:49: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:38: originateError: msg=Test_WithAnnotatedError(1), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:52: annotateError, level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:50: ]\n",
 		},
 		{
 			"Test_WithAnnotatedError(4)",
 			2,
 			"E | xlog_test: err=[annotateError, level=0: originateError: msg=Test_WithAnnotatedError(4), level=0]\n",
-			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:37: originateError: msg=Test_WithAnnotatedError(4), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:51: annotateError, level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:49: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:49: ]\n",
+			"E | xlog_test: stack=[github.com/go-phorce/dolly/xlog/xlog_test.go:38: originateError: msg=Test_WithAnnotatedError(4), level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:52: annotateError, level=0\ngithub.com/go-phorce/dolly/xlog/xlog_test.go:50: \ngithub.com/go-phorce/dolly/xlog/xlog_test.go:50: ]\n",
 		},
 	}
 
@@ -199,17 +236,17 @@ func Test_WithAnnotatedError(t *testing.T) {
 		require.Error(t, err)
 
 		logger.Errorf("err=[%v]", err)
-		result := string(b.Bytes())[prefixLen:]
+		result := b.String()[prefixLen:]
 		assert.Equal(t, c.expectedErr, result, "[%d] case failed expectation", idx)
 		b.Reset()
 
 		logger.Errorf("err=[%v]", err.Error())
-		result = string(b.Bytes())[prefixLen:]
+		result = b.String()[prefixLen:]
 		assert.Equal(t, c.expectedErr, result, "[%d] case failed expectation", idx)
 		b.Reset()
 
 		logger.Errorf("stack=[%v]", errors.ErrorStack(err))
-		result = string(b.Bytes())[prefixLen:]
+		result = b.String()[prefixLen:]
 		// remove paths from the trace
 		result = strings.Replace(result, wd, "github.com/go-phorce/dolly/xlog", -1)
 		assert.Equal(t, c.expectedStack, result, "[%d] case failed expectation", idx)
@@ -241,66 +278,73 @@ func Test_PrettyFormatterDebug(t *testing.T) {
 	var b bytes.Buffer
 	writer := bufio.NewWriter(&b)
 
-	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, true))
+	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, true).WithCaller(true))
 	xlog.SetGlobalLogLevel(xlog.INFO)
 
-	logger.Trace("Test trace\n")
-	logger.Tracef("Test trace\n")
-	result := string(b.Bytes())
-	expected := "T | xlog_test: Test trace\n"
+	logger.Trace("Test trace")
+	logger.Tracef("Test tracef")
+	result := b.String()
+	expected := "T | xlog_test: src=Test_PrettyFormatterDebug, Test trace\n"
 	assert.NotContains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Info("Test Info\n")
-	logger.Infof("Test Info\n")
-	result = string(b.Bytes())
-	expected = "I | xlog_test: Test Info\n"
+	logger.Info("Test Info")
+	logger.Infof("Test Infof")
+	result = b.String()
+	expected = "I | xlog_test: src=Test_PrettyFormatterDebug, Test Info\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Error("Test Error\n")
-	logger.Errorf("Test Error\n")
-	result = string(b.Bytes())
-	expected = "E | xlog_test: Test Error\n"
+	logger.KV(xlog.INFO, "k1", 1, "k2", false)
+	writer.Flush()
+	result = b.String()
+	expected = "I | xlog_test: src=Test_PrettyFormatterDebug, k1=1, k2=false\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Notice("Test Notice\n")
-	logger.Noticef("Test Notice\n")
-	result = string(b.Bytes())
-	expected = "N | xlog_test: Test Notice\n"
+	logger.Error("Test Error")
+	logger.Errorf("Test Errorf")
+	result = b.String()
+	expected = "E | xlog_test: src=Test_PrettyFormatterDebug, Test Error\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Warning("Test Warning\n")
-	logger.Warningf("Test Warning\n")
-	result = string(b.Bytes())
-	expected = "W | xlog_test: Test Warning\n"
+	logger.Notice("Test Notice")
+	logger.Noticef("Test Noticef")
+	result = b.String()
+	expected = "N | xlog_test: src=Test_PrettyFormatterDebug, Test Noticef\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	logger.Warning("Test Warning")
+	logger.Warningf("Test Warning")
+	result = b.String()
+	expected = "W | xlog_test: src=Test_PrettyFormatterDebug, Test Warning\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	// Debug level is disabled
-	logger.Debug("Test Debug\n")
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
-	expected = "xlog_test: Test Debug"
+	logger.Debug("Test Debug")
+	logger.Debugf("Test Debug")
+	result = b.String()
+	expected = "xlog_test: src=Test_PrettyFormatterDebug, Test Debug"
 	assert.NotContains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	xlog.SetGlobalLogLevel(xlog.DEBUG)
-	logger.Debug("Test Debug\n")
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
-	expected = "[packagelogger.go:184] D | xlog_test: Test Debug\n"
+	logger.Debug("Test Debug")
+	logger.Debugf("Test Debug")
+	result = b.String()
+	expected = "[xlog_test.go:335] D | xlog_test: src=Test_PrettyFormatterDebug, Test Debug\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	xlog.SetGlobalLogLevel(xlog.TRACE)
 
-	logger.Trace("Test trace\n")
-	logger.Tracef("Test trace\n")
-	result = string(b.Bytes())
-	expected = "T | xlog_test: Test trace\n"
+	logger.Trace("Test trace")
+	logger.Tracef("Test trace")
+	result = b.String()
+	expected = "T | xlog_test: src=Test_PrettyFormatterDebug, Test trace\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
@@ -311,38 +355,46 @@ func Test_StringFormatter(t *testing.T) {
 	var b bytes.Buffer
 	writer := bufio.NewWriter(&b)
 
-	xlog.SetFormatter(xlog.NewStringFormatter(writer))
+	xlog.SetFormatter(xlog.NewStringFormatter(writer).WithCaller(true))
 	xlog.SetGlobalLogLevel(xlog.INFO)
 
-	logger.Infof("Test Info\n")
-	result := string(b.Bytes())
-	expected := " xlog_test: Test Info\n"
+	logger.Infof("Test Info")
+	result := b.String()
+	expected := " xlog_test: src=Test_StringFormatter, Test Info\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Errorf("Test Error\n")
-	result = string(b.Bytes())
-	expected = " xlog_test: Test Error\n"
+	logger.Errorf("Test Error")
+	result = b.String()
+	expected = " xlog_test: src=Test_StringFormatter, Test Error\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Warningf("Test Warning\n")
-	result = string(b.Bytes())
-	expected = " xlog_test: Test Warning\n"
+	logger.Warningf("Test Warning")
+	result = b.String()
+	expected = " xlog_test: src=Test_StringFormatter, Test Warning\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	// Debug level is disabled
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
-	expected = "[packagelogger.go:166] xlog_test: Test Debug\n"
+	logger.Debugf("Test Debug")
+	result = b.String()
+	expected = "[packagelogger.go:166] xlog_test: src=Test_StringFormatter, Test Debug\n"
 	assert.NotContains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	xlog.SetGlobalLogLevel(xlog.DEBUG)
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
-	expected = "xlog_test: Test Debug\n"
+
+	log2 := logger.WithValues("count", 1)
+	log2.Debugf("Test Debug")
+	result = b.String()
+	expected = "xlog_test: src=Test_StringFormatter, count=1, Test Debug\n"
+	assert.Contains(t, result, expected, "Log format does not match")
+	b.Reset()
+
+	log2.KV(xlog.INFO, "k1", 1, "k2", false)
+	result = b.String()
+	expected = "xlog_test: src=Test_StringFormatter, count=1, k1=1, k2=false\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 }
@@ -352,65 +404,54 @@ func Test_LogFormatter(t *testing.T) {
 	writer := bufio.NewWriter(&b)
 
 	xlog.SetGlobalLogLevel(xlog.INFO)
-	xlog.SetFormatter(xlog.NewLogFormatter(writer, "test ", 0))
+	f := xlog.NewLogFormatter(writer, "test ", 0)
+	xlog.SetFormatter(f)
 
-	logger.Print("Test", "Info", "\n")
+	logger.Infof("Test Info")
 	writer.Flush()
-	result := string(b.Bytes())
-	expected := " xlog_test: TestInfo\n"
-	assert.Contains(t, result, expected)
-	b.Reset()
-
-	logger.Println("Test", "Info")
-	writer.Flush()
-	result = string(b.Bytes())
-	expected = " xlog_test: Test Info\n"
-	assert.Contains(t, result, expected)
-	b.Reset()
-
-	logger.Printf("Test: %d", 123)
-	writer.Flush()
-	result = string(b.Bytes())
-	expected = " xlog_test: Test: 123\n"
-	assert.Contains(t, result, expected)
-	b.Reset()
-
-	logger.Infof("Test Info\n")
-	writer.Flush()
-	result = string(b.Bytes())
-	expected = " xlog_test: Test Info\n"
+	result := b.String()
+	expected := " xlog_test: Test Info\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Errorf("Test Error\n")
+	logger.KV(xlog.INFO, "k1", 1, "k2", false)
 	writer.Flush()
-	result = string(b.Bytes())
+	result = b.String()
+	expected = "test xlog_test: k1=1, k2=false\n"
+	assert.Equal(t, expected, result, "Log format does not match")
+	b.Reset()
+
+	logger.Errorf("Test Error")
+	writer.Flush()
+	result = b.String()
 	expected = " xlog_test: Test Error\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	logger.Warningf("Test Warning\n")
+	logger.Warningf("Test Warning")
 	writer.Flush()
-	result = string(b.Bytes())
+	result = b.String()
 	expected = " xlog_test: Test Warning\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	// Debug level is disabled
-	logger.Debugf("Test Debug\n")
+	logger.Debugf("Test Debug")
 	writer.Flush()
-	result = string(b.Bytes())
+	result = b.String()
 	expected = "[packagelogger.go:166] xlog_test: Test Debug\n"
 	assert.NotContains(t, result, expected, "Log format does not match")
 	b.Reset()
 
 	xlog.SetGlobalLogLevel(xlog.DEBUG)
-	logger.Debugf("Test Debug\n")
+	logger.Debugf("Test Debug")
 	writer.Flush()
-	result = string(b.Bytes())
+	result = b.String()
 	expected = "xlog_test: Test Debug\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
+
+	f.Flush()
 }
 
 func Test_ColorFormatterDebug(t *testing.T) {
@@ -420,51 +461,47 @@ func Test_ColorFormatterDebug(t *testing.T) {
 	xlog.SetFormatter(xlog.NewColorFormatter(writer, true))
 	xlog.SetGlobalLogLevel(xlog.DEBUG)
 
-	logger.Print("Test", "Info", "\n")
-	result := string(b.Bytes())
-	expected := string(xlog.LevelColors[xlog.INFO]) + " I | xlog_test: TestInfo\n\033[0m"
+	logger.Infof("Test Info")
+	result := b.String()
+	expected := string(xlog.LevelColors[xlog.INFO]) + " I | xlog_test: Test Info\n\033[0m"
 	assert.Contains(t, result, expected)
 	b.Reset()
 
-	logger.Println("Test", "Info")
-	result = string(b.Bytes())
-	expected = string(xlog.LevelColors[xlog.INFO]) + " I | xlog_test: Test Info\n\033[0m"
+	logger.KV(xlog.INFO, "k1", 1, "err", fmt.Errorf("not found"))
+	writer.Flush()
+	result = b.String()
+	expected = "I | xlog_test: k1=1, err=\"not found\"\n"
 	assert.Contains(t, result, expected)
 	b.Reset()
 
-	logger.Printf("Test: %d", 123)
-	result = string(b.Bytes())
-	expected = string(xlog.LevelColors[xlog.INFO]) + " I | xlog_test: Test: 123\n\033[0m"
-	assert.Contains(t, result, expected)
-	b.Reset()
-
-	logger.Infof("Test Info\n")
-	result = string(b.Bytes())
-	expected = string(xlog.LevelColors[xlog.INFO]) + " I | xlog_test: Test Info\n\033[0m"
-	assert.Contains(t, result, expected)
-	b.Reset()
-
-	logger.Errorf("Test Error\n")
-	result = string(b.Bytes())
+	logger.Errorf("Test Error")
+	result = b.String()
 	expected = string(xlog.LevelColors[xlog.ERROR]) + " E | xlog_test: Test Error\n\033[0m"
 	assert.Contains(t, result, expected)
 	b.Reset()
 
-	logger.Warningf("Test Warning\n")
-	result = string(b.Bytes())
+	logger.Warningf("Test Warning")
+	result = b.String()
 	expected = string(xlog.LevelColors[xlog.WARNING]) + " W | xlog_test: Test Warning\n\033[0m"
 	assert.Contains(t, result, expected)
 	b.Reset()
 
-	logger.Tracef("Test Trace\n")
-	result = string(b.Bytes())
+	logger.Tracef("Test Trace")
+	result = b.String()
 	expected = string(xlog.LevelColors[xlog.TRACE]) + " T | xlog_test: Test Trace\n\033[0m"
 	assert.Contains(t, result, expected)
 	b.Reset()
 
-	logger.Debugf("Test Debug\n")
-	result = string(b.Bytes())
+	logger.Debugf("Test Debug")
+	result = b.String()
 	expected = string(xlog.LevelColors[xlog.DEBUG]) + " D | xlog_test: Test Debug\n\033[0m"
 	assert.Contains(t, result, expected)
 	b.Reset()
+}
+
+func Test_NilFormatter(t *testing.T) {
+	f := xlog.NewNilFormatter()
+	f.FormatKV("pkg", xlog.DEBUG, 1)
+	f.Format("pkg", xlog.DEBUG, 1)
+	f.Flush()
 }

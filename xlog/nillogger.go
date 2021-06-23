@@ -27,15 +27,6 @@ func NewNilLogger() Logger {
 	return &NilLogger{}
 }
 
-// Print does nothing
-func (l *NilLogger) Print(args ...interface{}) {}
-
-// Printf does nothing
-func (l *NilLogger) Printf(format string, args ...interface{}) {}
-
-// Println does nothing
-func (l *NilLogger) Println(args ...interface{}) {}
-
 // Fatal does nothing
 func (l *NilLogger) Fatal(args ...interface{}) {}
 
@@ -60,6 +51,9 @@ func (l *NilLogger) Info(entries ...interface{}) {}
 
 // Infof does nothing
 func (l *NilLogger) Infof(format string, args ...interface{}) {}
+
+// KV does nothing
+func (l *NilLogger) KV(_ LogLevel, entries ...interface{}) {}
 
 // Error does nothing
 func (l *NilLogger) Error(entries ...interface{}) {}
@@ -90,3 +84,9 @@ func (l *NilLogger) Trace(entries ...interface{}) {}
 
 // Tracef does nothing
 func (l *NilLogger) Tracef(format string, args ...interface{}) {}
+
+// WithValues adds some key-value pairs of context to a logger.
+// See Info for documentation on how key/value pairs work.
+func (l *NilLogger) WithValues(keysAndValues ...interface{}) Logger {
+	return l
+}

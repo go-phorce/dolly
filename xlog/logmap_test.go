@@ -103,23 +103,23 @@ func Test_SetLevel(t *testing.T) {
 }
 
 func Test_GetRepoLogger(t *testing.T) {
-	r, err := xlog.GetRepoLogger("repo1")
+	_, err := xlog.GetRepoLogger("repo1")
 	require.Error(t, err)
 	assert.Equal(t, "no packages registered for repo: repo1", err.Error())
 
 	logger1 := xlog.NewPackageLogger("repo1", "pkg1")
-	r, err = xlog.GetRepoLogger("repo1")
+	_, err = xlog.GetRepoLogger("repo1")
 	require.NoError(t, err)
-	logger1.Println("repo1", "pkg1")
+	logger1.KV(xlog.INFO, "repo1", "pkg1")
 
 	logger2 := xlog.NewPackageLogger("repo2", "pkg2")
 	xlog.NewPackageLogger("repo2", "pkg3")
-	r = xlog.MustRepoLogger("repo2")
+	r := xlog.MustRepoLogger("repo2")
 	r.SetLogLevel(map[string]xlog.LogLevel{
 		"*":    xlog.TRACE,
 		"pkg2": xlog.DEBUG,
 	})
-	logger2.Println("repo1", "pkg1")
+	logger2.KV(xlog.INFO, "repo1", "pkg1")
 
 	mm, err := r.ParseLogLevelConfig("pkg2=N,pkg3=DEBUG")
 	require.NoError(t, err)
