@@ -69,7 +69,7 @@ func (f *defaultNodeInfoFactory) getNodeInfo() netutil.NodeInfo {
 	if f.nodeInfo == nil {
 		nodeInfo, err := netutil.NewNodeInfo(nil)
 		if err != nil {
-			logger.Panicf("api=getNodeInfo, err=[%v]", err.Error())
+			logger.Panicf("err=[%v]", err.Error())
 		}
 		f.nodeInfo = nodeInfo
 	}
@@ -126,7 +126,7 @@ func NewContextHandler(delegate http.Handler, identityMapper ProviderFromRequest
 			clientIP := ClientIPFromRequest(r)
 			identity, err := identityMapper(r)
 			if err != nil {
-				logger.Errorf("api=ForRequest, reason=identityMapper, ip=%q, err=[%v]", clientIP, err.Error())
+				logger.Errorf("reason=identityMapper, ip=%q, err=[%v]", clientIP, err.Error())
 				marshal.WriteJSON(w, r, httperror.WithUnauthorized(err.Error()))
 				return
 			}

@@ -132,7 +132,7 @@ func (ctl *Ctl) ReturnCode() ReturnCode {
 // Fail the execution and return error
 func (ctl *Ctl) Fail(msg string, err error) error {
 	ctl.rc = RCFailed
-	logger.Errorf("api=Ctl, message=%q, err=[%s]", msg, errors.ErrorStack(err))
+	logger.Errorf("message=%q, err=[%s]", msg, errors.ErrorStack(err))
 	return err
 }
 

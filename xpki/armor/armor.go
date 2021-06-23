@@ -83,13 +83,13 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	} else if i := bytes.Index(data, pemStart); i >= 0 {
 		rest = rest[i+len(pemStart) : len(data)]
 	} else {
-		logger.Debug("api=Decode, reason=prefix_not_found")
+		logger.Debug("reason=prefix_not_found")
 		return nil, data
 	}
 
 	typeLine, rest := getLine(rest)
 	if !bytes.HasSuffix(typeLine, pemEndOfLine) {
-		logger.Debug("api=Decode, reason=sufix_not_found")
+		logger.Debug("reason=sufix_not_found")
 		return decodeError(data, rest)
 	}
 	typeLine = typeLine[0 : len(typeLine)-len(pemEndOfLine)]
@@ -133,7 +133,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	}
 
 	if endIndex < 0 {
-		logger.Debug("api=Decode, reason=end_index, endIndex=%d", endIndex)
+		logger.Debug("reason=end_index, endIndex=%d", endIndex)
 		return decodeError(data, rest)
 	}
 
@@ -142,7 +142,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	endTrailer := rest[endTrailerIndex:]
 	endTrailerLen := len(typeLine) + len(pemEndOfLine)
 	if len(endTrailer) < endTrailerLen {
-		logger.Debug("api=Decode, reason=end_trailer, endTrailerLen=%d", endTrailerLen)
+		logger.Debug("reason=end_trailer, endTrailerLen=%d", endTrailerLen)
 		return decodeError(data, rest)
 	}
 
@@ -162,7 +162,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	base64Block := removeWhitespace(rest[:endIndex])
 	blockLen := len(base64Block)
 	if blockLen < 5 || base64Block[blockLen-5] != '=' {
-		logger.Debugf("api=Decode, reason=crc, blockLen=%d", blockLen)
+		logger.Debugf("reason=crc, blockLen=%d", blockLen)
 		return decodeError(data, rest)
 	}
 
@@ -174,21 +174,21 @@ func Decode(data []byte) (p *Block, rest []byte) {
 	var m int
 	m, err = base64.StdEncoding.Decode(expectedBytes[0:], crcData)
 	if m != 3 || err != nil {
-		logger.Debugf("api=Decode, reason=crc, crc_len=%d, err=[%v]", m, err)
+		logger.Debugf("reason=crc, crc_len=%d, err=[%v]", m, err)
 		return decodeError(data, rest)
 	}
 	p.CRC = uint32(expectedBytes[0])<<16 | uint32(expectedBytes[1])<<8 | uint32(expectedBytes[2])
 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)))
 	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data)
 	if err != nil {
-		logger.Debugf("api=Decode, reason=base64, err=[%v]", err)
+		logger.Debugf("reason=base64, err=[%v]", err)
 		return decodeError(data, rest)
 	}
 	p.Bytes = p.Bytes[:n]
 
 	crc := uint32(crc24(crc24Init, p.Bytes) & crc24Mask)
 	if p.CRC != crc {
-		logger.Debugf("api=Decode, reason=CRC, expected=%d, actual=%d", p.CRC, crc)
+		logger.Debugf("reason=CRC, expected=%d, actual=%d", p.CRC, crc)
 		return decodeError(data, rest)
 	}
 

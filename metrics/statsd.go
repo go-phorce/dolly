@@ -115,7 +115,7 @@ CONNECT:
 	// Attempt to connect
 	sock, err = net.Dial("udp", s.addr)
 	if err != nil {
-		logger.Errorf("api=flushMetrics, reason=connecting, err=[%v]", errors.ErrorStack(err))
+		logger.Errorf("reason=connecting, err=[%v]", errors.ErrorStack(err))
 		goto WAIT
 	}
 
@@ -132,7 +132,7 @@ CONNECT:
 				_, err := sock.Write(buf.Bytes())
 				buf.Reset()
 				if err != nil {
-					logger.Errorf("api=flushMetrics, reason=writing, err=[%v]", errors.ErrorStack(err))
+					logger.Errorf("reason=writing, err=[%v]", errors.ErrorStack(err))
 					goto WAIT
 				}
 			}
@@ -148,7 +148,7 @@ CONNECT:
 			_, err := sock.Write(buf.Bytes())
 			buf.Reset()
 			if err != nil {
-				logger.Errorf("api=flushMetrics, reason=flushing, err=[%v]", errors.ErrorStack(err))
+				logger.Errorf("reason=flushing, err=[%v]", errors.ErrorStack(err))
 				goto WAIT
 			}
 		}

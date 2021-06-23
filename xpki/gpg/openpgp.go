@@ -184,7 +184,7 @@ func CreateOpenPGPEntity(pubKey *packet.PublicKey, privKey *packet.PrivateKey, u
 	*/
 	if privKey != nil {
 		if privKey.KeyId != entity.PrimaryKey.KeyId {
-			logger.Errorf("api=Entity, reason=key_id, pubkey_id=%d, privkey_id=%d",
+			logger.Errorf("reason=key_id, pubkey_id=%d, privkey_id=%d",
 				pubKey.KeyId, privKey.KeyId)
 		}
 
@@ -334,7 +334,7 @@ func VerifySignaturePGP(signed hash.Hash, pemSignature string, pubkey *packet.Pu
 	}
 
 	if sig.PubKeyAlgo != pubkey.PubKeyAlgo {
-		logger.Infof("api=VerifySignaturePGP, reason=PubKeyAlgo, pubkey_alg=%v, sig_alg=%v",
+		logger.Infof("reason=PubKeyAlgo, pubkey_alg=%v, sig_alg=%v",
 			pubkey.PubKeyAlgo, sig.PubKeyAlgo)
 		// Ensure the algs match
 		if pubkey.PubKeyAlgo == packet.PubKeyAlgoRSASignOnly {

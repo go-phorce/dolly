@@ -282,13 +282,13 @@ func createServerTLSInfo(cfg *tlsConfig) (*tls.Config, *tlsconfig.KeypairReloade
 
 	tls, err := tlsconfig.NewServerTLSFromFiles(certFile, keyFile, cfg.GetTrustedCAFile(), clientauthType)
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "api=createTLSInfo, reason=BuildFromFiles, cert=%q, key=%q",
+		return nil, nil, errors.Annotatef(err, "reason=BuildFromFiles, cert=%q, key=%q",
 			certFile, keyFile)
 	}
 
 	tlsloader, err := tlsconfig.NewKeypairReloader(certFile, keyFile, 5*time.Second)
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "api=createTLSInfo, reason=NewKeypairReloader, cert=%q, key=%q",
+		return nil, nil, errors.Annotatef(err, "reason=NewKeypairReloader, cert=%q, key=%q",
 			certFile, keyFile)
 	}
 	tls.GetCertificate = tlsloader.GetKeypairFunc()

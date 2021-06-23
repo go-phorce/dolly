@@ -246,12 +246,12 @@ func Test_AccessLogs(t *testing.T) {
 
 	t.Run("logs", func(t *testing.T) {
 		buf.Reset()
-		shouldLog("/", "bobby", "authz: api=Authz, status=allowed, reason=AllowAny, role=\"bobby\", path=/, node=\n")
-		shouldLog("/bob", "svc_bob", "authz: api=Authz, status=allowed, reason=AllowAny, role=\"svc_bob\", path=/bob, node=\n")
-		shouldLog("/bar", "svc_bob", "authz: api=Authz, status=allowed, role=\"svc_bob\", path=/bar, node=bar\n")
-		shouldLog("/bar", "svc_eve", "authz: api=Authz, status=denied, role=\"svc_eve\", path=/bar, allowed_roles='svc_bob', node=bar\n")
-		shouldLog("/foo/eve", "svc_eve", "authz: api=Authz, status=allowed, role=\"svc_eve\", path=/foo/eve, node=eve\n")
-		shouldLog("/foo/eve", "svc_bob", "authz: api=Authz, status=denied, role=\"svc_bob\", path=/foo/eve, allowed_roles='svc_alice,svc_eve', node=eve\n")
+		shouldLog("/", "bobby", "authz: status=allowed, reason=AllowAny, role=\"bobby\", path=/, node=\n")
+		shouldLog("/bob", "svc_bob", "authz: status=allowed, reason=AllowAny, role=\"svc_bob\", path=/bob, node=\n")
+		shouldLog("/bar", "svc_bob", "authz: status=allowed, role=\"svc_bob\", path=/bar, node=bar\n")
+		shouldLog("/bar", "svc_eve", "authz: status=denied, role=\"svc_eve\", path=/bar, allowed_roles='svc_bob', node=bar\n")
+		shouldLog("/foo/eve", "svc_eve", "authz: status=allowed, role=\"svc_eve\", path=/foo/eve, node=eve\n")
+		shouldLog("/foo/eve", "svc_bob", "authz: status=denied, role=\"svc_bob\", path=/foo/eve, allowed_roles='svc_alice,svc_eve', node=eve\n")
 	})
 
 	t.Run("nologs", func(t *testing.T) {

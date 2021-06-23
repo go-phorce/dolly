@@ -100,7 +100,7 @@ func NewTaskAtIntervals(interval uint64, unit TimeUnit) Task {
 // NewTaskOnWeekday creates a new task to execute on specific day of the week.
 func NewTaskOnWeekday(startDay time.Weekday, hour, minute int) Task {
 	if hour < 0 || hour > 23 || minute < 0 || minute > 59 {
-		logger.Panicf("api=NewTaskOnWeekday, reason='invalid time value', time='%d:%d'", hour, minute)
+		logger.Panicf("reason='invalid time value', time='%d:%d'", hour, minute)
 	}
 	j := &task{
 		interval:  1,
@@ -118,7 +118,7 @@ func NewTaskOnWeekday(startDay time.Weekday, hour, minute int) Task {
 // NewTaskDaily creates a new task to execute daily at specific time
 func NewTaskDaily(hour, minute int) Task {
 	if hour < 0 || hour > 23 || minute < 0 || minute > 59 {
-		logger.Panicf("api=NewTaskDaily, reason='invalid time value', time='%d:%d'", hour, minute)
+		logger.Panicf("reason='invalid time value', time='%d:%d'", hour, minute)
 	}
 	j := &task{
 		interval:  1,
@@ -198,13 +198,13 @@ func (j *task) Duration() time.Duration {
 func (j *task) Do(taskName string, taskFunc interface{}, params ...interface{}) Task {
 	typ := reflect.TypeOf(taskFunc)
 	if typ.Kind() != reflect.Func {
-		logger.Panic("api=tasks.Do, reason='only function can be schedule into the task queue'")
+		logger.Panic("reason='only function can be schedule into the task queue'")
 	}
 
 	j.name = fmt.Sprintf("%s@%s", taskName, filepath.Base(getFunctionName(taskFunc)))
 	j.callback = reflect.ValueOf(taskFunc)
 	if len(params) != j.callback.Type().NumIn() {
-		logger.Panicf("api=tasks.Do, reason='the number of parameters does not match the function'")
+		logger.Panicf("reason='the number of parameters does not match the function'")
 	}
 	j.params = make([]reflect.Value, len(params))
 	for k, param := range params {
@@ -261,7 +261,7 @@ func (j *task) scheduleNextRun() time.Time {
 
 	j.nextRunAt = j.lastRunAt.Add(j.Duration())
 	/*
-		logger.Tracef("api=task.scheduleNextRun, lastRunAt='%v', nextRunAt='%v', task=%q",
+		logger.Tracef("lastRunAt='%v', nextRunAt='%v', task=%q",
 			j.lastRunAt.Format(time.RFC3339),
 			j.nextRunAt.Format(time.RFC3339),
 			j.Name())
@@ -287,7 +287,7 @@ func (j *task) Run() bool {
 		j.running = true
 		count := atomic.AddUint32(&j.count, 1)
 
-		logger.Infof("api=task.Run, status=running, count=%d, started_at='%v', task=%q",
+		logger.Infof("status=running, count=%d, started_at='%v', task=%q",
 			count,
 			j.lastRunAt.Format(time.RFC3339),
 			j.Name())
@@ -299,7 +299,7 @@ func (j *task) Run() bool {
 		return true
 	case <-time.After(timeout):
 	}
-	logger.Tracef("api=task.run, reason=already_running, count=%d, started_at='%v', task=%q",
+	logger.Tracef("reason=already_running, count=%d, started_at='%v', task=%q",
 		j.count,
 		j.lastRunAt.Format(time.RFC3339),
 		j.Name())

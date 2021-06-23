@@ -117,7 +117,7 @@ func LoadTokenConfig(filename string) (TokenConfig, error) {
 				pinfile = resolved
 				break
 			}
-			logger.Warningf("api=LoadTokenConfig, reason=resolve, pinfile=%q, basedir=%q", pinfile, folder)
+			logger.Warningf("reason=resolve, pinfile=%q, basedir=%q", pinfile, folder)
 		}
 
 		pb, err := ioutil.ReadFile(pinfile)

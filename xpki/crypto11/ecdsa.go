@@ -249,7 +249,7 @@ func (lib *PKCS11Lib) GenerateECDSAKeyPairOnSession(session pkcs11.SessionHandle
 		return nil, errors.Trace(err)
 	}
 
-	logger.Infof("api=GenerateECDSAKeyPairOnSession, slot=0x%X, id=%s, label=%q", slot, string(id), string(label))
+	logger.Infof("slot=0x%X, id=%s, label=%q", slot, string(id), string(label))
 
 	publicKeyTemplate := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, pkcs11.CKO_PUBLIC_KEY),
@@ -277,11 +277,11 @@ func (lib *PKCS11Lib) GenerateECDSAKeyPairOnSession(session pkcs11.SessionHandle
 		publicKeyTemplate,
 		privateKeyTemplate)
 	if err != nil {
-		logger.Errorf("api=GenerateECDSAKeyPairOnSession, reason=GenerateKeyPair, err=[%v]", errors.ErrorStack(err))
+		logger.Errorf("reason=GenerateKeyPair, err=[%v]", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
 	}
 	if pub, err = lib.exportECDSAPublicKey(session, pubHandle); err != nil {
-		logger.Errorf("api=GenerateECDSAKeyPairOnSession, reason=exportECDSAPublicKey, err=[%v]", errors.ErrorStack(err))
+		logger.Errorf("reason=exportECDSAPublicKey, err=[%v]", errors.ErrorStack(err))
 		return nil, errors.Trace(err)
 	}
 	priv := PKCS11PrivateKeyECDSA{

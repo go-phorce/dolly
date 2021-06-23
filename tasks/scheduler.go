@@ -116,7 +116,7 @@ func (s *scheduler) Add(j Task) Scheduler {
 // runPending will run all the tasks that are scheduled to run.
 func (s *scheduler) runPending() {
 	for _, task := range s.getRunnableTasks() {
-		logger.Tracef("api=Scheduler.RunPending, task=%q", task.Name())
+		logger.Tracef("task=%q", task.Name())
 		go task.Run()
 	}
 }
@@ -138,12 +138,12 @@ func (s *scheduler) IsRunning() bool {
 // Start all the pending tasks,
 // and create a second ticker
 func (s *scheduler) Start() error {
-	logger.Tracef("api=Scheduler.Start, tasks=%d", s.Count())
+	logger.Tracef("tasks=%d", s.Count())
 
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	if s.running {
-		return errors.Errorf("api=Scheduler.Start, reasoen=already_running")
+		return errors.Errorf("reasoen=already_running")
 	}
 	s.running = true
 

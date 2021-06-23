@@ -174,12 +174,12 @@ func New(cfg *Config) (*Provider, error) {
 
 	for _, s := range cfg.AllowAny {
 		az.AllowAny(s)
-		logger.Noticef("api=authz.New, AllowAny=%s", s)
+		logger.Noticef("AllowAny=%s", s)
 	}
 
 	for _, s := range cfg.AllowAnyRole {
 		az.AllowAnyRole(s)
-		logger.Noticef("api=authz.New, AllowAnyRole=%s", s)
+		logger.Noticef("AllowAnyRole=%s", s)
 	}
 
 	for _, s := range cfg.Allow {
@@ -187,7 +187,7 @@ func New(cfg *Config) (*Provider, error) {
 		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
 			return nil, errors.NotValidf("Authz allow configuration %q", s)
 		}
-		logger.Noticef("api=authz.New, Allow=%s:%s", parts[0], parts[1])
+		logger.Noticef("Allow=%s:%s", parts[0], parts[1])
 		roles := strings.Split(parts[1], ",")
 		az.Allow(parts[0], roles...)
 	}
@@ -387,14 +387,14 @@ func (c *Provider) isAllowed(path, role string) bool {
 	res := allowAny || allowRole
 	if res {
 		if allowRole && c.cfg.LogAllowed {
-			logger.Noticef("api=Authz, status=allowed, role=%q, path=%s, node=%s",
+			logger.Noticef("status=allowed, role=%q, path=%s, node=%s",
 				role, path, node.value)
 		} else if c.cfg.LogAllowedAny {
-			logger.Infof("api=Authz, status=allowed, reason=AllowAny, role=%q, path=%s, node=%s",
+			logger.Infof("status=allowed, reason=AllowAny, role=%q, path=%s, node=%s",
 				role, path, node.value)
 		}
 	} else if c.cfg.LogDenied {
-		logger.Noticef("api=Authz, status=denied, role=%q, path=%s, allowed_roles='%v', node=%s",
+		logger.Noticef("status=denied, role=%q, path=%s, allowed_roles='%v', node=%s",
 			role, path, strings.Join(node.allowedRoleKeys(), ","), node.value)
 	}
 	return res
@@ -435,7 +435,7 @@ func (c *Provider) NewHandler(delegate http.Handler) (http.Handler, error) {
 		delegate: delegate,
 		config:   c.Clone(),
 	}
-	logger.Infof("api=authz.NewHandler, config=[%s]", h.config.treeAsText())
+	logger.Infof("config=[%s]", h.config.treeAsText())
 	return h, nil
 }
 

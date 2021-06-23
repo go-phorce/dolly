@@ -139,7 +139,7 @@ func New(
 		ipaddr, err = netutil.GetLocalIP()
 		if err != nil {
 			ipaddr = "127.0.0.1"
-			logger.Errorf("api=rest.New, reason=unable_determine_ipaddr, use=%q, err=[%v]", ipaddr, errors.ErrorStack(err))
+			logger.Errorf("reason=unable_determine_ipaddr, use=%q, err=[%v]", ipaddr, errors.ErrorStack(err))
 		}
 	}
 
@@ -330,7 +330,7 @@ func (server *HTTPServer) StartHTTP() error {
 
 	// Main server
 	if _, err = net.ResolveTCPAddr("tcp", bindAddr); err != nil {
-		return errors.Annotatef(err, "api=StartHTTP, reason=ResolveTCPAddr, service=%s, bind=%q",
+		return errors.Annotatef(err, "reason=ResolveTCPAddr, service=%s, bind=%q",
 			server.Name(), bindAddr)
 	}
 
@@ -345,7 +345,7 @@ func (server *HTTPServer) StartHTTP() error {
 		// Start listening on main server over TLS
 		httpsListener, err = tls.Listen("tcp", bindAddr, server.tlsConfig)
 		if err != nil {
-			return errors.Annotatef(err, "api=StartHTTP, reason=unable_listen, service=%s, address=%q",
+			return errors.Annotatef(err, "reason=unable_listen, service=%s, address=%q",
 				server.Name(), bindAddr)
 		}
 
@@ -377,7 +377,7 @@ func (server *HTTPServer) StartHTTP() error {
 			handler(ServerStartedEvent)
 		}
 
-		logger.Infof("api=StartHTTP, service=%s, port=%v, status=starting, protocol=%s",
+		logger.Infof("service=%s, port=%v, status=starting, protocol=%s",
 			server.Name(), bindAddr, server.Protocol())
 
 		// this is a blocking call to serve
@@ -386,9 +386,9 @@ func (server *HTTPServer) StartHTTP() error {
 			//panic, only if not Serve error while stopping the server,
 			// which is a valid error
 			if netutil.IsAddrInUse(err) || err != http.ErrServerClosed {
-				logger.Panicf("api=StartHTTP, service=%s, err=[%v]", server.Name(), errors.Trace(err))
+				logger.Panicf("service=%s, err=[%v]", server.Name(), errors.Trace(err))
 			}
-			logger.Warningf("api=StartHTTP, service=%s, status=stopped, reason=[%s]", server.Name(), err.Error())
+			logger.Warningf("service=%s, status=stopped, reason=[%s]", server.Name(), err.Error())
 		}
 	}()
 
@@ -434,7 +434,7 @@ func hearbeatMetricsTask(server *HTTPServer) {
 func (server *HTTPServer) StopHTTP() {
 	// close services
 	for _, f := range server.services {
-		logger.Tracef("api=StopHTTP, service=%q", f.Name())
+		logger.Tracef("service=%q", f.Name())
 		f.Close()
 	}
 
@@ -442,7 +442,7 @@ func (server *HTTPServer) StopHTTP() {
 	defer cancel()
 	err := server.httpServer.Shutdown(ctx)
 	if err != nil {
-		logger.Errorf("api=StopHTTP, reason=Shutdown, err=[%v]", errors.ErrorStack(err))
+		logger.Errorf("reason=Shutdown, err=[%v]", errors.ErrorStack(err))
 	}
 
 	for _, handler := range server.evtHandlers[ServerStoppedEvent] {
@@ -473,13 +473,13 @@ func (server *HTTPServer) NewMux() http.Handler {
 	for _, f := range server.services {
 		f.Register(router)
 	}
-	logger.Debugf("api=NewMux, service=%s, service_count=%d",
+	logger.Debugf("service=%s, service_count=%d",
 		server.Name(), len(server.services))
 
 	var err error
 	httpHandler := router.Handler()
 
-	logger.Infof("api=NewMux, service=%s, ClientAuth=%s", server.Name(), server.clientAuth)
+	logger.Infof("service=%s, ClientAuth=%s", server.Name(), server.clientAuth)
 
 	// service ready
 	httpHandler = ready.NewServiceStatusVerifier(server, httpHandler)

@@ -17,7 +17,7 @@ func KeyRing(data []byte) (openpgp.EntityList, error) {
 	for {
 		block, rest := armor.Decode(data)
 		if block == nil {
-			logger.Tracef("api=KeyRing, reason=no_block, data=[%s...]", string(data))
+			logger.Tracef("reason=no_block, data=[%s...]", string(data))
 			break
 		}
 

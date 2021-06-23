@@ -129,7 +129,7 @@ func (c *Provider) ParseCsrRequest(req *CertificateRequest) (csr []byte, priv cr
 		return
 	}
 
-	logger.Infof("api=ParseCsrRequest, algo=%s, size=%d", req.KeyRequest.Algo(), req.KeyRequest.Size())
+	logger.Infof("algo=%s, size=%d", req.KeyRequest.Algo(), req.KeyRequest.Size())
 
 	priv, err = req.KeyRequest.Generate()
 	if err != nil {

@@ -45,7 +45,7 @@ type ProfileCreated func(t ProfileType, r *h.Request, f string)
 // of the generated profile to the supplied logger
 func LogProfile() ProfileCreated {
 	return func(t ProfileType, r *h.Request, f string) {
-		logger.Infof("api=LogProfile, profile=%v, status=created, url=%s, location=%s", t, r.URL.Path, f)
+		logger.Infof("profile=%v, status=created, url=%s, location=%s", t, r.URL.Path, f)
 	}
 }
 
@@ -112,12 +112,12 @@ func (rp *requestProfiler) ServeHTTP(w h.ResponseWriter, r *h.Request) {
 	if cpu && rp.allow(ProfileCPU, r) {
 		cpuf, err := ioutil.TempFile(rp.dir, "cpu_")
 		if err != nil {
-			logger.Errorf("api=ServeHTTP, status=unable_create_file, profile=cpu, err=%v", err)
+			logger.Errorf("status=unable_create_file, profile=cpu, err=%v", err)
 		} else {
 			rp.profileLock.Lock()
 			if err = pprof.StartCPUProfile(cpuf); err != nil {
 				rp.profileLock.Unlock()
-				logger.Infof("api=ServeHTTP, status=unable_start, profile=cpu, err=%v", err)
+				logger.Infof("status=unable_start, profile=cpu, err=%v", err)
 				cpuf.Close()
 				os.Remove(cpuf.Name())
 			} else {
@@ -133,7 +133,7 @@ func (rp *requestProfiler) ServeHTTP(w h.ResponseWriter, r *h.Request) {
 	if mem && rp.allow(ProfileMem, r) {
 		memf, err := ioutil.TempFile(rp.dir, "mem_")
 		if err != nil {
-			logger.Infof("api=ServeHTTP, status=unable_create_file, profile=memory, err=%v", err)
+			logger.Infof("status=unable_create_file, profile=memory, err=%v", err)
 		} else {
 			defer func() {
 				runtime.GC()

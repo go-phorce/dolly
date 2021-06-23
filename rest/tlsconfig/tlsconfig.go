@@ -83,7 +83,7 @@ func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, er
 		if tlscert.Leaf == nil && len(tlscert.Certificate) > 0 {
 			tlscert.Leaf, err = x509.ParseCertificate(tlscert.Certificate[0])
 			if err != nil {
-				logger.Warningf("api=NewClientTLSFromFiles, reason=ParseCertificate, err=[%v]", err)
+				logger.Warningf("reason=ParseCertificate, err=[%v]", err)
 			}
 		}
 
@@ -138,7 +138,7 @@ func NewHTTPTransportWithReloader(
 	}
 
 	tlsloader.OnReload(func(tlscert *tls.Certificate) {
-		logger.Noticef("api=NewHTTPTransportWithReloader, reason=onReload, cn=%q, expires=%q",
+		logger.Noticef("reason=onReload, cn=%q, expires=%q",
 			tlscert.Leaf.Subject.CommonName, tlscert.Leaf.NotAfter.Format(time.RFC3339))
 
 		tripper.lock.Lock()
