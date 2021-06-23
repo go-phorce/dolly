@@ -50,7 +50,7 @@ func TestProfiler_LogProfile(t *testing.T) {
 	}
 	lp(ProfileCPU, r, "/foo/cpu_123")
 	result := logdata.String()[logPrefixLength:]
-	assert.Equal(t, "xhttp: api=LogProfile, profile=cpu, status=created, url=/foo/bar, location=/foo/cpu_123\n", result)
+	assert.Equal(t, "xhttp: profile=cpu, status=created, url=/foo/bar, location=/foo/cpu_123\n", result)
 }
 
 func TestProfiler_Defaults(t *testing.T) {

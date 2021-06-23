@@ -154,7 +154,7 @@ func (p *Provider) Serial() string {
 func (p *Provider) GetKey(keyID string) (crypto.PrivateKey, error) {
 	pvk, err := p.inMemProv.getKey(keyID)
 	if err != nil {
-		return nil, errors.Annotatef(err, "api=GetKey, keyId=%s", keyID)
+		return nil, errors.Annotatef(err, "GetKey(%s)", keyID)
 	}
 	return pvk, nil
 }
@@ -164,7 +164,7 @@ func (p *Provider) GenerateRSAKey(label string, bits int, purpose int) (crypto.P
 	reader := rand.Reader
 	key, err := p.rsaKeyGenerator.GenerateKey(reader, bits)
 	if err != nil {
-		return nil, errors.Annotatef(err, "api=GenerateRSAKey, bitSize=%d", bits)
+		return nil, errors.Annotatef(err, "bitSize=%d", bits)
 	}
 
 	if len(label) == 0 {
@@ -218,7 +218,7 @@ func (p *Provider) IdentifyKey(priv crypto.PrivateKey) (keyID, label string, err
 func (p *Provider) ExportKey(keyID string) (string, []byte, error) {
 	s, err := p.inMemProv.getKey(keyID)
 	if err != nil {
-		return "", nil, errors.Annotatef(err, "api=ExportKey, reason=getSigner, keyID=%s", keyID)
+		return "", nil, errors.Annotatef(err, "keyID=%s", keyID)
 	}
 
 	si, ok := s.(*provImpl)

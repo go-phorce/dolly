@@ -29,7 +29,7 @@ const (
 //
 // Either of these values may be used to retrieve the key for later use.
 func (lib *PKCS11Lib) Identify(object *PKCS11Object) (keyID, label string, err error) {
-	logger.Tracef("api=Identify, slot=0x%X, obj=0x%X", object.Slot, object.Handle)
+	logger.Tracef("slot=0x%X, obj=0x%X", object.Slot, object.Handle)
 
 	a := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_ID, nil),
@@ -132,7 +132,7 @@ func (lib *PKCS11Lib) FindKeyPair(keyID, label string) (crypto.PrivateKey, error
 //
 // Either (but not both) of id and label may be nil, in which case they are ignored.
 func (lib *PKCS11Lib) FindKeyPairOnSlot(slot uint, keyID, label string) (crypto.PrivateKey, error) {
-	logger.Tracef("api=FindKeyPairOnSlot, slot=0x%X", slot)
+	logger.Tracef("slot=0x%X", slot)
 	var err error
 	var k crypto.PrivateKey
 	if err = lib.setupSessions(slot, 0); err != nil {
@@ -149,7 +149,7 @@ func (lib *PKCS11Lib) FindKeyPairOnSlot(slot uint, keyID, label string) (crypto.
 //
 // Either (but not both) of id and label may be nil, in which case they are ignored.
 func (lib *PKCS11Lib) FindKeyPairOnSession(session pkcs11.SessionHandle, slot uint, keyID, label string) (crypto.PrivateKey, error) {
-	logger.Tracef("api=FindKeyPairOnSession, slot=0x%X, session=0x%X", slot, session)
+	logger.Tracef("slot=0x%X, session=0x%X", slot, session)
 	var err error
 	var privHandle, pubHandle pkcs11.ObjectHandle
 	var pub crypto.PublicKey

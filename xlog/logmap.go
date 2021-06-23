@@ -251,7 +251,7 @@ func NewPackageLogger(repo string, pkg string) (p *PackageLogger) {
 func getRepoLogger(repo string) (RepoLogger, error) {
 	repoLogger, err := GetRepoLogger(repo)
 	if err != nil {
-		return nil, errors.Annotatef(err, "api=getRepoLogger, repo=%s, reason='failed to get a repo logger'", repo)
+		return nil, errors.Annotatef(err, "repo=%s, reason='failed to get a repo logger'", repo)
 	}
 	return repoLogger, nil
 }

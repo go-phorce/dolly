@@ -70,7 +70,7 @@ func (c *Crypto) LoadPrivateKey(key []byte) (Provider, crypto.PrivateKey, error)
 
 		provider, err = c.ByManufacturer(pkuri.Manufacturer())
 		if err != nil {
-			return nil, nil, errors.Annotate(err, "api=LoadSigner, reason=ByManufacturer")
+			return nil, nil, errors.Trace(err)
 		}
 
 		pvk, err = provider.GetKey(pkuri.ID())

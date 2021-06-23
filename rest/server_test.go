@@ -327,7 +327,7 @@ func Test_ResolveTCPAddr(t *testing.T) {
 	err = server.StartHTTP()
 	require.Error(t, err)
 
-	assert.Equal(t, `api=StartHTTP, reason=ResolveTCPAddr, service=invalid, bind="0-0-0-0": address 0-0-0-0: missing port in address`, err.Error())
+	assert.Equal(t, `reason=ResolveTCPAddr, service=invalid, bind="0-0-0-0": address 0-0-0-0: missing port in address`, err.Error())
 }
 
 func Test_GetServerURL(t *testing.T) {

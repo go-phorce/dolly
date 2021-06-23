@@ -263,10 +263,10 @@ func (c *Client) WithTLS(tlsConfig *tls.Config) *Client {
 		tr.TLSClientConfig = tlsConfig
 		c.httpClient.Transport = tr
 
-		logger.Infof("api=WithTLS, reason=new_transport")
+		logger.Infof("reason=new_transport")
 	} else {
 		c.httpClient.Transport.(*http.Transport).TLSClientConfig = tlsConfig
-		logger.Infof("api=WithTLS, reason=update_transport")
+		logger.Infof("reason=update_transport")
 	}
 	return c
 }
@@ -297,7 +297,7 @@ func (c *Client) WithDNSServer(dns string) *Client {
 		tr := http.DefaultTransport.(*http.Transport).Clone()
 		c.httpClient.Transport = tr
 	} else {
-		logger.Trace("api=WithDNSServer, reason=update_transport")
+		logger.Trace("reason=update_transport")
 	}
 	c.httpClient.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		d := net.Dialer{}
@@ -398,7 +398,7 @@ func (c *Client) ensureContext(ctx context.Context, httpMethod, path string) (co
 	if ctx == nil {
 		ctx = context.Background()
 		if c.Policy != nil && c.Policy.RequestTimeout > 0 {
-			logger.Debugf("api=ensureContext, method=%s, path=%s, timeout=%v",
+			logger.Debugf("method=%s, path=%s, timeout=%v",
 				httpMethod, path, c.Policy.RequestTimeout)
 			return context.WithTimeout(ctx, c.Policy.RequestTimeout)
 		}
@@ -419,10 +419,10 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 	for i, host := range hosts {
 		resp, err = c.doHTTP(ctx, httpMethod, host, path, body)
 		if err != nil {
-			logger.Errorf("api=doHTTP, httpMethod=%q, host=%q, path=%q, err=[%v]",
+			logger.Errorf("httpMethod=%q, host=%q, path=%q, err=[%v]",
 				httpMethod, host, path, errors.ErrorStack(err))
 		} else {
-			logger.Infof("api=doHTTP, httpMethod=%q, host=%q, path=%q, status=%v",
+			logger.Infof("httpMethod=%q, host=%q, path=%q, status=%v",
 				httpMethod, host, path, resp.StatusCode)
 		}
 
@@ -445,7 +445,7 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 			}
 		}
 
-		logger.Errorf("api=executeRequest, err=[%v]", many.Error())
+		logger.Errorf("err=[%v]", many.Error())
 
 		// rewind the reader
 		if body != nil {
@@ -535,7 +535,7 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 			c.consumeResponseBody(resp)
 		}
 
-		logger.Warningf("api=Do, name=%s, retries=%d, description=%q, reason=%q, sleep=[%v]",
+		logger.Warningf("name=%s, retries=%d, description=%q, reason=%q, sleep=[%v]",
 			c.Name, retries, desc, reason, sleepDuration.Seconds())
 		time.Sleep(sleepDuration)
 	}
@@ -579,7 +579,7 @@ func debugRequest(r *http.Request, body bool) {
 	if logger.LevelAt(xlog.DEBUG) {
 		b, err := httputil.DumpRequestOut(r, body)
 		if err != nil {
-			logger.Errorf("api=debugResponse, err=[%v]", err.Error())
+			logger.Errorf("err=[%v]", err.Error())
 		} else {
 			logger.Debug(string(b))
 		}
@@ -590,7 +590,7 @@ func debugResponse(w *http.Response, body bool) {
 	if logger.LevelAt(xlog.DEBUG) {
 		b, err := httputil.DumpResponse(w, body)
 		if err != nil {
-			logger.Errorf("api=debugResponse, err=[%v]", err.Error())
+			logger.Errorf("err=[%v]", err.Error())
 		} else {
 			logger.Debug(string(b))
 		}
@@ -654,7 +654,7 @@ var nonRetriableErrors = []string{
 func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, retries int) (bool, time.Duration, string) {
 	if err != nil {
 		errStr := err.Error()
-		logger.Errorf("api=ShouldRetry, host=%q, path=%q, retries=%d, error_type=%T, err=[%s]",
+		logger.Errorf("host=%q, path=%q, retries=%d, error_type=%T, err=[%s]",
 			r.URL.Host, r.URL.Path, retries, err, errStr)
 
 		select {
@@ -669,7 +669,7 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 		}
 
 		if r.TLS != nil {
-			logger.Errorf("api=ShouldRetry, host=%q, path=%q, complete=%t, mutual=%t, tls_peers=%d, tls_chains=%d",
+			logger.Errorf("host=%q, path=%q, complete=%t, mutual=%t, tls_peers=%d, tls_chains=%d",
 				r.URL.Host, r.URL.Path,
 				resp.TLS.HandshakeComplete,
 				resp.TLS.NegotiatedProtocolIsMutual,

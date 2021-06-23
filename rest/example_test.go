@@ -85,9 +85,9 @@ func ExampleServer() {
 	if sig == syscall.SIGUSR2 {
 		select {
 		case <-time.After(time.Second * 5):
-			logger.Info("api=startService, status='service shutdown from SIGUSR2 complete, waiting for SIGTERM to exit'")
+			logger.Info("status='service shutdown from SIGUSR2 complete, waiting for SIGTERM to exit'")
 		case sig = <-sigs:
-			logger.Infof("api=startService, status=exiting, reason=received_signal, sig=%v", sig)
+			logger.Infof("status=exiting, reason=received_signal, sig=%v", sig)
 		}
 	}
 
@@ -100,18 +100,18 @@ func ExampleServer() {
 func certExpirationPublisherTask(tlsloader *tlsconfig.KeypairReloader) {
 	certFile, keyFile := tlsloader.CertAndKeyFiles()
 
-	logger.Tracef("api=certExpirationPublisherTask, cert=%q, key=%q", certFile, keyFile)
+	logger.Tracef("cert=%q, key=%q", certFile, keyFile)
 
 	tlsloader.Reload()
 	pair := tlsloader.Keypair()
 	if pair != nil {
 		cert, err := x509.ParseCertificate(pair.Certificate[0])
 		if err != nil {
-			errors.Annotatef(err, "api=certExpirationPublisherTask, reason=unable_parse_tls_cert, file=%q", certFile)
+			errors.Annotatef(err, "reason=unable_parse_tls_cert, file=%q", certFile)
 		} else {
 			metricsutil.PublishCertExpirationInDays(cert, "server")
 		}
 	} else {
-		logger.Warningf("api=certExpirationPublisherTask, reason=Keypair, cert=%q, key=%q", certFile, keyFile)
+		logger.Warningf("reason=Keypair, cert=%q, key=%q", certFile, keyFile)
 	}
 }

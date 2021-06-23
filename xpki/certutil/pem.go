@@ -32,12 +32,12 @@ func ParseFromPEM(bytes []byte) (*x509.Certificate, error) {
 	var block *pem.Block
 	block, bytes = pem.Decode(bytes)
 	if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
-		return nil, errors.Errorf("api=LoadFromPEM, reason=invalid_pem")
+		return nil, errors.Errorf("reason=invalid_pem")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, errors.Annotatef(err, "api=LoadFromPEM, reason=ParseCertificate")
+		return nil, errors.Annotatef(err, "reason=ParseCertificate")
 	}
 
 	return cert, nil

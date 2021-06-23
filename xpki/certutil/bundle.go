@@ -99,15 +99,15 @@ func VerifyBundleFromPEM(certPEM, intCAPEM, rootPEM []byte) (bundle *Bundle, sta
 	}
 
 	if len(c.Status.Messages) > 0 {
-		logger.Warningf("api=VerifyBundle, CN=%q, messages=[%s]",
+		logger.Warningf("CN=%q, messages=[%s]",
 			c.Cert.Subject.CommonName, strings.Join(c.Status.Messages, ";"))
 	}
 	if len(c.Status.ExpiringSKIs) > 0 {
-		logger.Warningf("api=VerifyBundle, CN=%q, ExpiringSKIs=[%s]",
+		logger.Warningf("CN=%q, ExpiringSKIs=[%s]",
 			c.Cert.Subject.CommonName, strings.Join(c.Status.ExpiringSKIs, ";"))
 	}
 	if len(c.Status.Untrusted) > 0 {
-		logger.Warningf("api=VerifyBundle, CN=%q, Untrusted=[%s]",
+		logger.Warningf("CN=%q, Untrusted=[%s]",
 			c.Cert.Subject.CommonName, strings.Join(c.Status.Untrusted, ";"))
 	}
 
