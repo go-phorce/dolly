@@ -482,6 +482,8 @@ func Test_Authz(t *testing.T) {
 		server, _ := startServer(false, nil)
 		defer server.StopHTTP()
 
+		assert.False(t, server.IsReady())
+
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allowany", nil)
 		server.ServeHTTP(w, r)
@@ -496,6 +498,8 @@ func Test_Authz(t *testing.T) {
 		server, _ := startServer(true, nil)
 		defer server.StopHTTP()
 
+		assert.True(t, server.IsReady())
+
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allowany", nil)
 		server.ServeHTTP(w, r)
@@ -508,6 +512,7 @@ func Test_Authz(t *testing.T) {
 	t.Run("guest_to_allow_401", func(t *testing.T) {
 		server, _ := startServer(true, nil)
 		defer server.StopHTTP()
+		assert.True(t, server.IsReady())
 
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
@@ -524,6 +529,7 @@ func Test_Authz(t *testing.T) {
 	t.Run("must_have_TLS", func(t *testing.T) {
 		server, _ := startServer(true, identityMapperFromCNMust)
 		defer server.StopHTTP()
+		assert.True(t, server.IsReady())
 
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
@@ -537,6 +543,7 @@ func Test_Authz(t *testing.T) {
 
 	server, _ := startServer(true, identityMapperFromCN)
 	defer server.StopHTTP()
+	assert.True(t, server.IsReady())
 
 	t.Run("admin_to_allow_200", func(t *testing.T) {
 		w := httptest.NewRecorder()
@@ -552,9 +559,6 @@ func Test_Authz(t *testing.T) {
 	})
 
 	t.Run("any_root_admin_to_allow_200", func(t *testing.T) {
-		server, _ := startServer(true, identityMapperFromCN)
-		defer server.StopHTTP()
-
 		w := httptest.NewRecorder()
 		r, _ := http.NewRequest(http.MethodGet, "/v1/allow", nil)
 		r.TLS = tlsConnectionForAdminUntrusted
