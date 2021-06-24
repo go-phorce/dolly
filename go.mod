@@ -5,6 +5,7 @@ go 1.16
 require (
 	github.com/DataDog/datadog-go v0.0.0-20180330214955-e67964b4021a
 	github.com/GeertJohan/go.rice v1.0.0 // indirect
+	github.com/aws/aws-sdk-go v1.38.66
 	github.com/cloudflare/cfssl v0.0.0-20181102015659-ea4033a214e7
 	github.com/go-phorce/cov-report v1.1.1-0.20200622030546-3fb510c4b1ba
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
@@ -28,10 +29,9 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/ugorji/go v1.1.4
-	golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/lint v0.0.0-20200302205851-738671d3881b
 	golang.org/x/mod v0.3.0 // indirect
-	golang.org/x/net v0.0.0-20200602114024-627f9648deb9 // indirect
 	golang.org/x/tools v0.0.0-20200619210111-0f592d2728bb
 	google.golang.org/grpc v1.37.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
