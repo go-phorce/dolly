@@ -1,0 +1,14 @@
+{
+    "profiles": {
+        "withregex": {
+            "description": "server with unknown usage",
+            "allowed_dns": "ekspand.com",
+            "allowed_email": "[}",
+            "expiry": "123h",
+            "usages": [
+                "digital signature",
+                "key encipherment"
+            ]
+        }
+    }
+}

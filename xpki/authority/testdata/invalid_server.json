@@ -1,0 +1,12 @@
+{
+    "profiles": {
+        "server": {
+            "description": "server with unknown usage",
+            "expiry": "123h",
+            "usages": [
+                "digital signature",
+                "encipherment"
+            ]
+        }
+    }
+}

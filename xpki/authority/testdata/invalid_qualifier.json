@@ -1,0 +1,20 @@
+{
+    "profiles": {
+        "with-qt": {
+            "description": "server with unknown usage",
+            "policies": [
+                {
+                    "oid": "1.2.100.1",
+                    "qualifiers": [
+                        {"type": "qt-type", "value": "not-set"}
+                    ]
+                }
+            ],
+            "expiry": "123h",
+            "usages": [
+                "digital signature",
+                "key encipherment"
+            ]
+        }
+    }
+}

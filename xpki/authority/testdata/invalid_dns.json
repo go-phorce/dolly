@@ -1,0 +1,13 @@
+{
+    "profiles": {
+        "withregex": {
+            "description": "server with unknown usage",
+            "allowed_dns": "[}",
+            "expiry": "123h",
+            "usages": [
+                "digital signature",
+                "key encipherment"
+            ]
+        }
+    }
+}

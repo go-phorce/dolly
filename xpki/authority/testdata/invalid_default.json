@@ -1,0 +1,12 @@
+{
+    "profiles": {
+        "default": {
+            "description": "default profile",
+            "expiry": "invalid_expiry",
+            "usages": [
+                "digital signature",
+                "key encipherment"
+            ]
+        }
+    }
+}
