@@ -1,0 +1,10 @@
+{
+    "profiles": {
+        "noexpiry_profile": {
+            "usages": [
+                "digital signature",
+                "key encipherment"
+            ]
+        }
+    }
+}

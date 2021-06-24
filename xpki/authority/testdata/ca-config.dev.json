@@ -1,0 +1,106 @@
+{
+    "issuer_url": "http://localhost:7880/v1/certs/${ISSUER_ID}.crt",
+    "crl_url": "http://localhost:7880/v1/crl/${ISSUER_ID}.crl",
+    "ocsp_url": "http://localhost:7880/v1/ocsp",
+    "profiles": {
+        "default": {
+            "description": "default profile",
+            "expiry": "168h",
+            "backdate": "30m",
+            "usages": [
+                "digital signature",
+                "key encipherment"
+            ]
+        },
+        "test_server": {
+            "description": "test server profile",
+            "expiry": "5m",
+            "backdate": "30m",
+            "usages": [
+                "signing",
+                "key encipherment",
+                "server auth",
+                "ipsec end system"
+            ],
+            "allowed_extensions": [
+                "1.3.6.1.5.5.7.1.1"
+            ]
+        },
+        "test_client": {
+            "description": "test client profile",
+            "expiry": "5m",
+            "backdate": "30m",
+            "usages": [
+                "signing",
+                "key encipherment",
+                "client auth",
+                "ipsec user"
+            ],
+            "allowed_extensions": [
+                "1.3.6.1.5.5.7.1.1"
+            ]
+        },
+        "server": {
+            "description": "server TLS profile",
+            "expiry": "168h",
+            "backdate": "30m",
+            "usages": [
+                "signing",
+                "key encipherment",
+                "server auth",
+                "ipsec end system"
+            ],
+            "allowed_extensions": [
+                "1.3.6.1.5.5.7.1.1"
+            ]
+        },
+        "peer": {
+            "description": "peer TLS profile",
+            "expiry": "168h",
+            "backdate": "30m",
+            "usages": [
+                "signing",
+                "key encipherment",
+                "key agreement",
+                "server auth",
+                "client auth",
+                "ipsec user",
+                "ipsec end system"
+            ],
+            "allowed_extensions": [
+                "1.3.6.1.5.5.7.1.1"
+            ]
+        },
+        "ocsp": {
+            "description": "OCSP responder profile",
+            "expiry": "8760h",
+            "backdate": "30m",
+            "usages": [
+                "digital signature",
+                "ocsp signing"
+            ]
+        },
+        "timestamp": {
+            "description": "Timestamp certificate profile",
+            "expiry": "43070h",
+            "backdate": "30m",
+            "usages": [
+                "digital signature",
+                "timestamping"
+            ],
+            "allowed_extensions": [
+                "2.5.29.37"
+            ]
+        },
+        "codesign": {
+            "description": "Codesigning certificate profile",
+            "expiry": "8760h",
+            "backdate": "30m",
+            "usages": [
+                "digital signature",
+                "code signing",
+                "key encipherment"
+            ]
+        }
+    }
+}

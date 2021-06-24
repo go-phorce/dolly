@@ -1,0 +1,160 @@
+---
+authority:
+  default_aia:
+    issuer_url: http://localhost:7880/v1/certs/${ISSUER_ID}.crt
+    crl_url: http://localhost:7880/v1/crl/${ISSUER_ID}.crl
+    ocsp_url: http://localhost:7880/v1/ocsp
+    # value in 72h format for duration of CRL next update time
+    crl_expiry: 12h
+    # value in 8h format for duration of CRL renewal before next update time
+    crl_renewal: 1h
+    # value in 8h format for duration of OCSP next update time
+    ocsp_expiry: 30m
+
+  issuers:
+  -
+    # specifies Issuer's label
+    label: dolly.svc
+    # specifies type: tls|codesign|timestamp|ocsp|spiffe|dolly
+    type: dolly
+    cert: /tmp/dolly/certs/test_dolly_issuer2_CA.pem
+    key: /tmp/dolly/certs/test_dolly_issuer2_CA-key.pem
+    # location of the CA bundle file
+    ca_bundle: /tmp/dolly/certs/test_dolly_cabundle.pem
+    # location of the Root CA file
+    root_bundle: /tmp/dolly/certs/test_dolly_root_CA.pem
+
+# profile:
+#
+# description: string
+# expiry: duration
+# backdate: duration
+# usages: []string
+# ocsp_no_check: bool
+# allowed_extensions: []string
+# allowed_names: regex
+# allowed_dns: regex
+# allowed_email: regex
+# allowed_fields:
+#   subject: bool
+#   dns: bool
+#   ip: bool
+#   email: bool
+#   email: uri
+# policies: []
+#   oid:
+#   qualifiers:
+# ca_constraint:
+#   is_ca:
+#   max_path_len:
+#
+profiles:
+
+  default:
+    expiry: 168h
+    backdate: 30m
+    usages:
+    - signing
+    - key encipherment
+
+  test_server:
+    description: test server profile
+    issuer_label: dolly.svc
+    expiry: 5m
+    backdate: 30m
+    usages: # provides a list key usages
+    - signing
+    - key encipherment
+    - server auth
+    - ipsec end system
+    allowed_extensions:
+    - 1.3.6.1.5.5.7.1.1
+
+  test_client:
+    description: test client profile
+    issuer_label: dolly.svc
+    expiry: 5m
+    backdate: 30m
+    usages:
+    - signing
+    - key encipherment
+    - client auth
+    - ipsec user
+    allowed_extensions:
+    - 1.3.6.1.5.5.7.1.1
+
+  peer:
+    issuer_label: dolly.svc
+    expiry: 168h
+    backdate: 30m
+    usages:
+    - signing
+    - key encipherment
+    - server auth
+    - client auth
+    - ipsec user
+    - ipsec end system
+    allowed_extensions:
+    - 1.3.6.1.5.5.7.1.1
+    allowed_uri: ^spifee://dolly/.*$
+    allowed_fields:
+      uri: true
+
+  server:
+    issuer_label: dolly.svc
+    expiry: 168h
+    backdate: 30m
+    usages:
+    - signing
+    - key encipherment
+    - server auth
+    - ipsec end system
+    allowed_extensions:
+    - 1.3.6.1.5.5.7.1.1
+
+  client:
+    issuer_label: dolly.svc
+    expiry: 168h
+    backdate: 30m
+    usages:
+    - signing
+    - key encipherment
+    - client auth
+    - ipsec user
+    allowed_extensions:
+    - 1.3.6.1.5.5.7.1.1
+    allowed_uri: ^spifee://dolly/.*$
+    allowed_fields:
+      uri: true
+
+  ocsp:
+    description: OCSP responder profile
+    issuer_label: dolly.svc
+    expiry: 8760h
+    backdate: 30m
+    usages:
+    - digital signature
+    - ocsp signing
+    allowed_extensions:
+    - 1.3.6.1.5.5.7.1.1
+
+  timestamp:
+    description: Timestamp certificate profile
+    issuer_label: dolly.svc
+    expiry: 43070h
+    backdate: 30m
+    usages:
+    - digital signature
+    - timestamping
+    allowed_extensions:
+    - 2.5.29.37
+
+  codesign:
+    description: Codesigning certificate profile
+    issuer_label: dolly.svc
+    expiry: 8760h
+    backdate: 30m
+    usages:
+    - digital signature
+    - code signing
+    - key encipherment
