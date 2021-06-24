@@ -10,7 +10,7 @@ CERTS_PREFIX=test_${PROJ_NAME}_
 
 default: help
 
-all: clean tools generate hsmconfig gen_test_certs covtest
+all: clean tools generate start-local-kms hsmconfig gen_test_certs covtest
 
 #
 # clean produced files
@@ -60,3 +60,18 @@ gen_test_certs:
 coveralls-github:
 	echo "Running coveralls"
 	goveralls -v -coverprofile=coverage.out -service=github -package ./...
+
+start-local-kms:
+	# Container state will be true (it's already running), false (exists but stopped), or missing (does not exist).
+	# Annoyingly, when there is no such container and Docker returns an error, it also writes a blank line to stdout.
+	# Hence the sed to trim whitespace.
+	LKMS_CONTAINER_STATE=$$(echo $$(docker inspect -f "{{.State.Running}}" dolly-unittest-local-kms 2>/dev/null || echo "missing") | sed -e 's/^[ \t]*//'); \
+	if [ "$$LKMS_CONTAINER_STATE" = "missing" ]; then \
+		docker pull nsmithuk/local-kms && \
+		docker run --network host \
+			-d -e 'PORT=4599' \
+			-p 4599:4599 \
+			--name dolly-unittest-local-kms \
+			nsmithuk/local-kms && \
+			sleep 1; \
+	elif [ "$$LKMS_CONTAINER_STATE" = "false" ]; then docker start dolly-unittest-local-kms && sleep 1; fi;

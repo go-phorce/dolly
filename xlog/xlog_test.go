@@ -480,6 +480,12 @@ func Test_ColorFormatterDebug(t *testing.T) {
 	assert.Contains(t, result, expected)
 	b.Reset()
 
+	logger.Error("unable to find: ", fmt.Errorf("not found"))
+	result = b.String()
+	expected = string(xlog.LevelColors[xlog.ERROR]) + " E | xlog_test: unable to find: not found\n\x1b[0m"
+	assert.Contains(t, result, expected)
+	b.Reset()
+
 	logger.Warningf("Test Warning")
 	result = b.String()
 	expected = string(xlog.LevelColors[xlog.WARNING]) + " W | xlog_test: Test Warning\n\033[0m"
