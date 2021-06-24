@@ -7,10 +7,12 @@ import (
 	"crypto/x509/pkix"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -116,7 +118,7 @@ var tlsConnectionForClientFromOtherOrg = &tls.ConnectionState{
 
 func Test_NewServer(t *testing.T) {
 	cfg := &serverConfig{
-		BindAddr: ":8081",
+		BindAddr: getBindAddr(""),
 	}
 
 	audit := auditor.NewInMemory()
@@ -160,7 +162,7 @@ func Test_NewServer(t *testing.T) {
 	assert.NotNil(t, server.HTTPConfig())
 	assert.Equal(t, cfg, server.HTTPConfig())
 
-	assert.Equal(t, fmt.Sprintf("http://%s:8081", server.HostName()), rest.GetServerBaseURL(server).String())
+	assert.Equal(t, fmt.Sprintf("http://%s:%s", server.HostName(), server.Port()), rest.GetServerBaseURL(server).String())
 
 	//	assert.NotNil(t, server.AddService())
 	err = server.StartHTTP()
@@ -436,7 +438,7 @@ func Test_Authz(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &serverConfig{
-		BindAddr: ":8081",
+		BindAddr: getBindAddr(""),
 		Services: []string{"authztest"},
 	}
 	authz, err := authz.New(&authz.Config{
@@ -448,10 +450,8 @@ func Test_Authz(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	bindport := 18123
 	startServer := func(ready bool, idprov identity.ProviderFromRequest) (*rest.HTTPServer, *serviceX) {
-		bindport++
-		cfg.BindAddr = fmt.Sprintf(":%d", bindport)
+		cfg.BindAddr = getBindAddr("")
 
 		server, err := rest.New("v1.0.123", "127.0.0.1", cfg, tlsCfg)
 		require.NoError(t, err)
@@ -467,6 +467,13 @@ func Test_Authz(t *testing.T) {
 
 		err = server.StartHTTP()
 		require.NoError(t, err)
+
+		if ready {
+			for i := 0; i < 10 && !server.IsReady(); i++ {
+				time.Sleep(500 * time.Millisecond)
+			}
+			require.True(t, server.IsReady())
+		}
 
 		return server, service
 	}
@@ -673,4 +680,13 @@ func (s *serviceX) handle() rest.Handle {
 
 		marshal.WriteJSON(w, r, res)
 	}
+}
+
+var (
+	nextPort = int32(18081) + rand.Int31n(5000)
+)
+
+func getBindAddr(host string) string {
+	next := atomic.AddInt32(&nextPort, 1)
+	return fmt.Sprintf("%s:%d", host, next)
 }
