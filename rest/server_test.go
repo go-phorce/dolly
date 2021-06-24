@@ -169,8 +169,8 @@ func Test_NewServer(t *testing.T) {
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "ClientAuth=NoClientCert")
 
-	for i := 0; i < 10 && !server.IsReady(); i++ {
-		time.Sleep(100 * time.Millisecond)
+	for i := 0; i < 30 && !server.IsReady(); i++ {
+		time.Sleep(1 * time.Second)
 	}
 	require.True(t, server.IsReady())
 
@@ -235,8 +235,8 @@ func Test_NewServerWithGracefulShutdownSet(t *testing.T) {
 	require.NotNil(t, e)
 	assert.Contains(t, e.Message, "ClientAuth=NoClientCert")
 
-	for i := 0; i < 10 && !server.IsReady(); i++ {
-		time.Sleep(100 * time.Millisecond)
+	for i := 0; i < 30 && !server.IsReady(); i++ {
+		time.Sleep(1 * time.Second)
 	}
 	require.True(t, server.IsReady())
 
@@ -268,8 +268,8 @@ func Test_NewServerWithCustomHandler(t *testing.T) {
 	err = server.StartHTTP()
 	require.NoError(t, err)
 
-	for i := 0; i < 10 && !server.IsReady(); i++ {
-		time.Sleep(100 * time.Millisecond)
+	for i := 0; i < 30 && !server.IsReady(); i++ {
+		time.Sleep(1 * time.Second)
 	}
 	require.True(t, server.IsReady())
 
