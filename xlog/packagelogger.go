@@ -174,7 +174,7 @@ func (p *PackageLogger) Info(entries ...interface{}) {
 
 // KV prints key=value pairs
 func (p *PackageLogger) KV(l LogLevel, entries ...interface{}) {
-	p.internalLog(kv, calldepth, INFO, entries...)
+	p.internalLog(kv, calldepth, l, entries...)
 }
 
 // Debug Functions
