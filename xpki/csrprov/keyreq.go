@@ -4,6 +4,7 @@ import (
 	"crypto"
 	"crypto/elliptic"
 	"crypto/x509"
+	"strings"
 
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
 	"github.com/juju/errors"
@@ -80,8 +81,8 @@ func (kr *keyRequest) SigAlgo() x509.SignatureAlgorithm {
 // Generate generates a key as specified in the request. Currently,
 // only ECDSA and RSA are supported.
 func (kr *keyRequest) Generate() (crypto.PrivateKey, error) {
-	switch algo := kr.Algo(); algo {
-	case "rsa", "RSA":
+	algo := strings.ToUpper(kr.Algo())
+	if algo == "RSA" || strings.HasPrefix(algo, "RSA-SHA-") {
 		err := validateRSAKeyPairInfoHandler(kr.Size())
 		if err != nil {
 			return nil, errors.Annotate(err, "validate RSA key")
@@ -91,12 +92,11 @@ func (kr *keyRequest) Generate() (crypto.PrivateKey, error) {
 			return nil, errors.Annotate(err, "generate RSA key")
 		}
 		return pk, nil
-	case "ecdsa", "ECDSA":
+	} else if algo == "ECDSA" || strings.HasPrefix(algo, "ECDSA-SHA-") {
 		err := validateECDSAKeyPairCurveInfoHandler(kr.Size())
 		if err != nil {
 			return nil, errors.Annotate(err, "validate ECDSA key")
 		}
-
 		var curve elliptic.Curve
 		switch kr.Size() {
 		case CurveP256:
@@ -113,7 +113,7 @@ func (kr *keyRequest) Generate() (crypto.PrivateKey, error) {
 			return nil, errors.Annotate(err, "generate ECDSA key")
 		}
 		return pk, nil
-	default:
+	} else {
 		return nil, errors.Errorf("invalid algorithm: %s", algo)
 	}
 }

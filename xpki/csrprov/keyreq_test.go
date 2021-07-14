@@ -49,3 +49,32 @@ func Test_KeyRequest(t *testing.T) {
 		})
 	}
 }
+
+func Test_KeyRequestWithPattern(t *testing.T) {
+	defprov := loadInmemProvider(t)
+	tt := []struct {
+		algoWithPadding string
+		size            int
+		expalg          x509.SignatureAlgorithm
+		experr          string
+	}{
+		{"rsa-sha-256", 2048, x509.SHA256WithRSA, ""},
+		{"RSA-SHA-512", 4096, x509.SHA512WithRSA, ""},
+	}
+
+	for _, tc := range tt {
+		label := fmt.Sprintf("%s_%d", tc.algoWithPadding, tc.size)
+		t.Run(label, func(t *testing.T) {
+			assert.Equal(t, tc.expalg, csrprov.SigAlgo("RSA", tc.size))
+
+			kr := csrprov.NewKeyRequest(defprov, label, "RSA", tc.size, csrprov.Signing)
+			_, err := kr.Generate()
+			if tc.experr != "" {
+				require.Error(t, err)
+				assert.Equal(t, tc.experr, err.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
