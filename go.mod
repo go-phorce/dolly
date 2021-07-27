@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/DataDog/datadog-go v4.8.0+incompatible
 	github.com/Microsoft/go-winio v0.5.0 // indirect
-	github.com/aws/aws-sdk-go v1.38.66
+	github.com/aws/aws-sdk-go v1.40.8
 	github.com/cloudflare/cfssl v1.6.0
 	github.com/go-phorce/cov-report v1.1.1-0.20200622030546-3fb510c4b1ba
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
@@ -27,9 +27,9 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/ugorji/go/codec v1.2.6
+	github.com/yuin/goldmark v1.4.0 // indirect
 	golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 	golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
-	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781 // indirect
 	golang.org/x/tools v0.1.4
 	google.golang.org/genproto v0.0.0-20210426193834-eac7f76ac494 // indirect
 	google.golang.org/grpc v1.38.0
@@ -40,3 +40,11 @@ require (
 )
 
 replace golang.org/x/text => golang.org/x/text v0.3.6
+
+replace github.com/yuin/goldmark => github.com/yuin/goldmark v1.4.0
+
+replace github.com/nats-io/jwt => github.com/nats-io/jwt v1.2.2
+
+replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
+
+replace github.com/nats-io/nats-server/v2 => github.com/nats-io/nats-server/v2 v2.3.2
