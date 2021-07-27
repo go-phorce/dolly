@@ -43,8 +43,14 @@ replace golang.org/x/text => golang.org/x/text v0.3.6
 
 replace github.com/yuin/goldmark => github.com/yuin/goldmark v1.4.0
 
-replace github.com/nats-io/jwt => github.com/nats-io/jwt v1.2.2
+replace github.com/nats-io/jwt => github.com/nats-io/jwt/v2 v2.0.1
+
+replace github.com/nats-io/nkeys => github.com/nats-io/nkeys v0.3.0
+
+replace github.com/nats-io/nats.go => github.com/nats-io/nats.go v1.11.0
 
 replace github.com/gogo/protobuf => github.com/gogo/protobuf v1.3.2
 
 replace github.com/nats-io/nats-server/v2 => github.com/nats-io/nats-server/v2 v2.3.2
+
+replace github.com/aws/aws-sdk-go => github.com/aws/aws-sdk-go v1.40.8
