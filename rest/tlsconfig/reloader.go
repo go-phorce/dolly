@@ -193,14 +193,9 @@ func (k *KeypairReloader) tlsCert() *tls.Certificate {
 		}
 	}
 
-	if kp.Leaf != nil {
-		if kp.Leaf.NotAfter.Add(1 * time.Hour).Before(time.Now().UTC()) {
-			logger.Warningf("label=%s, count=%d, cert=%q, expires=%q",
-				k.label, k.count, k.certPath, kp.Leaf.NotAfter.Format(time.RFC3339))
-		} else {
-			logger.Tracef("label=%s, count=%d, cert=%q, expires=%q",
-				k.label, k.count, k.certPath, kp.Leaf.NotAfter.Format(time.RFC3339))
-		}
+	if kp.Leaf != nil && kp.Leaf.NotAfter.Add(1*time.Hour).Before(time.Now().UTC()) {
+		logger.Warningf("label=%s, count=%d, cert=%q, expires=%q",
+			k.label, k.count, k.certPath, kp.Leaf.NotAfter.Format(time.RFC3339))
 	}
 	return kp
 }

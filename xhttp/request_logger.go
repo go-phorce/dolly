@@ -69,13 +69,8 @@ func (l *RequestLogger) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if agent == "" {
 		agent = "no-agent"
 	}
-	if rw.statusCode < 400 {
-		l.logger.Infof("%s:%s:%s:%s:%s:%d:%d.%d:%d:%v:%q%s",
-			l.prefix, clientCertUser, r.Method, r.URL.Path, r.RemoteAddr, rw.statusCode, r.ProtoMajor, r.ProtoMinor, rw.bodySize, dur.Nanoseconds()/l.granularity, agent, extra)
-	} else {
-		l.logger.Errorf("%s:%s:%s:%s:%s:%d:%d.%d:%d:%v:%q%s",
-			l.prefix, clientCertUser, r.Method, r.URL.Path, r.RemoteAddr, rw.statusCode, r.ProtoMajor, r.ProtoMinor, rw.bodySize, dur.Nanoseconds()/l.granularity, agent, extra)
-	}
+	l.logger.Infof("%s:%s:%s:%s:%s:%d:%d.%d:%d:%v:%q%s",
+		l.prefix, clientCertUser, r.Method, r.URL.Path, r.RemoteAddr, rw.statusCode, r.ProtoMajor, r.ProtoMinor, rw.bodySize, dur.Nanoseconds()/l.granularity, agent, extra)
 }
 
 func (l *RequestLogger) client(r *http.Request) string {
