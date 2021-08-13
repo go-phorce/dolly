@@ -89,12 +89,15 @@ func tryLogHTTPError(bv interface{}, r *http.Request) {
 		if e.HTTPStatus >= 500 {
 			logger.Errorf("INTERNAL_ERROR=%s:%d:%s:%s",
 				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
+			if e.Cause != nil {
+				logger.Errorf("err=" + errors.ErrorStack(e.Cause))
+			}
 		} else {
 			logger.Warningf("API_ERROR=%s:%d:%s:%s",
 				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
-		}
-		if e.Cause != nil {
-			logger.Errorf(errors.ErrorStack(e))
+			if e.Cause != nil {
+				logger.Warningf("err=" + errors.ErrorStack(e.Cause))
+			}
 		}
 	}
 }
