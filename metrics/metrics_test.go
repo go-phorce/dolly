@@ -86,6 +86,9 @@ func Test_SetProviderPrometheus(t *testing.T) {
 
 	prov, err := metrics.New(&metrics.Config{
 		FilterDefault: true,
+		GlobalTags: []metrics.Tag{
+			{"env_tag", "test_value"},
+		},
 	}, d)
 	require.NoError(t, err)
 	run(prov, 10)
@@ -99,6 +102,7 @@ func Test_SetProviderPrometheus(t *testing.T) {
 
 	body := string(w.Body.Bytes())
 	assert.Contains(t, body, "test_metrics_since_count")
+	assert.Contains(t, body, `env_tag="test_value"`)
 }
 
 //

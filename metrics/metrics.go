@@ -6,13 +6,16 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/hashicorp/go-immutable-radix"
+	iradix "github.com/hashicorp/go-immutable-radix"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "metrics")
 
 // SetGauge should retain the last value it is set to
 func (m *Metrics) SetGauge(key []string, val float32, tags ...Tag) {
+	if len(m.GlobalTags) > 0 {
+		tags = append(tags, m.GlobalTags...)
+	}
 	if m.HostName != "" {
 		if m.EnableHostnameLabel {
 			tags = append(tags, Tag{"host", m.HostName})
@@ -39,6 +42,9 @@ func (m *Metrics) SetGauge(key []string, val float32, tags ...Tag) {
 
 // IncrCounter should accumulate values
 func (m *Metrics) IncrCounter(key []string, val float32, tags ...Tag) {
+	if len(m.GlobalTags) > 0 {
+		tags = append(tags, m.GlobalTags...)
+	}
 	if m.HostName != "" && m.EnableHostnameLabel {
 		tags = append(tags, Tag{"host", m.HostName})
 	}
@@ -61,6 +67,9 @@ func (m *Metrics) IncrCounter(key []string, val float32, tags ...Tag) {
 
 // AddSample is for timing information, where quantiles are used
 func (m *Metrics) AddSample(key []string, val float32, tags ...Tag) {
+	if len(m.GlobalTags) > 0 {
+		tags = append(tags, m.GlobalTags...)
+	}
 	if m.HostName != "" && m.EnableHostnameLabel {
 		tags = append(tags, Tag{"host", m.HostName})
 	}
@@ -83,6 +92,9 @@ func (m *Metrics) AddSample(key []string, val float32, tags ...Tag) {
 
 // MeasureSince is for timing information
 func (m *Metrics) MeasureSince(key []string, start time.Time, tags ...Tag) {
+	if len(m.GlobalTags) > 0 {
+		tags = append(tags, m.GlobalTags...)
+	}
 	if m.HostName != "" && m.EnableHostnameLabel {
 		tags = append(tags, Tag{"host", m.HostName})
 	}

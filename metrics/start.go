@@ -20,6 +20,7 @@ type Config struct {
 	EnableTypePrefix     bool          // Prefixes key with a type ("counter", "gauge", "timer")
 	TimerGranularity     time.Duration // Granularity of timers.
 	ProfileInterval      time.Duration // Interval to profile runtime metrics
+	GlobalTags           []Tag         // Tags to add to every metric
 
 	AllowedPrefixes []string // A list of metric prefixes to allow, with '.' as the separator
 	BlockedPrefixes []string // A list of metric prefixes to block, with '.' as the separator
