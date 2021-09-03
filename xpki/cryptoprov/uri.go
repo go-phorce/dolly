@@ -67,15 +67,18 @@ func (k *keyURI) ID() string {
 // name if present.
 func ParseTokenURI(uri string) (TokenConfig, error) {
 	u, err := url.Parse(uri)
-	if err != nil || u.Scheme != "pkcs11" {
+	if err != nil {
+		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
+	}
+	if u.Scheme != "pkcs11" {
 		return nil, errors.Annotate(ErrInvalidURI, uri)
 	}
 
 	c := new(tokenConfig)
 
-	pk11PAttr, err := url.ParseQuery(u.Opaque)
+	pk11PAttr, err := url.ParseQuery(strings.ReplaceAll(u.Opaque, ";", "&"))
 	if err != nil {
-		return nil, errors.Annotate(ErrInvalidURI, uri)
+		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
 	}
 
 	setIfPresent(pk11PAttr, "manufacturer", &c.Man)
@@ -115,15 +118,18 @@ func ParseTokenURI(uri string) (TokenConfig, error) {
 // ParsePrivateKeyURI parses a PKCS #11 URI into a key configuration
 func ParsePrivateKeyURI(uri string) (PrivateKeyURI, error) {
 	u, err := url.Parse(uri)
-	if err != nil || u.Scheme != "pkcs11" {
+	if err != nil {
+		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
+	}
+	if u.Scheme != "pkcs11" {
 		return nil, errors.Annotate(ErrInvalidURI, uri)
 	}
 
 	c := new(keyURI)
 
-	pk11PAttr, err := url.ParseQuery(u.Opaque)
+	pk11PAttr, err := url.ParseQuery(strings.ReplaceAll(u.Opaque, ";", "&"))
 	if err != nil {
-		return nil, errors.Annotate(ErrInvalidURI, uri)
+		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
 	}
 
 	setIfPresent(pk11PAttr, "manufacturer", &c.manufacturer)

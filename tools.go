@@ -1,5 +1,6 @@
 // Package tools for go mod
 
+//go:build tools
 // +build tools
 
 package tools
