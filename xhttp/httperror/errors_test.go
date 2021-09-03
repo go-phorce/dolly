@@ -66,7 +66,7 @@ func TestError_WriteHTTPResponse(t *testing.T) {
 	many.Add("one", errors.Errorf("test error 1"))
 	many.Add("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 
-	manyNil := &httperror.ManyError{}
+	manyNil := &httperror.ManyError{HTTPStatus: http.StatusBadRequest}
 	manyNil.Add("one", errors.Errorf("test error 1"))
 	manyNil.Add("two", httperror.New(http.StatusBadRequest, httperror.InvalidJSON, "test error 2"))
 
