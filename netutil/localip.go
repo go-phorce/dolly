@@ -4,7 +4,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var cidrs []*net.IPNet
@@ -53,7 +53,7 @@ func IsPrivateAddress(address string) (bool, error) {
 func GetLocalIP() (string, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return "", errors.Trace(err)
+		return "", errors.WithStack(err)
 	}
 	for _, address := range addrs {
 		// check the address type and if it is not a loopback the display it

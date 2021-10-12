@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // PrivateKeyURI holds PKCS#11 private key information.
@@ -68,17 +68,17 @@ func (k *keyURI) ID() string {
 func ParseTokenURI(uri string) (TokenConfig, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
-		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
+		return nil, errors.WithMessagef(err, "invalid URI: %s", uri)
 	}
 	if u.Scheme != "pkcs11" {
-		return nil, errors.Annotate(ErrInvalidURI, uri)
+		return nil, errors.WithMessage(ErrInvalidURI, uri)
 	}
 
 	c := new(tokenConfig)
 
 	pk11PAttr, err := url.ParseQuery(strings.ReplaceAll(u.Opaque, ";", "&"))
 	if err != nil {
-		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
+		return nil, errors.WithMessagef(err, "invalid URI: %s", uri)
 	}
 
 	setIfPresent(pk11PAttr, "manufacturer", &c.Man)
@@ -100,12 +100,12 @@ func ParseTokenURI(uri string) (TokenConfig, error) {
 		pinURI.Path = pinURI.Opaque
 	}
 	if err != nil || pinURI.Scheme != "file" || pinURI.Path == "" {
-		return nil, errors.Annotate(ErrInvalidURI, uri)
+		return nil, errors.WithMessage(ErrInvalidURI, uri)
 	}
 
 	pin, err := ioutil.ReadFile(pinURI.Path)
 	if err != nil {
-		return nil, errors.Annotate(ErrInvalidURI, uri)
+		return nil, errors.WithMessage(ErrInvalidURI, uri)
 	}
 
 	c.Pwd = strings.TrimSpace(string(pin))
@@ -119,17 +119,17 @@ func ParseTokenURI(uri string) (TokenConfig, error) {
 func ParsePrivateKeyURI(uri string) (PrivateKeyURI, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
-		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
+		return nil, errors.WithMessagef(err, "invalid URI: %s", uri)
 	}
 	if u.Scheme != "pkcs11" {
-		return nil, errors.Annotate(ErrInvalidURI, uri)
+		return nil, errors.WithMessage(ErrInvalidURI, uri)
 	}
 
 	c := new(keyURI)
 
 	pk11PAttr, err := url.ParseQuery(strings.ReplaceAll(u.Opaque, ";", "&"))
 	if err != nil {
-		return nil, errors.Annotatef(err, "invalid URI: %s", uri)
+		return nil, errors.WithMessagef(err, "invalid URI: %s", uri)
 	}
 
 	setIfPresent(pk11PAttr, "manufacturer", &c.manufacturer)
@@ -140,7 +140,7 @@ func ParsePrivateKeyURI(uri string) (PrivateKeyURI, error) {
 	var objtype string
 	setIfPresent(pk11PAttr, "type", &objtype)
 	if objtype != "private" || c.tokenSerial == "" || c.id == "" {
-		return nil, errors.Annotate(ErrInvalidPrivateKeyURI, uri)
+		return nil, errors.WithMessage(ErrInvalidPrivateKeyURI, uri)
 	}
 
 	c.manufacturer = strings.TrimSpace(strings.TrimRight(string(c.manufacturer), "\x00"))

@@ -42,7 +42,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/jinzhu/copier"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -185,7 +185,7 @@ func New(cfg *Config) (*Provider, error) {
 	for _, s := range cfg.Allow {
 		parts := strings.Split(s, ":")
 		if len(parts) != 2 || len(parts[0]) == 0 || len(parts[1]) == 0 {
-			return nil, errors.NotValidf("Authz allow configuration %q", s)
+			return nil, errors.Errorf("not valid Authz allow configuration: %q", s)
 		}
 		logger.Noticef("Allow=%s:%s", parts[0], parts[1])
 		roles := strings.Split(parts[1], ",")
@@ -426,10 +426,10 @@ func (c *Provider) checkAccess(r *http.Request) error {
 // delegate handler
 func (c *Provider) NewHandler(delegate http.Handler) (http.Handler, error) {
 	if c.requestRoleMapper == nil {
-		return nil, errors.Trace(ErrNoRoleMapperSpecified)
+		return nil, errors.WithStack(ErrNoRoleMapperSpecified)
 	}
 	if c.pathRoot == nil {
-		return nil, errors.Trace(ErrNoPathsConfigured)
+		return nil, errors.WithStack(ErrNoPathsConfigured)
 	}
 	h := &authHandler{
 		delegate: delegate,

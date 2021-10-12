@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/fileutil", "reloader")
@@ -64,7 +64,7 @@ func NewReloader(filePath string, checkInterval time.Duration, onChangedFunc OnC
 						result.fileModifiedAt = fi.ModTime()
 						err := result.Reload()
 						if err != nil {
-							logger.Errorf("err=[%v]", errors.ErrorStack(err))
+							logger.Errorf("err=[%+v]", err)
 						}
 					}
 				} else {

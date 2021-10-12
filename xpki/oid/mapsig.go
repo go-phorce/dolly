@@ -7,7 +7,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // SignatureAlgorithmInfo provides OID info for Signature algorithms
@@ -193,26 +193,26 @@ func SignatureAlgorithmByOID(oid string) (*SignatureAlgorithmInfo, error) {
 	item := LookupByOID(oid)
 	algo, ok := item.(SignatureAlgorithmInfo)
 	if !ok {
-		return nil, errors.NotFoundf(algNotFoundFmt, oid)
+		return nil, errors.Errorf("algorithm not found: %s", oid)
 	}
 	return &algo, nil
 }
 
 // SignatureAlgorithmByName returns an algorithm by name
-func SignatureAlgorithmByName(name string) (SignatureAlgorithmInfo, error) {
+func SignatureAlgorithmByName(name string) (*SignatureAlgorithmInfo, error) {
 	item := LookupByName(name)
 	algo, ok := item.(SignatureAlgorithmInfo)
 	if !ok {
-		return SignatureAlgorithmInfo{}, errors.NotFoundf(algNotFoundFmt, name)
+		return nil, errors.Errorf("algorithm not found: %s", name)
 	}
-	return algo, nil
+	return &algo, nil
 }
 
 // SignatureAlgorithmByKey returns an algorithm by key
 func SignatureAlgorithmByKey(pkey interface{}) (*PublicKeyAlgorithmInfo, error) {
 	key, ok := pkey.(crypto.Signer)
 	if !ok {
-		return nil, errors.NotSupportedf("crypto.Signer")
+		return nil, errors.Errorf("not supported: crypto.Signer")
 	}
 
 	pub := key.Public()
@@ -223,14 +223,14 @@ func SignatureAlgorithmByKey(pkey interface{}) (*PublicKeyAlgorithmInfo, error) 
 	case *ecdsa.PublicKey:
 		return &ECDSA, nil
 	}
-	return nil, errors.NotSupportedf("crypto.Signer type %T", pub)
+	return nil, errors.Errorf("not supported crypto.Signer type %T", pub)
 }
 
 // SignatureAlgorithmByKeyAndHash returns an algorithm by key and Hash
 func SignatureAlgorithmByKeyAndHash(pkey interface{}, hash crypto.Hash) (*SignatureAlgorithmInfo, error) {
 	key, ok := pkey.(crypto.Signer)
 	if !ok {
-		return nil, errors.NotSupportedf("crypto.Signer")
+		return nil, errors.Errorf("not supported crypto.Signer")
 	}
 
 	pub := key.Public()
@@ -247,7 +247,7 @@ func SignatureAlgorithmByKeyAndHash(pkey interface{}, hash crypto.Hash) (*Signat
 		case crypto.SHA512:
 			return &RSAWithSHA512, nil
 		default:
-			return nil, errors.NotSupportedf("RSA")
+			return nil, errors.New("not supported RSA")
 		}
 	case *ecdsa.PublicKey:
 		switch hash {
@@ -260,10 +260,10 @@ func SignatureAlgorithmByKeyAndHash(pkey interface{}, hash crypto.Hash) (*Signat
 		case crypto.SHA512:
 			return &ECDSAWithSHA512, nil
 		default:
-			return nil, errors.NotSupportedf("ECDSA")
+			return nil, errors.New("not supported ECDSA")
 		}
 	}
-	return nil, errors.NotSupportedf("crypto.Signer type %T", pub)
+	return nil, errors.Errorf("not supported crypto.Signer type %T", pub)
 }
 
 // SignatureAlgorithmByX509 returns an algorithm by X509 identifier

@@ -7,14 +7,14 @@ import (
 	"path/filepath"
 
 	"github.com/go-phorce/dolly/audit"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
 
 // New return a new instance of an Auditor that writes audit entries to a local log file
 func New(fileprefix, directory string, maxAgeDays int, maxSizeMb int) (audit.Auditor, error) {
 	if err := os.MkdirAll(directory, 0755); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	res := fileAuditor{
 		fileWriter: lumberjack.Logger{

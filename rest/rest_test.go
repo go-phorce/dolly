@@ -14,7 +14,7 @@ import (
 	"github.com/go-phorce/dolly/testify/testca"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/certutil"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -282,13 +282,13 @@ func createServerTLSInfo(cfg *tlsConfig) (*tls.Config, *tlsconfig.KeypairReloade
 
 	tls, err := tlsconfig.NewServerTLSFromFiles(certFile, keyFile, cfg.GetTrustedCAFile(), clientauthType)
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "reason=BuildFromFiles, cert=%q, key=%q",
+		return nil, nil, errors.WithMessagef(err, "reason=BuildFromFiles, cert=%q, key=%q",
 			certFile, keyFile)
 	}
 
 	tlsloader, err := tlsconfig.NewKeypairReloader(certFile, keyFile, 5*time.Second)
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "reason=NewKeypairReloader, cert=%q, key=%q",
+		return nil, nil, errors.WithMessagef(err, "reason=NewKeypairReloader, cert=%q, key=%q",
 			certFile, keyFile)
 	}
 	tls.GetCertificate = tlsloader.GetKeypairFunc()

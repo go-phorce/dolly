@@ -5,20 +5,20 @@ import (
 
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
 	"github.com/go-phorce/dolly/xpki/csr"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // NewRoot creates a new root certificate from the certificate request.
 func NewRoot(profile string, cfg *Config, provider cryptoprov.Provider, req *csr.CertificateRequest) (certPEM, csrPEM, key []byte, err error) {
 	err = req.Validate()
 	if err != nil {
-		err = errors.Annotate(err, "invalid request")
+		err = errors.WithMessage(err, "invalid request")
 		return
 	}
 
 	err = cfg.Validate()
 	if err != nil {
-		err = errors.Annotate(err, "invalid configuration")
+		err = errors.WithMessage(err, "invalid configuration")
 		return
 	}
 
@@ -30,14 +30,14 @@ func NewRoot(profile string, cfg *Config, provider cryptoprov.Provider, req *csr
 
 	csrPEM, gkey, keyID, err = c.GenerateKeyAndRequest(req)
 	if err != nil {
-		err = errors.Annotate(err, "process request")
+		err = errors.WithMessage(err, "process request")
 		return
 	}
 
 	signer := gkey.(crypto.Signer)
 	uri, keyBytes, err := provider.ExportKey(keyID)
 	if err != nil {
-		err = errors.Annotate(err, "failed to export key")
+		err = errors.WithMessage(err, "failed to export key")
 		return
 	}
 
@@ -70,7 +70,7 @@ func NewRoot(profile string, cfg *Config, provider cryptoprov.Provider, req *csr
 
 	_, certPEM, err = issuer.Sign(sreq)
 	if err != nil {
-		err = errors.Annotate(err, "sign request")
+		err = errors.WithMessage(err, "sign request")
 		return
 	}
 	return

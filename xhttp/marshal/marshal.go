@@ -11,7 +11,6 @@ import (
 	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
 	"github.com/ugorji/go/codec"
 )
 
@@ -90,13 +89,13 @@ func tryLogHTTPError(bv interface{}, r *http.Request) {
 			logger.Errorf("INTERNAL_ERROR=%s:%d:%s:%s",
 				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
 			if e.Cause != nil {
-				logger.Errorf("err=" + errors.ErrorStack(e.Cause))
+				logger.Errorf("err=[%+v]", e.Cause)
 			}
 		} else {
 			logger.Warningf("API_ERROR=%s:%d:%s:%s",
 				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
 			if e.Cause != nil {
-				logger.Warningf("err=" + errors.ErrorStack(e.Cause))
+				logger.Warningf("err=[%+v]", e.Cause)
 			}
 		}
 	}

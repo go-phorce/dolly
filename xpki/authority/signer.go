@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // TODO: move to cryptoprov.Crypto
@@ -16,7 +16,7 @@ import (
 func NewSignerFromFromFile(crypto *cryptoprov.Crypto, caKeyFile string) (crypto.Signer, error) {
 	cakey, err := ioutil.ReadFile(caKeyFile)
 	if err != nil {
-		return nil, errors.Annotatef(err, "load key file")
+		return nil, errors.WithMessagef(err, "load key file")
 	}
 	// remove trailing space and end-of-line
 	cakey = []byte(strings.TrimSpace(string(cakey)))
@@ -29,7 +29,7 @@ func NewSignerFromFromFile(crypto *cryptoprov.Crypto, caKeyFile string) (crypto.
 func NewSignerFromPEM(prov *cryptoprov.Crypto, caKey []byte) (crypto.Signer, error) {
 	_, pvk, err := prov.LoadPrivateKey(caKey)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	signer, supported := pvk.(crypto.Signer)

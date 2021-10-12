@@ -10,7 +10,7 @@ import (
 
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/local"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // NewSigningCertificateRequest creates new request for signing certificate
@@ -33,20 +33,20 @@ func (c *Provider) NewRoot(req *CertificateRequest) (cert, csrPEM, key []byte, e
 	// RootCA fixup
 	policy, err := MakeCAPolicy(req)
 	if err != nil {
-		err = errors.Annotate(err, "ca policy failed")
+		err = errors.WithMessage(err, "ca policy failed")
 		return
 	}
 
 	err = ValidateCSR(req)
 	if err != nil {
-		err = errors.Annotate(err, "invalid request")
+		err = errors.WithMessage(err, "invalid request")
 		return
 	}
 
 	csrPEM, gkey, keyID, err := c.ParseCsrRequest(req)
 	if err != nil {
 		key = nil
-		err = errors.Annotate(err, "process request")
+		err = errors.WithMessage(err, "process request")
 		return
 	}
 
@@ -54,7 +54,7 @@ func (c *Provider) NewRoot(req *CertificateRequest) (cert, csrPEM, key []byte, e
 
 	uri, keyBytes, err := c.provider.ExportKey(keyID)
 	if err != nil {
-		err = errors.Annotate(err, "key URI")
+		err = errors.WithMessage(err, "key URI")
 		return
 	}
 
@@ -66,7 +66,7 @@ func (c *Provider) NewRoot(req *CertificateRequest) (cert, csrPEM, key []byte, e
 
 	s, err := local.NewSigner(signkey, nil, signer.DefaultSigAlgo(signkey), policy)
 	if err != nil {
-		err = errors.Annotate(err, "create signer")
+		err = errors.WithMessage(err, "create signer")
 		return
 	}
 
@@ -81,7 +81,7 @@ func (c *Provider) NewRoot(req *CertificateRequest) (cert, csrPEM, key []byte, e
 func (c *Provider) ProcessCsrRequest(req *CertificateRequest) (csrPEM, key []byte, keyID string, pub crypto.PublicKey, err error) {
 	err = ValidateCSR(req)
 	if err != nil {
-		err = errors.Annotate(err, "invalid request")
+		err = errors.WithMessage(err, "invalid request")
 		return
 	}
 
@@ -90,21 +90,21 @@ func (c *Provider) ProcessCsrRequest(req *CertificateRequest) (csrPEM, key []byt
 	csrPEM, priv, keyID, err = c.ParseCsrRequest(req)
 	if err != nil {
 		key = nil
-		err = errors.Annotate(err, "process request")
+		err = errors.WithMessage(err, "process request")
 		return
 	}
 
 	s, ok := priv.(crypto.Signer)
 	if !ok {
 		key = nil
-		err = errors.Annotate(err, "unable to convert key to crypto.Signer")
+		err = errors.WithMessage(err, "unable to convert key to crypto.Signer")
 		return
 	}
 	pub = s.Public()
 
 	uri, keyBytes, err := c.provider.ExportKey(keyID)
 	if err != nil {
-		err = errors.Annotate(err, "key URI")
+		err = errors.WithMessage(err, "key URI")
 		return
 	}
 
@@ -133,14 +133,14 @@ func (c *Provider) ParseCsrRequest(req *CertificateRequest) (csr []byte, priv cr
 
 	priv, err = req.KeyRequest.Generate()
 	if err != nil {
-		err = errors.Annotate(err, "generate key")
+		err = errors.WithMessage(err, "generate key")
 		return
 	}
 
 	var label string
 	keyID, label, err = c.provider.IdentifyKey(priv)
 	if err != nil {
-		err = errors.Annotate(err, "identify key")
+		err = errors.WithMessage(err, "identify key")
 		return
 	}
 
@@ -163,8 +163,8 @@ func (c *Provider) ParseCsrRequest(req *CertificateRequest) (csr []byte, priv cr
 
 	csr, err = x509.CreateCertificateRequest(rand.Reader, &tpl, priv)
 	if err != nil {
-		logger.Errorf("failed to generate a CSR: %v", errors.Trace(err))
-		err = errors.Annotate(err, "generate csr")
+		logger.Errorf("failed to generate a CSR: %v", errors.WithStack(err))
+		err = errors.WithMessage(err, "generate csr")
 		return
 	}
 	block := pem.Block{

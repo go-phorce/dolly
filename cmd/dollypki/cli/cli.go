@@ -11,7 +11,7 @@ import (
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // ReturnCode is the type that your command returns, these map to standard process return codes
@@ -87,7 +87,7 @@ func (cli *Cli) EnsureCryptoProvider() error {
 	var err error
 	cli.crypto, err = cryptoprov.Load(*cli.flags.hsmConfig, nil)
 	if err != nil {
-		return errors.Annotate(err, "unable to initialize crypto providers")
+		return errors.WithMessage(err, "unable to initialize crypto providers")
 	}
 
 	return nil

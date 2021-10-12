@@ -9,8 +9,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/juju/errors"
 	pkcs11 "github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 // KeyPurpose declares the purpose for keys
@@ -39,7 +39,7 @@ func (lib *PKCS11Lib) Identify(object *PKCS11Object) (keyID, label string, err e
 		a, err = lib.Ctx.GetAttributeValue(session, object.Handle, a)
 		return err
 	}); err != nil {
-		return "", "", errors.Trace(err)
+		return "", "", errors.WithStack(err)
 	}
 	return string(a[0].Value), string(a[1].Value), nil
 }
@@ -63,14 +63,14 @@ func (lib *PKCS11Lib) findKey(session pkcs11.SessionHandle, keyID, label string,
 		template = append(template, pkcs11.NewAttribute(pkcs11.CKA_LABEL, []byte(label)))
 	}
 	if err = lib.Ctx.FindObjectsInit(session, template); err != nil {
-		return 0, errors.Trace(err)
+		return 0, errors.WithStack(err)
 	}
 	defer lib.Ctx.FindObjectsFinal(session)
 	if handles, _, err = lib.Ctx.FindObjects(session, 1); err != nil {
-		return 0, errors.Trace(err)
+		return 0, errors.WithStack(err)
 	}
 	if len(handles) == 0 {
-		return 0, errors.Trace(errKeyNotFound)
+		return 0, errors.WithStack(errKeyNotFound)
 	}
 	return handles[0], nil
 }
@@ -87,11 +87,11 @@ func (lib *PKCS11Lib) ListKeys(session pkcs11.SessionHandle, keyclass uint, keyt
 		template = append(template, pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, keytype))
 	}
 	if err = lib.Ctx.FindObjectsInit(session, template); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	defer lib.Ctx.FindObjectsFinal(session)
 	if handles, _, err = lib.Ctx.FindObjects(session, 100); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return handles, nil
@@ -111,11 +111,11 @@ func (lib *PKCS11Lib) FindKeys(session pkcs11.SessionHandle, keylabel string, ke
 		template = append(template, pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, keytype))
 	}
 	if err = lib.Ctx.FindObjectsInit(session, template); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	defer lib.Ctx.FindObjectsFinal(session)
 	if handles, _, err = lib.Ctx.FindObjects(session, 100); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return handles, nil
@@ -136,7 +136,7 @@ func (lib *PKCS11Lib) FindKeyPairOnSlot(slot uint, keyID, label string) (crypto.
 	var err error
 	var k crypto.PrivateKey
 	if err = lib.setupSessions(slot, 0); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	err = lib.withSession(slot, func(session pkcs11.SessionHandle) error {
 		k, err = lib.FindKeyPairOnSession(session, slot, keyID, label)
@@ -155,36 +155,36 @@ func (lib *PKCS11Lib) FindKeyPairOnSession(session pkcs11.SessionHandle, slot ui
 	var pub crypto.PublicKey
 
 	if privHandle, err = lib.findKey(session, keyID, label, pkcs11.CKO_PRIVATE_KEY, ^uint(0)); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	attributes := []*pkcs11.Attribute{
 		pkcs11.NewAttribute(pkcs11.CKA_KEY_TYPE, 0),
 	}
 	if attributes, err = lib.Ctx.GetAttributeValue(session, privHandle, attributes); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	keyType := BytesToUlong(attributes[0].Value)
 	if pubHandle, err = lib.findKey(session, keyID, label, pkcs11.CKO_PUBLIC_KEY, keyType); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	switch keyType {
 	case pkcs11.CKK_DSA:
 		if pub, err = lib.exportDSAPublicKey(session, pubHandle); err != nil {
-			return nil, errors.Annotate(err, "exportDSAPublicKey")
+			return nil, errors.WithMessage(err, "exportDSAPublicKey")
 		}
 		return &PKCS11PrivateKeyDSA{key: &PKCS11PrivateKey{PKCS11Object{privHandle, slot}, pub}, lib: lib}, nil
 	case pkcs11.CKK_RSA:
 		if pub, err = lib.exportRSAPublicKey(session, pubHandle); err != nil {
-			return nil, errors.Annotate(err, "exportRSAPublicKey")
+			return nil, errors.WithMessage(err, "exportRSAPublicKey")
 		}
 		return &PKCS11PrivateKeyRSA{key: &PKCS11PrivateKey{PKCS11Object{privHandle, slot}, pub}, lib: lib}, nil
 	case pkcs11.CKK_ECDSA:
 		if pub, err = lib.exportECDSAPublicKey(session, pubHandle); err != nil {
-			return nil, errors.Annotate(err, "exportECDSAPublicKey")
+			return nil, errors.WithMessage(err, "exportECDSAPublicKey")
 		}
 		return &PKCS11PrivateKeyECDSA{key: &PKCS11PrivateKey{PKCS11Object{privHandle, slot}, pub}, lib: lib}, nil
 	default:
-		return nil, errors.Annotatef(errUnsupportedKeyType, "key type: %v", keyType)
+		return nil, errors.WithMessagef(errUnsupportedKeyType, "key type: %v", keyType)
 	}
 }
 
@@ -202,14 +202,14 @@ func ConvertToPublic(priv crypto.PrivateKey) (crypto.PublicKey, error) {
 	case *PKCS11PrivateKeyDSA:
 		return t.Public(), nil
 	}
-	return nil, errors.Trace(errUnsupportedKeyType)
+	return nil, errors.WithStack(errUnsupportedKeyType)
 }
 
 // GetKey returns private key handle
 func (lib *PKCS11Lib) GetKey(keyID string) (crypto.PrivateKey, error) {
 	key, err := lib.FindKeyPair(keyID, "")
 	if err != nil {
-		return nil, errors.Annotatef(err, "unable to find key %q", keyID)
+		return nil, errors.WithMessagef(err, "unable to find key %q", keyID)
 	}
 
 	return key, err
@@ -220,18 +220,18 @@ func (lib *PKCS11Lib) GetKey(keyID string) (crypto.PrivateKey, error) {
 func (lib *PKCS11Lib) ExportKey(keyID string) (string, []byte, error) {
 	hi, err := lib.Ctx.GetInfo()
 	if err != nil {
-		return "", nil, errors.Annotate(err, "module info")
+		return "", nil, errors.WithMessage(err, "module info")
 	}
 
 	// ensure that key exists
 	_, err = lib.FindKeyPair(keyID, "")
 	if err != nil {
-		return "", nil, errors.Annotatef(err, "unable to find key %q", keyID)
+		return "", nil, errors.WithMessagef(err, "unable to find key %q", keyID)
 	}
 
 	ti, err := lib.Ctx.GetTokenInfo(lib.Slot.id)
 	if err != nil {
-		return "", nil, errors.Annotate(err, "token info")
+		return "", nil, errors.WithMessage(err, "token info")
 	}
 
 	var uri string
@@ -276,12 +276,12 @@ func (p *privateKeyGen) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
 	if signer, ok := p.PrivateKey.(crypto.Signer); ok {
 		b, err := signer.Sign(rand, digest, opts)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		return b, nil
 	}
 
-	return nil, errors.Trace(errUnsupportedKeyType)
+	return nil, errors.WithStack(errUnsupportedKeyType)
 }
 
 // Decrypt decrypts ciphertext with priv.
@@ -291,12 +291,12 @@ func (p *privateKeyGen) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
 	if decrypter, ok := p.PrivateKey.(crypto.Decrypter); ok {
 		b, err := decrypter.Decrypt(rand, ciphertext, opts)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		return b, nil
 	}
 
-	return nil, errors.Trace(errUnsupportedKeyType)
+	return nil, errors.WithStack(errUnsupportedKeyType)
 }
 
 // GenerateRSAKey generates RSA key pair
@@ -304,12 +304,12 @@ func (lib *PKCS11Lib) GenerateRSAKey(label string, bits int, purpose int) (crypt
 	keypurpose := KeyPurpose(purpose)
 	priv, err := lib.GenerateRSAKeyPairWithLabel(label, bits, keypurpose)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	id, l, err := lib.Identify(&priv.key.PKCS11Object)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	k := &privateKeyGen{
@@ -326,11 +326,11 @@ func (lib *PKCS11Lib) GenerateRSAKey(label string, bits int, purpose int) (crypt
 func (lib *PKCS11Lib) GenerateECDSAKey(label string, curve elliptic.Curve) (crypto.PrivateKey, error) {
 	priv, err := lib.GenerateECDSAKeyPairWithLabel(label, curve)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	id, l, err := lib.Identify(&priv.key.PKCS11Object)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	k := &privateKeyGen{
@@ -358,12 +358,12 @@ func (lib *PKCS11Lib) IdentifyKey(priv crypto.PrivateKey) (keyID, label string, 
 	case *PKCS11PrivateKeyDSA:
 		p11o = &t.key.PKCS11Object
 	default:
-		return "", "", errors.Trace(errUnsupportedKeyType)
+		return "", "", errors.WithStack(errUnsupportedKeyType)
 	}
 
 	id, l, err := lib.Identify(p11o)
 	if err != nil {
-		return "", "", errors.Trace(err)
+		return "", "", errors.WithStack(err)
 	}
 	keyID = string(id)
 	label = string(l)

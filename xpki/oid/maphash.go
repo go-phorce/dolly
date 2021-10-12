@@ -7,7 +7,7 @@ import (
 	"crypto/rsa"
 	"encoding/asn1"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // HashAlgorithmInfo provides OID info for Hash algorithms
@@ -166,7 +166,7 @@ func HashAlgorithmByOID(oid string) (*HashAlgorithmInfo, error) {
 	item := LookupByOID(oid)
 	algo, ok := item.(HashAlgorithmInfo)
 	if !ok {
-		return nil, errors.NotFoundf(algNotFoundFmt, oid)
+		return nil, errors.Errorf("algorithm not found: %s", oid)
 	}
 	return &algo, nil
 }
@@ -210,7 +210,7 @@ func HashAlgorithmByName(name string) (*HashAlgorithmInfo, error) {
 	item := LookupByName(name)
 	algo, ok := item.(*HashAlgorithmInfo)
 	if !ok {
-		return nil, errors.NotFoundf(algNotFoundFmt, name)
+		return nil, errors.Errorf("algorithm not found: %s", name)
 	}
 	return algo, nil
 }

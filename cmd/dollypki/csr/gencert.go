@@ -12,7 +12,7 @@ import (
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xpki/csrprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // GenCertFlags specifies flags for GenCert command
@@ -85,7 +85,7 @@ func GenCert(c ctl.Control, p interface{}) error {
 	// Load CSR
 	csrf, err := cli.ReadStdin(*flags.CsrProfile)
 	if err != nil {
-		return errors.Annotate(err, "read CSR profile")
+		return errors.WithMessage(err, "read CSR profile")
 	}
 
 	req := csrprov.CertificateRequest{
@@ -95,7 +95,7 @@ func GenCert(c ctl.Control, p interface{}) error {
 
 	err = json.Unmarshal(csrf, &req)
 	if err != nil {
-		return errors.Annotate(err, "invalid CSR")
+		return errors.WithMessage(err, "invalid CSR")
 	}
 
 	if req.CA != nil {
@@ -105,7 +105,7 @@ func GenCert(c ctl.Control, p interface{}) error {
 	// Load ca-config
 	cacfg, err := cfsslconfig.LoadFile(*flags.CAConfig)
 	if err != nil {
-		return errors.Annotate(err, "ca-config")
+		return errors.WithMessage(err, "ca-config")
 	}
 	if cacfg.Signing == nil {
 		return errors.New("missing signing policy in ca-config")
@@ -117,13 +117,13 @@ func GenCert(c ctl.Control, p interface{}) error {
 	// ensure that signer can be created before the key is generated
 	s, _, err := csrprov.NewLocalCASignerFromFile(cryptoprov, *flags.CA, *flags.CAKey, cacfg.Signing)
 	if err != nil {
-		return errors.Annotate(err, "create signer")
+		return errors.WithMessage(err, "create signer")
 	}
 
 	var key, csrPEM []byte
 	csrPEM, key, _, _, err = prov.ProcessCsrRequest(&req)
 	if err != nil {
-		return errors.Annotate(err, "ProcessRequest")
+		return errors.WithMessage(err, "ProcessRequest")
 	}
 
 	signReq := signer.SignRequest{
@@ -140,15 +140,15 @@ func GenCert(c ctl.Control, p interface{}) error {
 
 		err = cli.WriteFile(baseName+".pem", cert, 0664)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 		err = cli.WriteFile(baseName+".csr", csrPEM, 0664)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 		err = cli.WriteFile(baseName+"-key.pem", key, 0600)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 

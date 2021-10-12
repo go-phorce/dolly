@@ -9,19 +9,19 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // LoadFromPEM returns Certificate loaded from the file
 func LoadFromPEM(certFile string) (*x509.Certificate, error) {
 	bytes, err := ioutil.ReadFile(certFile)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	cert, err := ParseFromPEM(bytes)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return cert, nil
@@ -32,12 +32,12 @@ func ParseFromPEM(bytes []byte) (*x509.Certificate, error) {
 	var block *pem.Block
 	block, bytes = pem.Decode(bytes)
 	if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
-		return nil, errors.Errorf("reason=invalid_pem")
+		return nil, errors.Errorf("unable to parse PEM")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, errors.Annotatef(err, "reason=ParseCertificate")
+		return nil, errors.WithMessagef(err, "unable to parse certificate")
 	}
 
 	return cert, nil
@@ -47,12 +47,12 @@ func ParseFromPEM(bytes []byte) (*x509.Certificate, error) {
 func LoadChainFromPEM(certFile string) ([]*x509.Certificate, error) {
 	bytes, err := ioutil.ReadFile(certFile)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	certs, err := ParseChainFromPEM(bytes)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return certs, nil
@@ -72,7 +72,7 @@ func ParseChainFromPEM(certificateChainPem []byte) ([]*x509.Certificate, error) 
 		if block.Type == "CERTIFICATE" {
 			x509Certificate, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
-				return nil, errors.Annotate(err, "failed to parse certificate")
+				return nil, errors.WithMessage(err, "failed to parse certificate")
 			}
 			list = append(list, x509Certificate)
 		}
@@ -94,7 +94,7 @@ func encodeToPEM(out io.Writer, withComments bool, crt *x509.Certificate) error 
 
 	err := pem.Encode(out, &pem.Block{Type: "CERTIFICATE", Bytes: crt.Raw})
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	return nil
@@ -106,7 +106,7 @@ func EncodeToPEM(out io.Writer, withComments bool, certs ...*x509.Certificate) e
 		if crt != nil {
 			err := encodeToPEM(out, withComments, crt)
 			if err != nil {
-				return errors.Trace(err)
+				return errors.WithStack(err)
 			}
 		}
 	}
@@ -121,7 +121,7 @@ func encodeToPEMString(withComments bool, crt *x509.Certificate) (string, error)
 	b := bytes.NewBuffer([]byte{})
 	err := EncodeToPEM(b, withComments, crt)
 	if err != nil {
-		return "", errors.Trace(err)
+		return "", errors.WithStack(err)
 	}
 	pem := string(b.Bytes())
 	pem = strings.TrimSpace(pem)
@@ -138,7 +138,7 @@ func EncodeToPEMString(withComments bool, certs ...*x509.Certificate) (string, e
 	b := bytes.NewBuffer([]byte{})
 	err := EncodeToPEM(b, withComments, certs...)
 	if err != nil {
-		return "", errors.Trace(err)
+		return "", errors.WithStack(err)
 	}
 	pem := string(b.Bytes())
 	pem = strings.TrimSpace(pem)
@@ -150,7 +150,7 @@ func EncodeToPEMString(withComments bool, certs ...*x509.Certificate) (string, e
 func CreatePoolFromPEM(pemBytes []byte) (*x509.CertPool, error) {
 	certs, err := ParseChainFromPEM(pemBytes)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	pool := x509.NewCertPool()

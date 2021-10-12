@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // lenReader is an interface implemented by many in-memory io.Reader's. Used
@@ -52,7 +52,7 @@ func NewRequest(method, url string, rawBody io.ReadSeeker) (*Request, error) {
 
 	httpReq, err := http.NewRequest(method, url, nil)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	httpReq.ContentLength = contentLength
 
@@ -81,14 +81,14 @@ func convertRequest(req *http.Request) (*Request, error) {
 		defer req.Body.Close()
 		bodyBytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		body = bytes.NewReader(bodyBytes)
 	}
 
 	r, err := NewRequest(req.Method, req.URL.String(), body)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	r.Request = r.WithContext(req.Context())
 	for header, vals := range req.Header {

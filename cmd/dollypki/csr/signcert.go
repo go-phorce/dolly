@@ -6,7 +6,7 @@ import (
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xpki/csrprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // SignCertFlags specifies flags for SignCert command
@@ -67,13 +67,13 @@ func SignCert(c ctl.Control, p interface{}) error {
 	// Load CSR
 	csrPEM, err := cli.ReadStdin(*flags.Csr)
 	if err != nil {
-		return errors.Annotate(err, "read CSR")
+		return errors.WithMessage(err, "read CSR")
 	}
 
 	// Load ca-config
 	cacfg, err := cfsslconfig.LoadFile(*flags.CAConfig)
 	if err != nil {
-		return errors.Annotate(err, "ca-config")
+		return errors.WithMessage(err, "ca-config")
 	}
 	if cacfg.Signing == nil {
 		return errors.New("missing signing policy in ca-config")
@@ -89,7 +89,7 @@ func SignCert(c ctl.Control, p interface{}) error {
 
 	s, _, err := csrprov.NewLocalCASignerFromFile(cryptoprov, *flags.CA, *flags.CAKey, cacfg.Signing)
 	if err != nil {
-		return errors.Annotate(err, "create signer")
+		return errors.WithMessage(err, "create signer")
 	}
 
 	signReq := signer.SignRequest{
@@ -106,11 +106,11 @@ func SignCert(c ctl.Control, p interface{}) error {
 
 		err = cli.WriteFile(baseName+".pem", cert, 0664)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 		err = cli.WriteFile(baseName+".csr", csrPEM, 0664)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 

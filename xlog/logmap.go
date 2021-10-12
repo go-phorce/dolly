@@ -18,7 +18,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // LogLevel is the set of all log levels.
@@ -89,7 +89,7 @@ func (l LogLevel) String() string {
 func (l *LogLevel) Set(s string) error {
 	value, err := ParseLevel(s)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 	*l = value
 	return nil
@@ -183,7 +183,7 @@ func (r RepoLogger) ParseLogLevelConfig(conf string) (map[string]LogLevel, error
 		}
 		l, err := ParseLevel(setting[1])
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		out[setting[0]] = l
 	}
@@ -251,7 +251,7 @@ func NewPackageLogger(repo string, pkg string) (p *PackageLogger) {
 func getRepoLogger(repo string) (RepoLogger, error) {
 	repoLogger, err := GetRepoLogger(repo)
 	if err != nil {
-		return nil, errors.Annotatef(err, "repo=%s, reason='failed to get a repo logger'", repo)
+		return nil, errors.WithMessagef(err, "repo=%s, reason='failed to get a repo logger'", repo)
 	}
 	return repoLogger, nil
 }

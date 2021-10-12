@@ -5,7 +5,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // PublicKeyAlgorithmInfo provides OID info for Public Key algorithms
@@ -83,7 +83,7 @@ func PublicKeyAlgorithmByOID(oid string) (*PublicKeyAlgorithmInfo, error) {
 	item := LookupByOID(oid)
 	algo, ok := item.(PublicKeyAlgorithmInfo)
 	if !ok {
-		return nil, errors.NotFoundf(algNotFoundFmt, oid)
+		return nil, errors.Errorf("algorithm not found: %s", oid)
 	}
 	return &algo, nil
 }
@@ -93,7 +93,7 @@ func PublicKeyAlgorithmByName(name string) (*PublicKeyAlgorithmInfo, error) {
 	item := LookupByName(name)
 	algo, ok := item.(*PublicKeyAlgorithmInfo)
 	if !ok {
-		return nil, errors.NotFoundf(algNotFoundFmt, name)
+		return nil, errors.Errorf("algorithm not found: %s", name)
 	}
 	return algo, nil
 }

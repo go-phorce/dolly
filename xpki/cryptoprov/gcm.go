@@ -5,19 +5,19 @@ import (
 	"crypto/cipher"
 
 	"github.com/go-phorce/dolly/xpki/certutil"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // GcmEncrypt returns encrypted blob with GCM cipher
 func GcmEncrypt(plaintext []byte, key []byte) ([]byte, error) {
 	c, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	gcm, err := cipher.NewGCM(c)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	nonce := certutil.Random(gcm.NonceSize())
@@ -29,12 +29,12 @@ func GcmEncrypt(plaintext []byte, key []byte) ([]byte, error) {
 func GcmDecrypt(ciphertext []byte, key []byte) ([]byte, error) {
 	c, err := aes.NewCipher(key)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	gcm, err := cipher.NewGCM(c)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	nonceSize := gcm.NonceSize()
@@ -45,7 +45,7 @@ func GcmDecrypt(ciphertext []byte, key []byte) ([]byte, error) {
 	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
 	plain, err := gcm.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return plain, nil

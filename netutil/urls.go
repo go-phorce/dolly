@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // ParseURLs creates a list of URLs from lists of hosts
@@ -13,7 +13,7 @@ func ParseURLs(list []string) ([]*url.URL, error) {
 	for i, host := range list {
 		u, err := url.Parse(strings.TrimSpace(host))
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		urls[i] = u
 	}

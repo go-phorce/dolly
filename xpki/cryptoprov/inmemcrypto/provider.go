@@ -13,7 +13,7 @@ import (
 
 	"github.com/go-phorce/dolly/algorithms/guid"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xpki", "inmemcrypto")
@@ -163,7 +163,7 @@ func (p *Provider) Serial() string {
 func (p *Provider) GetKey(keyID string) (crypto.PrivateKey, error) {
 	pvk, err := p.inMemProv.getKey(keyID)
 	if err != nil {
-		return nil, errors.Annotatef(err, "key not found: %s", keyID)
+		return nil, errors.WithMessagef(err, "key not found: %s", keyID)
 	}
 	return pvk, nil
 }
@@ -173,7 +173,7 @@ func (p *Provider) GenerateRSAKey(label string, bits int, purpose int) (crypto.P
 	reader := rand.Reader
 	key, err := p.rsaKeyGenerator.GenerateKey(reader, bits)
 	if err != nil {
-		return nil, errors.Annotatef(err, "unable to generate key, bit size: %d", bits)
+		return nil, errors.WithMessagef(err, "unable to generate key, bit size: %d", bits)
 	}
 
 	if len(label) == 0 {
@@ -197,7 +197,7 @@ func (p *Provider) GenerateECDSAKey(label string, curve elliptic.Curve) (crypto.
 	reader := rand.Reader
 	key, err := p.ecdsaKeyGenerator.GenerateKey(curve, reader)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	if len(label) == 0 {
@@ -229,7 +229,7 @@ func (p *Provider) ExportKey(keyID string) (string, []byte, error) {
 
 	prov, err := p.inMemProv.getKey(keyID)
 	if err != nil {
-		return "", nil, errors.Annotatef(err, "unable to get key: %s", keyID)
+		return "", nil, errors.WithMessagef(err, "unable to get key: %s", keyID)
 	}
 
 	priv := prov.(*provImpl).pvk
@@ -245,7 +245,7 @@ func (p *Provider) ExportKey(keyID string) (string, []byte, error) {
 	case *ecdsa.PrivateKey:
 		key, err = x509.MarshalECPrivateKey(priv)
 		if err != nil {
-			return "", nil, errors.Annotatef(err, "export EC key: %s", keyID)
+			return "", nil, errors.WithMessagef(err, "export EC key: %s", keyID)
 		}
 		block := pem.Block{
 			Type:  "EC PRIVATE KEY",

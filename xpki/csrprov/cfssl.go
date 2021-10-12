@@ -15,7 +15,7 @@ import (
 	"github.com/cloudflare/cfssl/signer"
 	"github.com/cloudflare/cfssl/signer/local"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // A CertificateRequest encapsulates the API interface to the
@@ -151,14 +151,14 @@ func MakeCAPolicy(req *CertificateRequest) (*config.Signing, error) {
 		policy.Default.ExpiryString = req.CA.Expiry
 		policy.Default.Expiry, err = time.ParseDuration(req.CA.Expiry)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 
 	if req.CA.Backdate != "" {
 		policy.Default.Backdate, err = time.ParseDuration(req.CA.Backdate)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 
@@ -175,19 +175,19 @@ func MakeCAPolicy(req *CertificateRequest) (*config.Signing, error) {
 func ParseCaFiles(caFile, caKeyFile string) (cakey []byte, parsedCa *x509.Certificate, err error) {
 	ca, err := ioutil.ReadFile(caFile)
 	if err != nil {
-		err = errors.Annotatef(err, "load ca file")
+		err = errors.WithMessagef(err, "load ca file")
 		return
 	}
 
 	cakey, err = ioutil.ReadFile(caKeyFile)
 	if err != nil {
-		err = errors.Annotatef(err, "load ca-key file")
+		err = errors.WithMessagef(err, "load ca-key file")
 		return
 	}
 
 	parsedCa, err = helpers.ParseCertificatePEM(ca)
 	if err != nil {
-		err = errors.Annotatef(err, "parse ca file")
+		err = errors.WithMessagef(err, "parse ca file")
 		return
 	}
 
@@ -199,11 +199,11 @@ func ParseCaFiles(caFile, caKeyFile string) (cakey []byte, parsedCa *x509.Certif
 func NewLocalCASignerFromFile(c *cryptoprov.Crypto, caFile, caKeyFile string, policy *config.Signing) (*local.Signer, crypto.Signer, error) {
 	ca, err := ioutil.ReadFile(caFile)
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "load ca file")
+		return nil, nil, errors.WithMessagef(err, "load ca file")
 	}
 	cakey, err := ioutil.ReadFile(caKeyFile)
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "load ca-key file")
+		return nil, nil, errors.WithMessagef(err, "load ca-key file")
 	}
 
 	return NewLocalCASignerFromPEM(c, ca, cakey, policy)
@@ -218,7 +218,7 @@ func NewLocalCASignerFromPEM(c *cryptoprov.Crypto, ca, caKey []byte, policy *con
 
 	_, pvk, err := c.LoadPrivateKey(caKey)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	sign, supported := pvk.(crypto.Signer)
@@ -228,13 +228,13 @@ func NewLocalCASignerFromPEM(c *cryptoprov.Crypto, ca, caKey []byte, policy *con
 
 	parsedCa, err := helpers.ParseCertificatePEM(ca)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	signPolicy := config.Signing(*policy)
 	localSigner, err := local.NewSigner(sign, parsedCa, signer.DefaultSigAlgo(sign), &signPolicy)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	return localSigner, sign, nil

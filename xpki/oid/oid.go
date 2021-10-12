@@ -5,10 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
-
-const algNotFoundFmt = "algorithm %s"
 
 // AlgType specifies OID algorithm type
 type AlgType int

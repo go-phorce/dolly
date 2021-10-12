@@ -13,7 +13,7 @@ import (
 
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/go-phorce/dolly/xpki/gpg"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/openpgp/packet"
 )
 
@@ -27,28 +27,28 @@ func (c *Crypto) LoadGPGPrivateKey(creationTime time.Time, key []byte) (*packet.
 	if strings.HasPrefix(keyPem, "pkcs11") {
 		pkuri, err := ParsePrivateKeyURI(keyPem)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 
 		provider, err := c.ByManufacturer(pkuri.Manufacturer())
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 
 		s, err := provider.GetKey(pkuri.ID())
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 
 		pk, err = gpg.ConvertToPacketPrivateKey(creationTime, s)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 
 	} else {
 		pk, err = gpg.ConvertPemToPgpPrivateKey(creationTime, key)
 		if err != nil {
-			return nil, errors.Annotatef(err, "convert PEM key to PGP format: %v", key)
+			return nil, errors.WithMessagef(err, "convert PEM key to PGP format: %v", key)
 		}
 	}
 	return pk, nil
@@ -65,22 +65,22 @@ func (c *Crypto) LoadPrivateKey(key []byte) (Provider, crypto.PrivateKey, error)
 	if strings.HasPrefix(keyPem, "pkcs11") {
 		pkuri, err := ParsePrivateKeyURI(keyPem)
 		if err != nil {
-			return nil, nil, errors.Trace(err)
+			return nil, nil, errors.WithStack(err)
 		}
 
 		provider, err = c.ByManufacturer(pkuri.Manufacturer())
 		if err != nil {
-			return nil, nil, errors.Trace(err)
+			return nil, nil, errors.WithStack(err)
 		}
 
 		pvk, err = provider.GetKey(pkuri.ID())
 		if err != nil {
-			return nil, nil, errors.Trace(err)
+			return nil, nil, errors.WithStack(err)
 		}
 	} else {
 		pvk, err = ParsePrivateKeyPEM(key)
 		if err != nil {
-			return nil, nil, errors.Trace(err)
+			return nil, nil, errors.WithStack(err)
 		}
 	}
 
@@ -184,12 +184,12 @@ func (c *Crypto) TLSKeyPair(certPEMBlock, keyPEMBlock []byte) (*tls.Certificate,
 	// to check that it looks sane and matches the private key.
 	cert.Leaf, err = x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	_, cert.PrivateKey, err = c.LoadPrivateKey(keyPEMBlock)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return cert, nil
