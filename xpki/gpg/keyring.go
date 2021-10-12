@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 
 	"github.com/go-phorce/dolly/xpki/armor"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/openpgp"
 )
 
@@ -25,7 +25,7 @@ func KeyRing(data []byte) (openpgp.EntityList, error) {
 			// extract keys
 			el, err := openpgp.ReadKeyRing(bytes.NewReader(block.Bytes))
 			if err != nil {
-				return nil, errors.Trace(err)
+				return nil, errors.WithStack(err)
 			}
 			// append keyring
 			keyring = append(keyring, el...)
@@ -44,12 +44,12 @@ func KeyRing(data []byte) (openpgp.EntityList, error) {
 func KeyRingFromFile(path string) (openpgp.EntityList, error) {
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	k, err := KeyRing(data)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return k, nil
@@ -65,7 +65,7 @@ func KeyRingFromFiles(files []string) (openpgp.EntityList, error) {
 		// read keyring in file
 		el, err := KeyRingFromFile(path)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 
 		// append keyring

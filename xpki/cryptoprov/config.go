@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-phorce/dolly/fileutil/resolve"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // TokenConfig holds PKCS#11 configuration information.
@@ -91,13 +91,13 @@ func (c *tokenConfig) Attributes() string {
 func LoadTokenConfig(filename string) (TokenConfig, error) {
 	cfr, err := os.Open(filename)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	defer cfr.Close()
 	tokenConfig := new(tokenConfig)
 	err = json.NewDecoder(cfr).Decode(tokenConfig)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to decode file: %s", filename)
+		return nil, errors.WithMessagef(err, "failed to decode file: %s", filename)
 	}
 
 	pin := tokenConfig.Pin()
@@ -122,7 +122,7 @@ func LoadTokenConfig(filename string) (TokenConfig, error) {
 
 		pb, err := ioutil.ReadFile(pinfile)
 		if err != nil {
-			return nil, errors.Annotatef(err, "unable to load PIN for configuration: %s", filename)
+			return nil, errors.WithMessagef(err, "unable to load PIN for configuration: %s", filename)
 		}
 		tokenConfig.Pwd = string(pb)
 	}

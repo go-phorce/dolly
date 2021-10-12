@@ -18,7 +18,7 @@ import (
 	"github.com/go-phorce/dolly/algorithms/slices"
 	"github.com/go-phorce/dolly/xhttp/httperror"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xhttp", "retriable")
@@ -354,7 +354,7 @@ func (c *Client) Request(ctx context.Context, method string, hosts []string, pat
 		case io.Reader:
 			b, err := ioutil.ReadAll(val)
 			if err != nil {
-				return nil, 0, errors.Trace(err)
+				return nil, 0, errors.WithStack(err)
 			}
 			body = bytes.NewReader(b)
 		case []byte:
@@ -364,14 +364,14 @@ func (c *Client) Request(ctx context.Context, method string, hosts []string, pat
 		default:
 			js, err := json.Marshal(requestBody)
 			if err != nil {
-				return nil, 0, errors.Trace(err)
+				return nil, 0, errors.WithStack(err)
 			}
 			body = bytes.NewReader(js)
 		}
 	}
 	resp, err := c.executeRequest(ctx, method, hosts, path, body)
 	if err != nil {
-		return nil, 0, errors.Trace(err)
+		return nil, 0, errors.WithStack(err)
 	}
 	defer resp.Body.Close()
 
@@ -386,7 +386,7 @@ func (c *Client) Request(ctx context.Context, method string, hosts []string, pat
 func (c *Client) Head(ctx context.Context, hosts []string, path string) (http.Header, int, error) {
 	resp, err := c.executeRequest(ctx, http.MethodHead, hosts, path, nil)
 	if err != nil {
-		return nil, 0, errors.Trace(err)
+		return nil, 0, errors.WithStack(err)
 	}
 	defer resp.Body.Close()
 	return resp.Header, resp.StatusCode, nil
@@ -419,8 +419,8 @@ func (c *Client) executeRequest(ctx context.Context, httpMethod string, hosts []
 	for i, host := range hosts {
 		resp, err = c.doHTTP(ctx, httpMethod, host, path, body)
 		if err != nil {
-			logger.Errorf("httpMethod=%q, host=%q, path=%q, err=[%v]",
-				httpMethod, host, path, errors.ErrorStack(err))
+			logger.Errorf("httpMethod=%q, host=%q, path=%q, err=[%+v]",
+				httpMethod, host, path, err)
 		} else {
 			logger.Infof("httpMethod=%q, host=%q, path=%q, status=%v",
 				httpMethod, host, path, resp.StatusCode)
@@ -466,7 +466,7 @@ func (c *Client) doHTTP(ctx context.Context, httpMethod string, host string, pat
 
 	req, err := http.NewRequest(httpMethod, uri, body)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	req = req.WithContext(ctx)
@@ -501,7 +501,7 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 
 	req, err := convertRequest(r)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	for retries = 0; ; retries++ {
@@ -509,7 +509,7 @@ func (c *Client) Do(r *http.Request) (*http.Response, error) {
 		if req.body != nil {
 			body, err := req.body()
 			if err != nil {
-				return resp, errors.Trace(err)
+				return resp, errors.WithStack(err)
 			}
 			if c, ok := body.(io.ReadCloser); ok {
 				req.Request.Body = c
@@ -621,11 +621,11 @@ func (c *Client) DecodeResponse(resp *http.Response, body interface{}) (http.Hea
 	case io.Writer:
 		_, err := io.Copy(body.(io.Writer), resp.Body)
 		if err != nil {
-			return resp.Header, resp.StatusCode, errors.Annotatef(err, "unable to read body response to (%T) type", body)
+			return resp.Header, resp.StatusCode, errors.WithMessagef(err, "unable to read body response to (%T) type", body)
 		}
 	default:
 		if err := json.NewDecoder(resp.Body).Decode(body); err != nil {
-			return resp.Header, resp.StatusCode, errors.Annotatef(err, "unable to decode body response to (%T) type", body)
+			return resp.Header, resp.StatusCode, errors.WithMessagef(err, "unable to decode body response to (%T) type", body)
 		}
 	}
 

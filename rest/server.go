@@ -22,7 +22,7 @@ import (
 	"github.com/go-phorce/dolly/xhttp/identity"
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest")
@@ -139,7 +139,7 @@ func New(
 		ipaddr, err = netutil.GetLocalIP()
 		if err != nil {
 			ipaddr = "127.0.0.1"
-			logger.Errorf("reason=unable_determine_ipaddr, use=%q, err=[%v]", ipaddr, errors.ErrorStack(err))
+			logger.Errorf("reason=unable_determine_ipaddr, use=%q, err=[%+v]", ipaddr, err)
 		}
 	}
 
@@ -330,7 +330,7 @@ func (server *HTTPServer) StartHTTP() error {
 
 	// Main server
 	if _, err = net.ResolveTCPAddr("tcp", bindAddr); err != nil {
-		return errors.Annotatef(err, "reason=ResolveTCPAddr, service=%s, bind=%q",
+		return errors.WithMessagef(err, "reason=ResolveTCPAddr, service=%s, bind=%q",
 			server.Name(), bindAddr)
 	}
 
@@ -345,7 +345,7 @@ func (server *HTTPServer) StartHTTP() error {
 		// Start listening on main server over TLS
 		httpsListener, err = tls.Listen("tcp", bindAddr, server.tlsConfig)
 		if err != nil {
-			return errors.Annotatef(err, "reason=unable_listen, service=%s, address=%q",
+			return errors.WithMessagef(err, "reason=unable_listen, service=%s, address=%q",
 				server.Name(), bindAddr)
 		}
 
@@ -358,7 +358,7 @@ func (server *HTTPServer) StartHTTP() error {
 
 	if server.httpConfig.GetAllowProfiling() {
 		if httpHandler, err = xhttp.NewRequestProfiler(httpHandler, server.httpConfig.GetProfilerDir(), nil, xhttp.LogProfile()); err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 
@@ -386,7 +386,7 @@ func (server *HTTPServer) StartHTTP() error {
 			//panic, only if not Serve error while stopping the server,
 			// which is a valid error
 			if netutil.IsAddrInUse(err) || err != http.ErrServerClosed {
-				logger.Panicf("service=%s, err=[%v]", server.Name(), errors.Trace(err))
+				logger.Panicf("service=%s, err=[%v]", server.Name(), errors.WithStack(err))
 			}
 			logger.Warningf("service=%s, status=stopped, reason=[%s]", server.Name(), err.Error())
 		}
@@ -442,7 +442,7 @@ func (server *HTTPServer) StopHTTP() {
 	defer cancel()
 	err := server.httpServer.Shutdown(ctx)
 	if err != nil {
-		logger.Errorf("reason=Shutdown, err=[%v]", errors.ErrorStack(err))
+		logger.Errorf("reason=Shutdown, err=[%+v]", err)
 	}
 
 	for _, handler := range server.evtHandlers[ServerStoppedEvent] {
@@ -487,7 +487,7 @@ func (server *HTTPServer) NewMux() http.Handler {
 	if server.authz != nil {
 		httpHandler, err = server.authz.NewHandler(httpHandler)
 		if err != nil {
-			panic(errors.ErrorStack(err))
+			panic(fmt.Sprintf("%+v", err))
 		}
 	}
 

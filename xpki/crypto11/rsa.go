@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"unsafe"
 
-	"github.com/juju/errors"
 	pkcs11 "github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 // PKCS11PrivateKeyRSA contains a reference to a loaded PKCS#11 RSA private key object.
@@ -26,17 +26,17 @@ func (lib *PKCS11Lib) exportRSAPublicKey(session pkcs11.SessionHandle, pubHandle
 	}
 	exported, err := lib.Ctx.GetAttributeValue(session, pubHandle, template)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	var modulus = new(big.Int)
 	modulus.SetBytes(exported[0].Value)
 	var bigExponent = new(big.Int)
 	bigExponent.SetBytes(exported[1].Value)
 	if bigExponent.BitLen() > 32 {
-		return nil, errors.Trace(errMalformedRSAKey)
+		return nil, errors.WithStack(errMalformedRSAKey)
 	}
 	if bigExponent.Sign() < 1 {
-		return nil, errors.Trace(errMalformedRSAKey)
+		return nil, errors.WithStack(errMalformedRSAKey)
 	}
 	exponent := int(bigExponent.Uint64())
 	result := rsa.PublicKey{
@@ -44,7 +44,7 @@ func (lib *PKCS11Lib) exportRSAPublicKey(session pkcs11.SessionHandle, pubHandle
 		E: exponent,
 	}
 	if result.E < 2 {
-		return nil, errors.Trace(errMalformedRSAKey)
+		return nil, errors.WithStack(errMalformedRSAKey)
 	}
 	return &result, nil
 }
@@ -76,11 +76,11 @@ func (lib *PKCS11Lib) GenerateRSAKeyPairOnSlot(slot uint, id []byte, label []byt
 	var k *PKCS11PrivateKeyRSA
 	var err error
 	if err = lib.setupSessions(slot, 0); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	err = lib.withSession(slot, func(session pkcs11.SessionHandle) error {
 		k, err = lib.GenerateRSAKeyPairOnSession(session, slot, id, label, bits, purpose)
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	})
 	return k, err
 }
@@ -103,12 +103,12 @@ func (lib *PKCS11Lib) GenerateRSAKeyPairOnSession(
 
 	if label == nil || len(label) == 0 {
 		if label, err = lib.generateKeyLabel(); err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 	if id == nil || len(id) == 0 {
 		if id, err = lib.generateKeyID(); err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 
@@ -148,12 +148,12 @@ func (lib *PKCS11Lib) GenerateRSAKeyPairOnSession(
 		publicKeyTemplate,
 		privateKeyTemplate)
 	if err != nil {
-		logger.Errorf("reason=GenerateKeyPair, pubHandle=%v, privHandle=%v, err=[%v]", pubHandle, privHandle, errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		logger.Errorf("reason=GenerateKeyPair, pubHandle=%v, privHandle=%v, err=[%+v]", pubHandle, privHandle, err)
+		return nil, errors.WithStack(err)
 	}
 	if pub, err = lib.exportRSAPublicKey(session, pubHandle); err != nil {
-		logger.Errorf("reason=exportRSAPublicKey, err=[%v]", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		logger.Errorf("reason=exportRSAPublicKey, err=[%+v]", err)
+		return nil, errors.WithStack(err)
 	}
 	priv := PKCS11PrivateKeyRSA{
 		key: &PKCS11PrivateKey{PKCS11Object{privHandle, slot}, pub},
@@ -192,11 +192,11 @@ func (priv *PKCS11PrivateKeyRSA) Decrypt(rand io.Reader, ciphertext []byte, opti
 
 func (lib *PKCS11Lib) decryptPKCS1v15(session pkcs11.SessionHandle, priv *PKCS11PrivateKeyRSA, ciphertext []byte, sessionKeyLen int) ([]byte, error) {
 	if sessionKeyLen != 0 {
-		return nil, errors.Trace(errUnsupportedRSAOptions)
+		return nil, errors.WithStack(errUnsupportedRSAOptions)
 	}
 	mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS, nil)}
 	if err := lib.Ctx.DecryptInit(session, mech, priv.key.Handle); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return lib.Ctx.Decrypt(session, ciphertext)
 }
@@ -205,7 +205,7 @@ func (lib *PKCS11Lib) decryptOAEP(session pkcs11.SessionHandle, priv *PKCS11Priv
 	var err error
 	var hMech, mgf, sourceData, sourceDataLen uint
 	if hMech, mgf, _, err = hashToPKCS11(hashFunction); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	if label != nil && len(label) > 0 {
 		sourceData = uint(uintptr(unsafe.Pointer(&label[0])))
@@ -218,7 +218,7 @@ func (lib *PKCS11Lib) decryptOAEP(session pkcs11.SessionHandle, priv *PKCS11Priv
 		UlongToBytes(sourceDataLen))
 	mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_OAEP, parameters)}
 	if err = lib.Ctx.DecryptInit(session, mech, priv.key.Handle); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return lib.Ctx.Decrypt(session, ciphertext)
 }
@@ -236,7 +236,7 @@ func hashToPKCS11(hashFunction crypto.Hash) (uint, uint, uint, error) {
 	case crypto.SHA512:
 		return pkcs11.CKM_SHA512, pkcs11.CKG_MGF1_SHA512, 64, nil
 	default:
-		return 0, 0, 0, errors.Trace(errUnsupportedRSAOptions)
+		return 0, 0, 0, errors.WithStack(errUnsupportedRSAOptions)
 	}
 }
 
@@ -246,14 +246,14 @@ func (lib *PKCS11Lib) signPSS(session pkcs11.SessionHandle, priv *PKCS11PrivateK
 	var hMech, mgf, hLen, sLen uint
 	var err error
 	if hMech, mgf, hLen, err = hashToPKCS11(opts.Hash); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	switch opts.SaltLength {
 	case rsa.PSSSaltLengthAuto: // parseltongue constant
 		// TODO we could (in principle) work out the biggest
 		// possible size from the key, but until someone has
 		// the effort to do that...
-		return nil, errors.Trace(errUnsupportedRSAOptions)
+		return nil, errors.WithStack(errUnsupportedRSAOptions)
 	case rsa.PSSSaltLengthEqualsHash:
 		sLen = hLen
 	default:
@@ -266,7 +266,7 @@ func (lib *PKCS11Lib) signPSS(session pkcs11.SessionHandle, priv *PKCS11PrivateK
 		UlongToBytes(sLen))
 	mech := []*pkcs11.Mechanism{pkcs11.NewMechanism(pkcs11.CKM_RSA_PKCS_PSS, parameters)}
 	if err = lib.Ctx.SignInit(session, mech, priv.key.Handle); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return lib.Ctx.Sign(session, digest)
 }
@@ -291,7 +291,7 @@ func (lib *PKCS11Lib) signPKCS1v15(session pkcs11.SessionHandle, priv *PKCS11Pri
 	if err == nil {
 		signature, err = lib.Ctx.Sign(session, T)
 		if err != nil {
-			err = errors.Trace(err)
+			err = errors.WithStack(err)
 			logger.Tracef("session=0x%X, obj=0x%X, err=%v", session, priv.key.Handle, err)
 		}
 	}

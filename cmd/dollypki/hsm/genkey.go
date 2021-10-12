@@ -12,7 +12,7 @@ import (
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xpki/csrprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // GenKeyFlags specifies flags for GenKey command
@@ -86,17 +86,17 @@ func GenKey(c ctl.Control, p interface{}) error {
 	req := csr.NewKeyRequest(prefixKeyLabel(*flags.Label), *flags.Algo, *flags.Size, purpose)
 	prv, err := req.Generate()
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	keyID, _, err := crypto.IdentifyKey(prv)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	uri, key, err := crypto.ExportKey(keyID)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	if key == nil {
@@ -108,7 +108,7 @@ func GenKey(c ctl.Control, p interface{}) error {
 	} else {
 		err = cli.WriteFile(*flags.Output, key, 0600)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 

@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // Wrap time.Tick so we can override it in tests.
@@ -60,7 +60,7 @@ func NewKeypairReloaderWithLabel(label, certPath, keyPath string, checkInterval 
 
 	err := result.Reload()
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	stopChan := make(chan struct{})
@@ -92,7 +92,7 @@ func NewKeypairReloaderWithLabel(label, certPath, keyPath string, checkInterval 
 				if modified || result.loadedAt.Add(1*time.Hour).Before(time.Now().UTC()) {
 					err := result.Reload()
 					if err != nil {
-						logger.Errorf("label=%s, err=[%v]", result.label, errors.ErrorStack(err))
+						logger.Errorf("label=%s, err=[%+v]", result.label, err)
 					}
 				}
 			}
@@ -145,7 +145,7 @@ func (k *KeypairReloader) Reload() error {
 		logger.Warningf("reason=LoadX509KeyPair, label=%s, file=%q, err=[%v]", k.label, k.certPath, err)
 	}
 	if err != nil {
-		return errors.Annotatef(err, "count: %d", k.count)
+		return errors.WithMessagef(err, "count: %d", k.count)
 	}
 
 	atomic.AddUint32(&k.count, 1)

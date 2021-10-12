@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // InmemSink provides a MetricSink that does in-memory aggregation
@@ -131,12 +131,12 @@ func NewInmemSinkFromURL(u *url.URL) (Sink, error) {
 
 	interval, err := time.ParseDuration(params.Get("interval"))
 	if err != nil {
-		return nil, errors.Annotate(err, "bad 'interval' param")
+		return nil, errors.WithMessage(err, "bad 'interval' param")
 	}
 
 	retain, err := time.ParseDuration(params.Get("retain"))
 	if err != nil {
-		return nil, errors.Annotate(err, "bad 'retain' param")
+		return nil, errors.WithMessage(err, "bad 'retain' param")
 	}
 
 	return NewInmemSink(interval, retain), nil

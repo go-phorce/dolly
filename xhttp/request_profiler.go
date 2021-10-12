@@ -8,7 +8,7 @@ import (
 	"runtime/pprof"
 	"sync"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // ProfileType indicates the type of profile created
@@ -69,11 +69,11 @@ func NewRequestProfiler(delegate h.Handler, dir string, allow AllowProfiling, cr
 	if dir == "" {
 		dir, err = ioutil.TempDir("", "request_profiler")
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	} else {
 		if err := os.MkdirAll(dir, 0600); err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 	if allow == nil {

@@ -7,8 +7,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-
-	"github.com/juju/errors"
 )
 
 const (
@@ -115,7 +113,7 @@ CONNECT:
 	// Attempt to connect
 	sock, err = net.Dial("udp", s.addr)
 	if err != nil {
-		logger.Errorf("reason=connecting, err=[%v]", errors.ErrorStack(err))
+		logger.Errorf("reason=connecting, err=[%+v]", err)
 		goto WAIT
 	}
 
@@ -132,7 +130,7 @@ CONNECT:
 				_, err := sock.Write(buf.Bytes())
 				buf.Reset()
 				if err != nil {
-					logger.Errorf("reason=writing, err=[%v]", errors.ErrorStack(err))
+					logger.Errorf("reason=writing, err=[%+v]", err)
 					goto WAIT
 				}
 			}
@@ -148,7 +146,7 @@ CONNECT:
 			_, err := sock.Write(buf.Bytes())
 			buf.Reset()
 			if err != nil {
-				logger.Errorf("reason=flushing, err=[%v]", errors.ErrorStack(err))
+				logger.Errorf("reason=flushing, err=[%+v]", err)
 				goto WAIT
 			}
 		}

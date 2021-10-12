@@ -10,7 +10,6 @@ import (
 	"encoding/asn1"
 	"testing"
 
-	"github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -44,11 +43,11 @@ func Test_SignatureAlgorithmInfo(t *testing.T) {
 func Test_SignatureAlgorithmByName(t *testing.T) {
 	s, err := SignatureAlgorithmByName(RSAWithSHA1.Name())
 	require.NoError(t, err)
-	assert.Equal(t, s, RSAWithSHA1)
+	assert.Equal(t, RSAWithSHA1, *s)
 
-	s, err = SignatureAlgorithmByName("invalid")
+	_, err = SignatureAlgorithmByName("invalid")
 	assert.Error(t, err)
-	assert.True(t, errors.IsNotFound(err))
+	assert.Contains(t, err.Error(), "not found")
 }
 
 func Test_SignatureAlgorithmByKey(t *testing.T) {

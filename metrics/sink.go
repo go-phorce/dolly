@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // Tag is used to add dimentions to metrics

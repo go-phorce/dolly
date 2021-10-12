@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest/tls")
@@ -23,7 +23,7 @@ var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest/tls")
 func NewServerTLSFromFiles(certFile, keyFile, rootsFile string, clientauthType tls.ClientAuthType) (*tls.Config, error) {
 	tlscert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	var roots *x509.CertPool
@@ -31,7 +31,7 @@ func NewServerTLSFromFiles(certFile, keyFile, rootsFile string, clientauthType t
 	if rootsFile != "" {
 		rootsBytes, err := ioutil.ReadFile(rootsFile)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 
 		roots = x509.NewCertPool()
@@ -60,7 +60,7 @@ func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, er
 	if rootsFile != "" {
 		rootsBytes, err := ioutil.ReadFile(rootsFile)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 
 		roots = x509.NewCertPool()
@@ -78,7 +78,7 @@ func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, er
 	if certFile != "" {
 		tlscert, err := tls.LoadX509KeyPair(certFile, keyFile)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		if tlscert.Leaf == nil && len(tlscert.Certificate) > 0 {
 			tlscert.Leaf, err = x509.ParseCertificate(tlscert.Certificate[0])
@@ -97,12 +97,12 @@ func NewClientTLSFromFiles(certFile, keyFile, rootsFile string) (*tls.Config, er
 func NewClientTLSWithReloader(certFile, keyFile, rootsFile string, checkInterval time.Duration) (*tls.Config, *KeypairReloader, error) {
 	tlsCfg, err := NewClientTLSFromFiles(certFile, keyFile, rootsFile)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	tlsloader, err := NewKeypairReloader(certFile, keyFile, checkInterval)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 	tlsCfg.GetClientCertificate = tlsloader.GetClientCertificateFunc()
 
@@ -123,12 +123,12 @@ func NewHTTPTransportWithReloader(
 
 	tlsCfg, err := NewClientTLSFromFiles(certFile, keyFile, rootsFile)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	tlsloader, err := NewKeypairReloader(certFile, keyFile, checkInterval)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	tripper := &HTTPTransport{

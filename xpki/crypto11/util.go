@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juju/errors"
 	"github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 // CurrentSlotID returns current slot ID
@@ -30,12 +30,12 @@ func (p11lib *PKCS11Lib) EnumTokens(currentSlotOnly bool, slotInfoFunc func(slot
 
 	list, err := p11lib.TokensInfo()
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 	for _, ti := range list {
 		err = slotInfoFunc(ti.id, ti.description, ti.label, ti.manufacturer, ti.model, ti.serial)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 	return nil
@@ -46,7 +46,7 @@ func (p11lib *PKCS11Lib) TokensInfo() ([]*SlotTokenInfo, error) {
 	list := []*SlotTokenInfo{}
 	slots, err := p11lib.Ctx.GetSlotList(true)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	logger.Tracef("slots=%d", len(slots))
@@ -54,16 +54,16 @@ func (p11lib *PKCS11Lib) TokensInfo() ([]*SlotTokenInfo, error) {
 	for _, slotID := range slots {
 		si, err := p11lib.Ctx.GetSlotInfo(slotID)
 		if err != nil {
-			return nil, errors.Annotatef(err, "GetSlotInfo: %d", slotID)
+			return nil, errors.WithMessagef(err, "GetSlotInfo: %d", slotID)
 		}
 		ti, err := p11lib.Ctx.GetTokenInfo(slotID)
 		if err != nil {
 			logger.Errorf(
-				"reason=GetTokenInfo, slotID=%d, ManufacturerID=%q, SlotDescription=%q, err=[%v]",
+				"reason=GetTokenInfo, slotID=%d, ManufacturerID=%q, SlotDescription=%q, err=[%+v]",
 				slotID,
 				si.ManufacturerID,
 				si.SlotDescription,
-				errors.ErrorStack(err),
+				err,
 			)
 		} else if ti.SerialNumber != "" || ti.Label != "" {
 			list = append(list, &SlotTokenInfo{
@@ -85,13 +85,13 @@ func (p11lib *PKCS11Lib) TokensInfo() ([]*SlotTokenInfo, error) {
 func (p11lib *PKCS11Lib) EnumKeys(slotID uint, prefix string, keyInfoFunc func(id, label, typ, class, currentVersionID string, creationTime *time.Time) error) error {
 	sh, err := p11lib.Ctx.OpenSession(slotID, pkcs11.CKF_SERIAL_SESSION)
 	if err != nil {
-		return errors.Annotatef(err, "OpenSession on slot %d", slotID)
+		return errors.WithMessagef(err, "OpenSession on slot %d", slotID)
 	}
 	defer p11lib.Ctx.CloseSession(sh)
 
 	keys, err := p11lib.ListKeys(sh, pkcs11.CKO_PRIVATE_KEY, ^uint(0))
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	for _, obj := range keys {
@@ -102,7 +102,7 @@ func (p11lib *PKCS11Lib) EnumKeys(slotID uint, prefix string, keyInfoFunc func(i
 			pkcs11.NewAttribute(pkcs11.CKA_CLASS, 0),
 		}
 		if attributes, err = p11lib.Ctx.GetAttributeValue(sh, obj, attributes); err != nil {
-			return errors.Annotatef(err, "GetAttributeValue on key")
+			return errors.WithMessagef(err, "GetAttributeValue on key")
 		}
 
 		keyLabel := string(attributes[1].Value)
@@ -119,7 +119,7 @@ func (p11lib *PKCS11Lib) EnumKeys(slotID uint, prefix string, keyInfoFunc func(i
 			nil,
 		)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 
@@ -131,7 +131,7 @@ func (p11lib *PKCS11Lib) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 	var err error
 	session, err := p11lib.Ctx.OpenSession(slotID, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
-		return errors.Annotatef(err, "OpenSession on slot %d", slotID)
+		return errors.WithMessagef(err, "OpenSession on slot %d", slotID)
 	}
 	defer p11lib.Ctx.CloseSession(session)
 
@@ -141,16 +141,16 @@ func (p11lib *PKCS11Lib) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 
 	var privHandle, pubHandle pkcs11.ObjectHandle
 	if privHandle, err = p11lib.findKey(session, keyID, "", pkcs11.CKO_PRIVATE_KEY, ^uint(0)); err != nil {
-		logger.Warningf("reason=not_found, type=CKO_PRIVATE_KEY, err=[%v]", errors.ErrorStack(err))
+		logger.Warningf("reason=not_found, type=CKO_PRIVATE_KEY, err=[%+v]", err)
 	}
 	if pubHandle, err = p11lib.findKey(session, keyID, "", pkcs11.CKO_PUBLIC_KEY, ^uint(0)); err != nil {
-		logger.Warningf("reason=not_found, type=CKO_PUBLIC_KEY, err=[%v]", errors.ErrorStack(err))
+		logger.Warningf("reason=not_found, type=CKO_PUBLIC_KEY, err=[%+v]", err)
 	}
 
 	if privHandle != 0 {
 		err = p11lib.Ctx.DestroyObject(session, privHandle)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 		logger.Infof("type=CKO_PRIVATE_KEY, slot=0x%X, id=%q", slotID, keyID)
 	}
@@ -158,7 +158,7 @@ func (p11lib *PKCS11Lib) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 	if pubHandle != 0 {
 		err = p11lib.Ctx.DestroyObject(session, pubHandle)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 		logger.Infof("type=CKO_PUBLIC_KEY, slot=0x%X, id=%q", slotID, string(id))
 	}
@@ -171,7 +171,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 	var err error
 	session, err := p11lib.Ctx.OpenSession(slotID, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
-		return errors.Annotatef(err, "OpenSession on slot %d", slotID)
+		return errors.WithMessagef(err, "OpenSession on slot %d", slotID)
 	}
 	defer p11lib.Ctx.CloseSession(session)
 
@@ -179,7 +179,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 
 	var privHandle pkcs11.ObjectHandle
 	if privHandle, err = p11lib.findKey(session, keyID, "", pkcs11.CKO_PRIVATE_KEY, ^uint(0)); err != nil {
-		logger.Warningf("reason=not_found, type=CKO_PRIVATE_KEY, err=[%v]", errors.ErrorStack(err))
+		logger.Warningf("reason=not_found, type=CKO_PRIVATE_KEY, err=[%+v]", err)
 	}
 
 	attributes := []*pkcs11.Attribute{
@@ -189,7 +189,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 		pkcs11.NewAttribute(pkcs11.CKA_CLASS, 0),
 	}
 	if attributes, err = p11lib.Ctx.GetAttributeValue(session, privHandle, attributes); err != nil {
-		return errors.Annotatef(err, "GetAttributeValue on key")
+		return errors.WithMessagef(err, "GetAttributeValue on key")
 	}
 
 	keyLabel := string(attributes[1].Value)
@@ -199,7 +199,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 	if includePublic {
 		pubKey, err = p11lib.getPublicKeyPEM(slotID, keyID)
 		if err != nil {
-			return errors.Annotatef(err, "reason='failed on GetPublicKey', slotID=%d, keyID=%q", slotID, keyID)
+			return errors.WithMessagef(err, "reason='failed on GetPublicKey', slotID=%d, keyID=%q", slotID, keyID)
 		}
 	}
 
@@ -213,7 +213,7 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 		nil,
 	)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	return nil
@@ -223,18 +223,18 @@ func (p11lib *PKCS11Lib) KeyInfo(slotID uint, keyID string, includePublic bool, 
 func (p11lib *PKCS11Lib) getPublicKeyPEM(slotID uint, keyID string) (string, error) {
 	priv, err := p11lib.FindKeyPairOnSlot(slotID, keyID, "")
 	if err != nil {
-		return "", errors.Annotatef(err, "reason=FindKeyPairOnSlot, slotID=%d, uriID=%s",
+		return "", errors.WithMessagef(err, "reason=FindKeyPairOnSlot, slotID=%d, uriID=%s",
 			slotID, keyID)
 	}
 
 	pub, err := ConvertToPublic(priv)
 	if err != nil {
-		return "", errors.Trace(err)
+		return "", errors.WithStack(err)
 	}
 
 	pemKey, err := EncodePublicKeyToPEM(pub)
 	if err != nil {
-		return "", errors.Trace(err)
+		return "", errors.WithStack(err)
 	}
 
 	return string(pemKey), nil
@@ -244,7 +244,7 @@ func (p11lib *PKCS11Lib) getPublicKeyPEM(slotID uint, keyID string) (string, err
 func EncodePublicKeyToPEM(pubKey crypto.PublicKey) (asn1Bytes []byte, err error) {
 	asn1Bytes, err = x509.MarshalPKIXPublicKey(pubKey)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	var pemkey = &pem.Block{
@@ -256,7 +256,7 @@ func EncodePublicKeyToPEM(pubKey crypto.PublicKey) (asn1Bytes []byte, err error)
 
 	err = pem.Encode(b, pemkey)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return b.Bytes(), nil
 }

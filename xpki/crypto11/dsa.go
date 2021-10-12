@@ -6,8 +6,8 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/juju/errors"
 	pkcs11 "github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 // PKCS11PrivateKeyDSA contains a reference to a loaded PKCS#11 DSA private key object.
@@ -26,7 +26,7 @@ func (lib *PKCS11Lib) exportDSAPublicKey(session pkcs11.SessionHandle, pubHandle
 	}
 	exported, err := lib.Ctx.GetAttributeValue(session, pubHandle, template)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	var p, q, g, x big.Int
 	p.SetBytes(exported[0].Value)
@@ -54,7 +54,7 @@ func (lib *PKCS11Lib) GenerateDSAKeyPairOnSlot(slot uint, id []byte, label []byt
 	var k *PKCS11PrivateKeyDSA
 	var err error
 	if err = lib.setupSessions(slot, 0); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	err = lib.withSession(slot, func(session pkcs11.SessionHandle) error {
 		k, err = lib.GenerateDSAKeyPairOnSession(session, slot, id, label, params)
@@ -72,12 +72,12 @@ func (lib *PKCS11Lib) GenerateDSAKeyPairOnSession(session pkcs11.SessionHandle, 
 
 	if label == nil {
 		if label, err = lib.generateKeyLabel(); err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 	if id == nil {
 		if id, err = lib.generateKeyID(); err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 	p := params.P.Bytes()
@@ -108,10 +108,10 @@ func (lib *PKCS11Lib) GenerateDSAKeyPairOnSession(session pkcs11.SessionHandle, 
 		publicKeyTemplate,
 		privateKeyTemplate)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	if pub, err = lib.exportDSAPublicKey(session, pubHandle); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	priv := PKCS11PrivateKeyDSA{
 		key: &PKCS11PrivateKey{PKCS11Object{privHandle, slot}, pub},

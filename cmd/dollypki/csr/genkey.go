@@ -7,7 +7,7 @@ import (
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xpki/csrprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // GenKeyFlags specifies flags for GenKey command
@@ -56,7 +56,7 @@ func GenKey(c ctl.Control, p interface{}) error {
 
 	csrf, err := cli.ReadStdin(*flags.CsrProfile)
 	if err != nil {
-		return errors.Annotate(err, "read CSR profile")
+		return errors.WithMessage(err, "read CSR profile")
 	}
 
 	req := csrprov.CertificateRequest{
@@ -66,14 +66,14 @@ func GenKey(c ctl.Control, p interface{}) error {
 
 	err = json.Unmarshal(csrf, &req)
 	if err != nil {
-		return errors.Annotate(err, "invalid CSR")
+		return errors.WithMessage(err, "invalid CSR")
 	}
 
 	if *flags.Initca {
 		var key, csrPEM, cert []byte
 		cert, csrPEM, key, err = prov.NewRoot(&req)
 		if err != nil {
-			return errors.Annotate(err, "init CA")
+			return errors.WithMessage(err, "init CA")
 		}
 
 		if *flags.Output == "" {
@@ -83,15 +83,15 @@ func GenKey(c ctl.Control, p interface{}) error {
 
 			err = cli.WriteFile(baseName+".pem", cert, 0664)
 			if err != nil {
-				return errors.Trace(err)
+				return errors.WithStack(err)
 			}
 			err = cli.WriteFile(baseName+".csr", csrPEM, 0664)
 			if err != nil {
-				return errors.Trace(err)
+				return errors.WithStack(err)
 			}
 			err = cli.WriteFile(baseName+"-key.pem", key, 0600)
 			if err != nil {
-				return errors.Trace(err)
+				return errors.WithStack(err)
 			}
 		}
 	} else {
@@ -103,7 +103,7 @@ func GenKey(c ctl.Control, p interface{}) error {
 		csrPEM, key, _, _, err = prov.ProcessCsrRequest(&req)
 		if err != nil {
 			key = nil
-			return errors.Annotate(err, "ProcessCsrRequest")
+			return errors.WithMessage(err, "ProcessCsrRequest")
 		}
 
 		if *flags.Output == "" {
@@ -113,11 +113,11 @@ func GenKey(c ctl.Control, p interface{}) error {
 
 			err = cli.WriteFile(baseName+".csr", csrPEM, 0664)
 			if err != nil {
-				return errors.Trace(err)
+				return errors.WithStack(err)
 			}
 			err = cli.WriteFile(baseName+"-key.pem", key, 0600)
 			if err != nil {
-				return errors.Trace(err)
+				return errors.WithStack(err)
 			}
 		}
 	}

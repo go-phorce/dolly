@@ -3,7 +3,7 @@ package fileutil
 import (
 	"os"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // FolderExists ensures that folder exists
@@ -14,7 +14,7 @@ func FolderExists(dir string) error {
 
 	stat, err := os.Stat(dir)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	if !stat.IsDir() {
@@ -32,7 +32,7 @@ func FileExists(file string) error {
 
 	stat, err := os.Stat(file)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	if stat.IsDir() {

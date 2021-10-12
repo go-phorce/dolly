@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // Signer interface to sign CSR
@@ -185,12 +185,12 @@ func appendIf(s string, a *[]string) {
 func Parse(csrBytes []byte) (*x509.Certificate, error) {
 	csrv, err := x509.ParseCertificateRequest(csrBytes)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to parse")
+		return nil, errors.WithMessagef(err, "failed to parse")
 	}
 
 	err = csrv.CheckSignature()
 	if err != nil {
-		return nil, errors.Annotatef(err, "key mismatch")
+		return nil, errors.WithMessagef(err, "key mismatch")
 	}
 
 	template := &x509.Certificate{
@@ -211,7 +211,7 @@ func Parse(csrBytes []byte) (*x509.Certificate, error) {
 			var rest []byte
 
 			if rest, err = asn1.Unmarshal(val.Value, &constraints); err != nil {
-				return nil, errors.Annotate(err, "failed to parse BasicConstraints")
+				return nil, errors.WithMessage(err, "failed to parse BasicConstraints")
 			} else if len(rest) != 0 {
 				return nil, errors.New("failed to parse BasicConstraints: trailing data")
 			}

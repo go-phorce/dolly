@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -85,17 +85,17 @@ func (kr *keyRequest) Generate() (crypto.PrivateKey, error) {
 	case "RSA":
 		err := validateRSAKeyPairInfoHandler(kr.Size())
 		if err != nil {
-			return nil, errors.Annotate(err, "validate RSA key")
+			return nil, errors.WithMessage(err, "validate RSA key")
 		}
 		pk, err := kr.prov.GenerateRSAKey(kr.Label(), kr.Size(), kr.Purpose())
 		if err != nil {
-			return nil, errors.Annotate(err, "generate RSA key")
+			return nil, errors.WithMessage(err, "generate RSA key")
 		}
 		return pk, nil
 	case "ECDSA":
 		err := validateECDSAKeyPairCurveInfoHandler(kr.Size())
 		if err != nil {
-			return nil, errors.Annotate(err, "validate ECDSA key")
+			return nil, errors.WithMessage(err, "validate ECDSA key")
 		}
 
 		var curve elliptic.Curve
@@ -111,7 +111,7 @@ func (kr *keyRequest) Generate() (crypto.PrivateKey, error) {
 		}
 		pk, err := kr.prov.GenerateECDSAKey(kr.Label(), curve)
 		if err != nil {
-			return nil, errors.Annotate(err, "generate ECDSA key")
+			return nil, errors.WithMessage(err, "generate ECDSA key")
 		}
 		return pk, nil
 	default:

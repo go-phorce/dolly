@@ -11,7 +11,7 @@ import (
 
 	"github.com/go-phorce/dolly/xhttp/marshal"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "ctl")
@@ -132,7 +132,7 @@ func (ctl *Ctl) ReturnCode() ReturnCode {
 // Fail the execution and return error
 func (ctl *Ctl) Fail(msg string, err error) error {
 	ctl.rc = RCFailed
-	logger.Errorf("message=%q, err=[%s]", msg, errors.ErrorStack(err))
+	logger.Errorf("message=%q, err=[%+v]", msg, err)
 	return err
 }
 
@@ -175,7 +175,7 @@ var newLine = []byte("\n")
 func WriteJSON(out io.Writer, value interface{}) error {
 	json, err := marshal.EncodeBytes(marshal.PrettyPrint, value)
 	if err != nil {
-		return errors.Annotate(err, "failed to encode")
+		return errors.WithMessage(err, "failed to encode")
 	}
 	out.Write(json)
 

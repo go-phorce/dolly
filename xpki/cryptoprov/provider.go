@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xpki", "cryptoprov")
@@ -60,7 +60,7 @@ func New(defaultProvider Provider, providers []Provider) (*Crypto, error) {
 	if providers != nil {
 		for _, p := range providers {
 			if err := c.Add(p); err != nil {
-				return nil, errors.Trace(err)
+				return nil, errors.WithStack(err)
 			}
 		}
 	}
@@ -91,7 +91,7 @@ func (c *Crypto) ByManufacturer(manufacturer string) (Provider, error) {
 
 	p, ok := c.byManufacturer[manufacturer]
 	if !ok {
-		return nil, errors.NotFoundf("provider for manufacturer %s", manufacturer)
+		return nil, errors.Errorf("provider for manufacturer %q not found", manufacturer)
 	}
 	return p, nil
 }

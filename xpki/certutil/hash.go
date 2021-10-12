@@ -6,7 +6,7 @@ import (
 	"hash"
 	"strings"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var hashToStr = map[crypto.Hash]string{
@@ -82,12 +82,12 @@ func ParseHexDigestWithPrefix(digest string) (hash.Hash, []byte, error) {
 
 	h, err := NewHash(digestParts[0])
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	d, err := hex.DecodeString(digestParts[1])
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "failed to decode digest %q", digestParts[1])
+		return nil, nil, errors.WithMessagef(err, "failed to decode digest %q", digestParts[1])
 	}
 
 	return h, d, nil
@@ -98,7 +98,7 @@ func Digest(hash crypto.Hash, data []byte) []byte {
 	h := hash.New()
 	_, err := h.Write(data)
 	if err != nil {
-		logger.Panicf("digest failed: %s", errors.Trace(err))
+		logger.Panicf("digest failed: %s", errors.WithStack(err))
 	}
 	return h.Sum(nil)
 }

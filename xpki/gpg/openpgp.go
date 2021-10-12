@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
 	"golang.org/x/crypto/openpgp/packet"
@@ -45,7 +45,7 @@ func ConvertTopX509CertificateToPGPPublicKey(certificateChainPem string) (*packe
 	var x509Certificate *x509.Certificate
 	x509Certificate, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, errors.Annotate(err, "failed to parse certificate")
+		return nil, errors.WithMessage(err, "failed to parse certificate")
 	}
 
 	return Convert509CertificateToPGPPublicKey(x509Certificate), nil
@@ -191,7 +191,7 @@ func CreateOpenPGPEntity(pubKey *packet.PublicKey, privKey *packet.PrivateKey, u
 		if ops&OpenPGPEntitySignSelf == OpenPGPEntitySignSelf {
 			err = selfSig.SignUserId(uid.Id, pubKey, privKey, &config)
 			if err != nil {
-				return nil, errors.Annotate(err, "SignIdentity")
+				return nil, errors.WithMessage(err, "SignIdentity")
 			}
 			//			selfIdentity.Signatures = append(selfIdentity.Signatures, selfSig)
 		}
@@ -199,7 +199,7 @@ func CreateOpenPGPEntity(pubKey *packet.PublicKey, privKey *packet.PrivateKey, u
 			if ops&OpenPGPEntitySignIdentity == OpenPGPEntitySignIdentity {
 				err = entity.SignIdentity(uid.Id, entity, &config)
 				if err != nil {
-					return nil, errors.Annotate(err, "SignIdentity")
+					return nil, errors.WithMessage(err, "SignIdentity")
 				}
 			}
 		*/
@@ -207,7 +207,7 @@ func CreateOpenPGPEntity(pubKey *packet.PublicKey, privKey *packet.PrivateKey, u
 			for _, subkey := range entity.Subkeys {
 				err = subkey.Sig.SignKey(subkey.PublicKey, privKey, &config)
 				if err != nil {
-					return nil, errors.Annotate(err, "SignIdentity")
+					return nil, errors.WithMessage(err, "SignIdentity")
 				}
 				//				selfIdentity.Signatures = append(selfIdentity.Signatures, subkey.Sig)
 			}
@@ -250,7 +250,7 @@ func GetPgpPubkeyAlgo(pubkey *packet.PublicKey) (string, error) {
 func DecodeArmoredPgpSignature(armored io.Reader) (*packet.Signature, error) {
 	block, err := armor.Decode(armored)
 	if err != nil {
-		return nil, errors.Annotate(err, "decoding OpenPGP Armor")
+		return nil, errors.WithMessage(err, "decoding OpenPGP Armor")
 	}
 
 	if block.Type != openpgp.SignatureType {
@@ -260,12 +260,12 @@ func DecodeArmoredPgpSignature(armored io.Reader) (*packet.Signature, error) {
 	reader := packet.NewReader(block.Body)
 	pkt, err := reader.Next()
 	if err != nil {
-		return nil, errors.Annotate(err, "reading signature")
+		return nil, errors.WithMessage(err, "reading signature")
 	}
 
 	sig, ok := pkt.(*packet.Signature)
 	if !ok {
-		return nil, errors.Annotate(err, "invalid signature")
+		return nil, errors.WithMessage(err, "invalid signature")
 	}
 	return sig, nil
 }
@@ -308,14 +308,14 @@ func ConvertPemToPgpPrivateKey(creationTime time.Time, privateKeyPem []byte) (*p
 
 		rsaPrivateKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 		if err != nil {
-			return nil, errors.Annotate(err, "failed to parse RSA private key")
+			return nil, errors.WithMessage(err, "failed to parse RSA private key")
 		}
 
 		pgpPrivateKey = packet.NewRSAPrivateKey(creationTime, rsaPrivateKey)
 	case "EC PRIVATE KEY", "ECDSA PRIVATE KEY":
 		ecPrivateKey, err := x509.ParseECPrivateKey(block.Bytes)
 		if err != nil {
-			return nil, errors.Annotate(err, "failed to parse EC private key")
+			return nil, errors.WithMessage(err, "failed to parse EC private key")
 		}
 
 		pgpPrivateKey = packet.NewECDSAPrivateKey(creationTime, ecPrivateKey)
@@ -330,7 +330,7 @@ func ConvertPemToPgpPrivateKey(creationTime time.Time, privateKeyPem []byte) (*p
 func VerifySignaturePGP(signed hash.Hash, pemSignature string, pubkey *packet.PublicKey) error {
 	sig, err := DecodeArmoredPgpSignature(strings.NewReader(pemSignature))
 	if err != nil {
-		return errors.Annotate(err, "decode armored PGP signature")
+		return errors.WithMessage(err, "decode armored PGP signature")
 	}
 
 	if sig.PubKeyAlgo != pubkey.PubKeyAlgo {
@@ -347,7 +347,7 @@ func VerifySignaturePGP(signed hash.Hash, pemSignature string, pubkey *packet.Pu
 
 	err = pubkey.VerifySignature(signed, sig)
 	if err != nil {
-		return errors.Annotate(err, "detached PGP signature")
+		return errors.WithMessage(err, "detached PGP signature")
 	}
 
 	return nil
@@ -368,11 +368,11 @@ func EncodePGPEntityToPEM(e *openpgp.Entity) ([]byte, error) {
 	b := bytes.NewBufferString(comments)
 	w, err := armor.Encode(b, openpgp.PublicKeyType, make(map[string]string))
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	err = e.Serialize(w)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	w.Close()
 	return b.Bytes(), nil
@@ -383,13 +383,13 @@ func DecodePGPEntityFromPEM(r io.Reader) (*openpgp.Entity, error) {
 	// decode PEM
 	p, err := armor.Decode(r)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	packets := packet.NewReader(p.Body)
 	e, err := openpgp.ReadEntity(packets)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return e, nil

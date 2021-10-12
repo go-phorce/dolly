@@ -9,8 +9,8 @@ import (
 	"io"
 	"math/big"
 
-	"github.com/juju/errors"
 	pkcs11 "github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 // PKCS11PrivateKeyECDSA contains a reference to a loaded PKCS#11 ECDSA private key object.
@@ -115,7 +115,7 @@ func marshalEcParams(c elliptic.Curve) ([]byte, error) {
 		return ci.oid, nil
 	}
 	// TODO use ANSI X9.62 ECParameters representation instead
-	return nil, errors.Trace(errUnsupportedEllipticCurve)
+	return nil, errors.WithStack(errUnsupportedEllipticCurve)
 }
 
 func unmarshalEcParams(b []byte) (elliptic.Curve, error) {
@@ -125,11 +125,11 @@ func unmarshalEcParams(b []byte) (elliptic.Curve, error) {
 			if ci.curve != nil {
 				return ci.curve, nil
 			}
-			return nil, errors.Trace(errUnsupportedEllipticCurve)
+			return nil, errors.WithStack(errUnsupportedEllipticCurve)
 		}
 	}
 	// TODO try ANSI X9.62 ECParameters representation
-	return nil, errors.Trace(errUnsupportedEllipticCurve)
+	return nil, errors.WithStack(errUnsupportedEllipticCurve)
 }
 
 func unmarshalEcPoint(b []byte, c elliptic.Curve) (x *big.Int, y *big.Int, err error) {
@@ -159,7 +159,7 @@ func unmarshalEcPoint(b []byte, c elliptic.Curve) (x *big.Int, y *big.Int, err e
 	pointBytes := b[r:]
 	x, y = elliptic.Unmarshal(c, pointBytes)
 	if x == nil || y == nil {
-		err = errors.Trace(errMalformedPoint)
+		err = errors.WithStack(errMalformedPoint)
 	}
 	return
 }
@@ -174,13 +174,13 @@ func (lib *PKCS11Lib) exportECDSAPublicKey(session pkcs11.SessionHandle, pubHand
 		pkcs11.NewAttribute(pkcs11.CKA_EC_POINT, nil),
 	}
 	if attributes, err = lib.Ctx.GetAttributeValue(session, pubHandle, template); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	if pub.Curve, err = unmarshalEcParams(attributes[0].Value); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	if pub.X, pub.Y, err = unmarshalEcPoint(attributes[1].Value, pub.Curve); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return &pub, nil
 }
@@ -215,7 +215,7 @@ func (lib *PKCS11Lib) GenerateECDSAKeyPairOnSlot(slot uint, id []byte, label []b
 	var k *PKCS11PrivateKeyECDSA
 	var err error
 	if err = lib.setupSessions(slot, 0); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	err = lib.withSession(slot, func(session pkcs11.SessionHandle) error {
 		k, err = lib.GenerateECDSAKeyPairOnSession(session, slot, id, label, c)
@@ -237,16 +237,16 @@ func (lib *PKCS11Lib) GenerateECDSAKeyPairOnSession(session pkcs11.SessionHandle
 
 	if label == nil || len(label) == 0 {
 		if label, err = lib.generateKeyLabel(); err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 	if id == nil || len(id) == 0 {
 		if id, err = lib.generateKeyID(); err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 	if parameters, err = marshalEcParams(c); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	logger.Infof("slot=0x%X, id=%s, label=%q", slot, string(id), string(label))
@@ -277,12 +277,12 @@ func (lib *PKCS11Lib) GenerateECDSAKeyPairOnSession(session pkcs11.SessionHandle
 		publicKeyTemplate,
 		privateKeyTemplate)
 	if err != nil {
-		logger.Errorf("reason=GenerateKeyPair, err=[%v]", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		logger.Errorf("reason=GenerateKeyPair, err=[%+v]", err)
+		return nil, errors.WithStack(err)
 	}
 	if pub, err = lib.exportECDSAPublicKey(session, pubHandle); err != nil {
-		logger.Errorf("reason=exportECDSAPublicKey, err=[%v]", errors.ErrorStack(err))
-		return nil, errors.Trace(err)
+		logger.Errorf("reason=exportECDSAPublicKey, err=[%+v]", err)
+		return nil, errors.WithStack(err)
 	}
 	priv := PKCS11PrivateKeyECDSA{
 		key: &PKCS11PrivateKey{PKCS11Object{privHandle, slot}, pub},

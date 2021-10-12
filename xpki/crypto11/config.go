@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
 	pkcs11 "github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xpki", "crypto11")
@@ -104,15 +104,15 @@ func Init(config TokenConfig) (*PKCS11Lib, error) {
 
 	lib.Ctx = pkcs11.New(config.Path())
 	if lib.Ctx == nil {
-		return nil, errors.Annotate(errCannotOpenPKCS11, config.Path())
+		return nil, errors.WithMessage(errCannotOpenPKCS11, config.Path())
 	}
 	if err = lib.Ctx.Initialize(); err != nil && err.(pkcs11.Error) != pkcs11.CKR_CRYPTOKI_ALREADY_INITIALIZED {
-		return nil, errors.Annotatef(err, "initialize PKCS#11 library: %s", config.Path())
+		return nil, errors.WithMessagef(err, "initialize PKCS#11 library: %s", config.Path())
 	}
 
 	slots, err := lib.TokensInfo()
 	if err != nil {
-		return nil, errors.Annotate(err, "TokensInfo failed")
+		return nil, errors.WithMessage(err, "TokensInfo failed")
 	}
 
 	for _, slot := range slots {
@@ -126,7 +126,7 @@ func Init(config TokenConfig) (*PKCS11Lib, error) {
 	}
 
 	if lib.Slot == nil {
-		return nil, errors.Trace(errTokenNotFound)
+		return nil, errors.WithStack(errTokenNotFound)
 	}
 
 	lib.sessionPools[lib.Slot.id] = make(chan pkcs11.SessionHandle, maxSessionsChan)
@@ -135,12 +135,12 @@ func Init(config TokenConfig) (*PKCS11Lib, error) {
 		if flags&pkcs11.CKF_LOGIN_REQUIRED != 0 {
 			err = lib.Ctx.Login(session, pkcs11.CKU_USER, config.Pin())
 			if err != nil && err.(pkcs11.Error) != pkcs11.CKR_USER_ALREADY_LOGGED_IN {
-				return errors.Annotate(err, "login into PKCS#11 token")
+				return errors.WithMessage(err, "login into PKCS#11 token")
 			}
 		}
 		return nil
 	}); err != nil {
-		return nil, errors.Annotate(err, "open PKCS#11 session")
+		return nil, errors.WithMessage(err, "open PKCS#11 session")
 	}
 	return lib, nil
 }
@@ -156,11 +156,11 @@ func Init(config TokenConfig) (*PKCS11Lib, error) {
 func ConfigureFromFile(configLocation string) (*PKCS11Lib, error) {
 	cfg, err := LoadTokenConfig(configLocation)
 	if err != nil {
-		return nil, errors.Annotatef(err, "load p11 config: %q", configLocation)
+		return nil, errors.WithMessagef(err, "load p11 config: %q", configLocation)
 	}
 	lib, err := Init(cfg)
 	if err != nil {
-		return nil, errors.Annotatef(err, "initialize p11 config: %q", configLocation)
+		return nil, errors.WithMessagef(err, "initialize p11 config: %q", configLocation)
 	}
 	return lib, nil
 }
@@ -169,20 +169,20 @@ func ConfigureFromFile(configLocation string) (*PKCS11Lib, error) {
 func LoadTokenConfig(filename string) (TokenConfig, error) {
 	cfr, err := os.Open(filename)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	defer cfr.Close()
 	tokenConfig := new(config)
 	err = json.NewDecoder(cfr).Decode(tokenConfig)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	pin := tokenConfig.Pin()
 	if strings.HasPrefix(pin, "file:") {
 		pb, err := ioutil.ReadFile(strings.TrimLeft(pin, "file:"))
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		tokenConfig.Pwd = string(pb)
 	}

@@ -7,7 +7,7 @@ import (
 	"github.com/go-phorce/dolly/cmd/dollypki/cli"
 	"github.com/go-phorce/dolly/ctl"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // KeyInfoFlags specifies flags for the key info action

@@ -51,7 +51,7 @@ func Test_P11(t *testing.T) {
 	assert.NoError(t, err)
 	_, err = cp.ByManufacturer("NetHSM")
 	assert.Error(t, err)
-	assert.Equal(t, "provider for manufacturer NetHSM not found", err.Error())
+	assert.Equal(t, "provider for manufacturer \"NetHSM\" not found", err.Error())
 
 	keyURI, keyBytes, err := d.ExportKey("test")
 	assert.Error(t, err)

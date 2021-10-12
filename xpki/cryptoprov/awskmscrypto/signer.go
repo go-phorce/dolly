@@ -9,7 +9,7 @@ import (
 	"reflect"
 
 	"github.com/aws/aws-sdk-go/service/kms"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // Supported signature types by AWS KMS
@@ -73,7 +73,7 @@ func (s *Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (si
 
 	sigAlgo, err := sigAlgo(s.pubKey, opts)
 	if err != nil {
-		return nil, errors.Annotatef(err, "unable to determine signature algorithm")
+		return nil, errors.WithMessagef(err, "unable to determine signature algorithm")
 	}
 
 	req := &kms.SignInput{
@@ -84,7 +84,7 @@ func (s *Signer) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts) (si
 	}
 	resp, err := s.kmsClient.Sign(req)
 	if err != nil {
-		return nil, errors.Annotatef(err, "unable to sign")
+		return nil, errors.WithMessagef(err, "unable to sign")
 	}
 	return resp.Signature, nil
 }

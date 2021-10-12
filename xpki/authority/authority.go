@@ -3,7 +3,7 @@ package authority
 import (
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xpki", "authority")
@@ -63,7 +63,7 @@ func NewAuthority(cfg *Config, crypto *cryptoprov.Crypto) (*Authority, error) {
 		}
 		issuer, err := NewIssuer(ccfg, crypto)
 		if err != nil {
-			return nil, errors.Annotatef(err, "unable to create issuer: %q", isscfg.Label)
+			return nil, errors.WithMessagef(err, "unable to create issuer: %q", isscfg.Label)
 		}
 
 		ca.issuers[isscfg.Label] = issuer

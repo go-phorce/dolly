@@ -15,7 +15,7 @@ import (
 
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xpki", "csr")
@@ -53,7 +53,7 @@ func (c *Provider) NewSigningCertificateRequest(
 func (c *Provider) CreateRequestAndExportKey(req *CertificateRequest) (csrPEM, key []byte, keyID string, pub crypto.PublicKey, err error) {
 	err = req.Validate()
 	if err != nil {
-		err = errors.Annotate(err, "invalid request")
+		err = errors.WithMessage(err, "invalid request")
 		return
 	}
 
@@ -62,21 +62,21 @@ func (c *Provider) CreateRequestAndExportKey(req *CertificateRequest) (csrPEM, k
 	csrPEM, priv, keyID, err = c.GenerateKeyAndRequest(req)
 	if err != nil {
 		key = nil
-		err = errors.Annotate(err, "process request")
+		err = errors.WithMessage(err, "process request")
 		return
 	}
 
 	s, ok := priv.(crypto.Signer)
 	if !ok {
 		key = nil
-		err = errors.Annotate(err, "unable to convert key to crypto.Signer")
+		err = errors.WithMessage(err, "unable to convert key to crypto.Signer")
 		return
 	}
 	pub = s.Public()
 
 	uri, keyBytes, err := c.provider.ExportKey(keyID)
 	if err != nil {
-		err = errors.Annotate(err, "key URI")
+		err = errors.WithMessage(err, "key URI")
 		return
 	}
 
@@ -102,14 +102,14 @@ func (c *Provider) GenerateKeyAndRequest(req *CertificateRequest) (csrPEM []byte
 
 	priv, err = req.KeyRequest.Generate()
 	if err != nil {
-		err = errors.Annotate(err, "generate key")
+		err = errors.WithMessage(err, "generate key")
 		return
 	}
 
 	var label string
 	keyID, label, err = c.provider.IdentifyKey(priv)
 	if err != nil {
-		err = errors.Annotate(err, "identify key")
+		err = errors.WithMessage(err, "identify key")
 		return
 	}
 
@@ -137,7 +137,7 @@ func (c *Provider) GenerateKeyAndRequest(req *CertificateRequest) (csrPEM []byte
 
 	csrPEM, err = x509.CreateCertificateRequest(rand.Reader, &template, priv)
 	if err != nil {
-		err = errors.Annotate(err, "create CSR")
+		err = errors.WithMessage(err, "create CSR")
 		return
 	}
 	block := pem.Block{

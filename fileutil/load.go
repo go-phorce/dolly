@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -22,7 +22,7 @@ func LoadConfigWithSchema(config string) (string, error) {
 		fn := strings.TrimPrefix(config, FileSource)
 		f, err := ioutil.ReadFile(fn)
 		if err != nil {
-			return config, errors.Trace(err)
+			return config, errors.WithStack(err)
 		}
 		// file content
 		config = string(f)
@@ -44,14 +44,14 @@ func SaveConfigWithSchema(path, value string) error {
 		fn := strings.TrimPrefix(path, FileSource)
 		err := ioutil.WriteFile(fn, []byte(value), 0644)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	} else if strings.HasPrefix(path, EnvSource) {
 		env := strings.TrimPrefix(path, EnvSource)
 		// ENV content
 		err := os.Setenv(env, value)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 

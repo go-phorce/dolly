@@ -1,15 +1,15 @@
 package crypto11
 
 import (
-	"github.com/juju/errors"
 	pkcs11 "github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 // NewSession creates new RW session for a given slot
 func (lib *PKCS11Lib) NewSession(slot uint) (pkcs11.SessionHandle, error) {
 	session, err := lib.Ctx.OpenSession(slot, pkcs11.CKF_SERIAL_SESSION|pkcs11.CKF_RW_SESSION)
 	if err != nil {
-		return 0, errors.Trace(err)
+		return 0, errors.WithStack(err)
 	}
 	return session, nil
 }
@@ -28,7 +28,7 @@ func (lib *PKCS11Lib) withSession(slot uint, f func(session pkcs11.SessionHandle
 		// nop
 	default:
 		if session, err = lib.NewSession(slot); err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 	defer func() {

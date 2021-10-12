@@ -17,7 +17,7 @@ import (
 	"github.com/go-phorce/dolly/xpki/certutil"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
 	"github.com/go-phorce/dolly/xpki/csr"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -119,7 +119,7 @@ func NewIssuer(cfg *IssuerConfig, prov *cryptoprov.Crypto) (*Issuer, error) {
 		prov,
 		cfg.KeyFile)
 	if err != nil {
-		return nil, errors.Annotatef(err, "unable to create signer")
+		return nil, errors.WithMessagef(err, "unable to create signer")
 	}
 
 	// Build the bundle and register the CA cert
@@ -127,24 +127,24 @@ func NewIssuer(cfg *IssuerConfig, prov *cryptoprov.Crypto) (*Issuer, error) {
 	if cfg.CABundleFile != "" {
 		intCAbytes, err = ioutil.ReadFile(cfg.CABundleFile)
 		if err != nil {
-			return nil, errors.Annotate(err, "failed to load ca-bundle")
+			return nil, errors.WithMessage(err, "failed to load ca-bundle")
 		}
 	}
 
 	if cfg.RootBundleFile != "" {
 		rootBytes, err = ioutil.ReadFile(cfg.RootBundleFile)
 		if err != nil {
-			return nil, errors.Annotatef(err, "failed to load root-bundle")
+			return nil, errors.WithMessagef(err, "failed to load root-bundle")
 		}
 	}
 
 	certBytes, err := ioutil.ReadFile(cfg.CertFile)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to load cert")
+		return nil, errors.WithMessagef(err, "failed to load cert")
 	}
 	issuer, err := CreateIssuer(cfg, certBytes, intCAbytes, rootBytes, cryptoSigner)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return issuer, nil
@@ -156,10 +156,10 @@ func CreateIssuer(cfg *IssuerConfig, certBytes, intCAbytes, rootBytes []byte, si
 	label := cfg.Label
 	bundle, status, err := certutil.VerifyBundleFromPEM(certBytes, intCAbytes, rootBytes)
 	if err != nil {
-		return nil, errors.Annotate(err, "failed to create signing CA cert bundle")
+		return nil, errors.WithMessage(err, "failed to create signing CA cert bundle")
 	}
 	if status.IsUntrusted() {
-		return nil, errors.Annotatef(err, "bundle is invalid: label=%s, cn=%q, expiresAt=%q, expiringSKU=[%v], untrusted=[%v]",
+		return nil, errors.WithMessagef(err, "bundle is invalid: label=%s, cn=%q, expiresAt=%q, expiringSKU=[%v], untrusted=[%v]",
 			label,
 			bundle.Subject.CommonName,
 			bundle.Expires.Format(time.RFC3339),
@@ -193,7 +193,7 @@ func CreateIssuer(cfg *IssuerConfig, certBytes, intCAbytes, rootBytes []byte, si
 		}
 		_, err = asn1.Unmarshal(bundle.Cert.RawSubjectPublicKeyInfo, &publicKeyInfo)
 		if err != nil {
-			return nil, errors.Annotatef(err, "failed to decode SubjectPublicKeyInfo")
+			return nil, errors.WithMessagef(err, "failed to decode SubjectPublicKeyInfo")
 		}
 
 		keyHash[h] = certutil.Digest(h, publicKeyInfo.PublicKey.RightAlign())
@@ -241,7 +241,7 @@ func (ca *Issuer) Sign(req csr.SignRequest) (*x509.Certificate, []byte, error) {
 
 	csrTemplate, err := csr.ParsePEM([]byte(req.Request))
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	csrTemplate.SignatureAlgorithm = ca.sigAlgo
@@ -334,7 +334,7 @@ func (ca *Issuer) Sign(req csr.SignRequest) (*x509.Certificate, []byte, error) {
 		serialNumber := make([]byte, 20)
 		_, err = io.ReadFull(rand.Reader, serialNumber)
 		if err != nil {
-			return nil, nil, errors.Annotatef(err, "failed to generate serial number")
+			return nil, nil, errors.WithMessagef(err, "failed to generate serial number")
 		}
 
 		// SetBytes interprets buf as the bytes of a big-endian
@@ -353,7 +353,7 @@ func (ca *Issuer) Sign(req csr.SignRequest) (*x509.Certificate, []byte, error) {
 
 			rawValue, err := hex.DecodeString(ext.Value)
 			if err != nil {
-				return nil, nil, errors.Annotatef(err, "failed to decode extension")
+				return nil, nil, errors.WithMessagef(err, "failed to decode extension")
 			}
 
 			safeTemplate.ExtraExtensions = append(safeTemplate.ExtraExtensions, pkix.Extension{
@@ -366,19 +366,19 @@ func (ca *Issuer) Sign(req csr.SignRequest) (*x509.Certificate, []byte, error) {
 
 	err = ca.fillTemplate(&safeTemplate, profile, req.NotBefore, req.NotAfter)
 	if err != nil {
-		return nil, nil, errors.Annotatef(err, "failed to populate template")
+		return nil, nil, errors.WithMessagef(err, "failed to populate template")
 	}
 
 	var certTBS = safeTemplate
 
 	signedCertPEM, err := ca.sign(&certTBS)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	crt, err := certutil.ParseFromPEM(signedCertPEM)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	// TODO: register issued cert
@@ -404,7 +404,7 @@ func (ca *Issuer) sign(template *x509.Certificate) ([]byte, error) {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, template, caCert, template.PublicKey, ca.signer)
 	if err != nil {
-		return nil, errors.Annotatef(err, "create certificate")
+		return nil, errors.WithMessagef(err, "create certificate")
 	}
 
 	logger.Infof("serial=%d, CN=%q, URI=%v, DNS=%v, Email=%v",
@@ -494,7 +494,7 @@ func (ca *Issuer) fillTemplate(template *x509.Certificate, profile *CertProfile,
 	if len(profile.Policies) != 0 {
 		err = addPolicies(template, profile.Policies)
 		if err != nil {
-			return errors.Annotatef(err, "invalid profile policies")
+			return errors.WithMessagef(err, "invalid profile policies")
 		}
 	}
 	if profile.OCSPNoCheck {

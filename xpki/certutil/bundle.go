@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/cloudflare/cfssl/bundler"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // BundleStatus is designated for various status reporting.
@@ -62,7 +62,7 @@ func (b *Bundle) ExpiresInHours() time.Duration {
 func VerifyBundleFromPEM(certPEM, intCAPEM, rootPEM []byte) (bundle *Bundle, status *BundleStatus, err error) {
 	b, err := bundler.NewBundlerFromPEM(rootPEM, intCAPEM)
 	if err != nil {
-		err = errors.Annotate(err, "failed to create bundler")
+		err = errors.WithMessage(err, "failed to create bundler")
 		return
 	}
 	flavor := bundler.Force
@@ -71,7 +71,7 @@ func VerifyBundleFromPEM(certPEM, intCAPEM, rootPEM []byte) (bundle *Bundle, sta
 	}
 	c, err := b.BundleFromPEMorDER(certPEM, nil, flavor, "")
 	if err != nil {
-		err = errors.Annotate(err, "failed to bundle")
+		err = errors.WithMessage(err, "failed to bundle")
 		return
 	}
 
@@ -127,20 +127,20 @@ func LoadAndVerifyBundleFromPEM(certFile, intCAFile, rootFile string) (*Bundle, 
 
 	certPEM, err = ioutil.ReadFile(certFile)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	if intCAFile != "" {
 		intCAPEM, err = ioutil.ReadFile(intCAFile)
 		if err != nil {
-			return nil, nil, errors.Trace(err)
+			return nil, nil, errors.WithStack(err)
 		}
 	}
 
 	if rootFile != "" {
 		rootPEM, err = ioutil.ReadFile(rootFile)
 		if err != nil {
-			return nil, nil, errors.Trace(err)
+			return nil, nil, errors.WithStack(err)
 		}
 	}
 

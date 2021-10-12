@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/kms"
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly/xpki", "awskmscrypto")
@@ -71,7 +71,7 @@ func Init(tc cryptoprov.TokenConfig) (*Provider, error) {
 	var err error
 	p.kmsClient, err = KmsClientFactory(mySession, cfg)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to create KMS client")
+		return nil, errors.WithMessagef(err, "failed to create KMS client")
 	}
 
 	return p, nil
@@ -121,7 +121,7 @@ func (p *Provider) GenerateRSAKey(label string, bits int, purpose int) (crypto.P
 	}
 	resp, err := p.kmsClient.CreateKey(input)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to create key with label: %q", label)
+		return nil, errors.WithMessagef(err, "failed to create key with label: %q", label)
 	}
 
 	keyID := aws.StringValue(resp.KeyMetadata.KeyId)
@@ -136,12 +136,12 @@ func (p *Provider) GenerateRSAKey(label string, bits int, purpose int) (crypto.P
 	// 2. Retrieve public key from KMS
 	pubKeyResp, err := p.kmsClient.GetPublicKey(&kms.GetPublicKeyInput{KeyId: &keyID})
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to get public key, id=%s", keyID)
+		return nil, errors.WithMessagef(err, "failed to get public key, id=%s", keyID)
 	}
 
 	pub, err := x509.ParsePKIXPublicKey(pubKeyResp.PublicKey)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to parse public key, id=%s", keyID)
+		return nil, errors.WithMessagef(err, "failed to parse public key, id=%s", keyID)
 	}
 	signer := NewSigner(keyID, label, aws.StringValueSlice(resp.KeyMetadata.SigningAlgorithms), pub, p.kmsClient)
 
@@ -172,7 +172,7 @@ func (p *Provider) GenerateECDSAKey(label string, curve elliptic.Curve) (crypto.
 	}
 	resp, err := p.kmsClient.CreateKey(input)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to create key with label: %q", label)
+		return nil, errors.WithMessagef(err, "failed to create key with label: %q", label)
 	}
 
 	keyID := aws.StringValue(resp.KeyMetadata.KeyId)
@@ -187,12 +187,12 @@ func (p *Provider) GenerateECDSAKey(label string, curve elliptic.Curve) (crypto.
 	// 2. Retrieve public key from KMS
 	pubKeyResp, err := p.kmsClient.GetPublicKey(&kms.GetPublicKeyInput{KeyId: &keyID})
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to get public key, id=%s", keyID)
+		return nil, errors.WithMessagef(err, "failed to get public key, id=%s", keyID)
 	}
 
 	pub, err := x509.ParsePKIXPublicKey(pubKeyResp.PublicKey)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to parse public key, id=%s", keyID)
+		return nil, errors.WithMessagef(err, "failed to parse public key, id=%s", keyID)
 	}
 	signer := NewSigner(keyID, label, aws.StringValueSlice(resp.KeyMetadata.SigningAlgorithms), pub, p.kmsClient)
 
@@ -213,17 +213,17 @@ func (p *Provider) GetKey(keyID string) (crypto.PrivateKey, error) {
 
 	ki, err := p.kmsClient.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to describe key, id=%s", keyID)
+		return nil, errors.WithMessagef(err, "failed to describe key, id=%s", keyID)
 	}
 
 	resp, err := p.kmsClient.GetPublicKey(&kms.GetPublicKeyInput{KeyId: &keyID})
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to get public key, id=%s", keyID)
+		return nil, errors.WithMessagef(err, "failed to get public key, id=%s", keyID)
 	}
 
 	pub, err := x509.ParsePKIXPublicKey(resp.PublicKey)
 	if err != nil {
-		return nil, errors.Annotatef(err, "failed to parse public key, id=%s", keyID)
+		return nil, errors.WithMessagef(err, "failed to parse public key, id=%s", keyID)
 	}
 	signer := NewSigner(keyID, aws.StringValue(ki.KeyMetadata.Description), aws.StringValueSlice(resp.SigningAlgorithms), pub, p.kmsClient)
 	return signer, nil
@@ -247,14 +247,14 @@ func (p *Provider) EnumKeys(slotID uint, prefix string, keyInfoFunc func(id, lab
 
 	resp, err := p.kmsClient.ListKeys(opts)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	keys := resp.Keys
 	for _, k := range keys {
 		ki, err := p.kmsClient.DescribeKey(&kms.DescribeKeyInput{KeyId: k.KeyId})
 		if err != nil {
-			return errors.Annotatef(err, "failed to describe key, id=%s", *k.KeyId)
+			return errors.WithMessagef(err, "failed to describe key, id=%s", *k.KeyId)
 		}
 		if aws.StringValue(ki.KeyMetadata.KeyState) == "PendingDeletion" {
 			continue
@@ -269,7 +269,7 @@ func (p *Provider) EnumKeys(slotID uint, prefix string, keyInfoFunc func(id, lab
 			ki.KeyMetadata.CreationDate,
 		)
 		if err != nil {
-			return errors.Trace(err)
+			return errors.WithStack(err)
 		}
 	}
 	return nil
@@ -281,7 +281,7 @@ func (p *Provider) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 		KeyId: &keyID,
 	})
 	if err != nil {
-		return errors.Annotatef(err, "failed to schedule key deletion: %s", keyID)
+		return errors.WithMessagef(err, "failed to schedule key deletion: %s", keyID)
 	}
 	logger.Noticef("id=%s, deletion_time=%v",
 		keyID, aws.TimeValue(resp.DeletionDate).Format(time.RFC3339))
@@ -293,14 +293,14 @@ func (p *Provider) DestroyKeyPairOnSlot(slotID uint, keyID string) error {
 func (p *Provider) KeyInfo(slotID uint, keyID string, includePublic bool, keyInfoFunc func(id, label, typ, class, currentVersionID, pubKey string, creationTime *time.Time) error) error {
 	resp, err := p.kmsClient.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
 	if err != nil {
-		return errors.Annotatef(err, "failed to describe key, id=%s", keyID)
+		return errors.WithMessagef(err, "failed to describe key, id=%s", keyID)
 	}
 
 	pubKey := ""
 	if includePublic {
 		pub, err := p.kmsClient.GetPublicKey(&kms.GetPublicKeyInput{KeyId: &keyID})
 		if err != nil {
-			return errors.Annotatef(err, "failed to get public key, id=%s", keyID)
+			return errors.WithMessagef(err, "failed to get public key, id=%s", keyID)
 		}
 		pubKey = base64.StdEncoding.EncodeToString(pub.PublicKey)
 	}
@@ -315,7 +315,7 @@ func (p *Provider) KeyInfo(slotID uint, keyID string, includePublic bool, keyInf
 		nil,
 	)
 	if err != nil {
-		return errors.Trace(err)
+		return errors.WithStack(err)
 	}
 
 	return nil
@@ -326,7 +326,7 @@ func (p *Provider) KeyInfo(slotID uint, keyID string, includePublic bool, keyInf
 func (p *Provider) ExportKey(keyID string) (string, []byte, error) {
 	resp, err := p.kmsClient.DescribeKey(&kms.DescribeKeyInput{KeyId: &keyID})
 	if err != nil {
-		return "", nil, errors.Annotatef(err, "failed to describe key, id=%s", keyID)
+		return "", nil, errors.WithMessagef(err, "failed to describe key, id=%s", keyID)
 	}
 
 	uri := fmt.Sprintf("pkcs11:manufacturer=%s;id=%s;serial=%s;type=private",
@@ -352,7 +352,7 @@ func (p *Provider) Close() error {
 func KmsLoader(tc cryptoprov.TokenConfig) (cryptoprov.Provider, error) {
 	p, err := Init(tc)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return p, nil
 }

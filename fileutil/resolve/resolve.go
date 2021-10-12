@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // Directory returns absolute dir name relative to baseDir,
@@ -21,10 +21,10 @@ func Directory(dir string, baseDir string, create bool) (resolved string, err er
 	if _, err := os.Stat(resolved); os.IsNotExist(err) {
 		if create {
 			if err = os.MkdirAll(resolved, 0744); err != nil {
-				return "", errors.Annotatef(err, "crerate dir: %q", resolved)
+				return "", errors.WithMessagef(err, "crerate dir: %q", resolved)
 			}
 		} else {
-			return resolved, errors.NewNotFound(err, resolved)
+			return resolved, errors.WithMessagef(err, "not found: %v", resolved)
 		}
 	}
 	return resolved, nil
@@ -42,7 +42,7 @@ func File(file string, baseDir string) (resolved string, err error) {
 		resolved = filepath.Join(baseDir, file)
 	}
 	if _, err := os.Stat(resolved); os.IsNotExist(err) {
-		return resolved, errors.NewNotFound(err, resolved)
+		return resolved, errors.WithMessagef(err, "not found: %v", resolved)
 	}
 	return resolved, nil
 }

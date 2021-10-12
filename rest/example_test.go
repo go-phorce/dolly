@@ -14,7 +14,7 @@ import (
 	"github.com/go-phorce/dolly/tasks"
 	"github.com/go-phorce/dolly/testify/auditor"
 	"github.com/go-phorce/dolly/xlog"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "rest_test")
@@ -58,7 +58,7 @@ func ExampleServer() {
 	fmt.Println("starting server")
 	err = server.StartHTTP()
 	if err != nil {
-		panic("unable to start the server: " + errors.ErrorStack(err))
+		panic("unable to start the server: " + fmt.Sprintf("%+v", err))
 	}
 	scheduler.Start()
 
@@ -107,7 +107,7 @@ func certExpirationPublisherTask(tlsloader *tlsconfig.KeypairReloader) {
 	if pair != nil {
 		cert, err := x509.ParseCertificate(pair.Certificate[0])
 		if err != nil {
-			errors.Annotatef(err, "reason=unable_parse_tls_cert, file=%q", certFile)
+			errors.WithMessagef(err, "reason=unable_parse_tls_cert, file=%q", certFile)
 		} else {
 			metricsutil.PublishCertExpirationInDays(cert, "server")
 		}

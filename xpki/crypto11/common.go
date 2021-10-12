@@ -9,8 +9,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/juju/errors"
 	"github.com/miekg/pkcs11"
+	"github.com/pkg/errors"
 )
 
 // AttributeNames maps PKCS11 atribute to string
@@ -99,10 +99,10 @@ func (lib *PKCS11Lib) generateKeyLabel() ([]byte, error) {
 	rawLabel := make([]byte, labelSize)
 	sz, err := lib.GenRandom(rawLabel)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	if sz < len(rawLabel) {
-		return nil, errors.Trace(errCannotGetRandomData)
+		return nil, errors.WithStack(errCannotGetRandomData)
 	}
 
 	t := time.Now().UTC()
@@ -116,10 +116,10 @@ func (lib *PKCS11Lib) generateKeyID() ([]byte, error) {
 	rawLabel := make([]byte, labelSize)
 	sz, err := lib.GenRandom(rawLabel)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	if sz < len(rawLabel) {
-		return nil, errors.Trace(errCannotGetRandomData)
+		return nil, errors.WithStack(errCannotGetRandomData)
 	}
 
 	label := hex.EncodeToString(rawLabel)
@@ -140,7 +140,7 @@ func (lib *PKCS11Lib) dsaGeneric(slot uint, key pkcs11.ObjectHandle, mechanism u
 		return err
 	})
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	sig.unmarshalBytes(sigBytes)
 	return sig.marshalDER()

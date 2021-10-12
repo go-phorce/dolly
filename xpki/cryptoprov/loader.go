@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/go-phorce/dolly/xpki/crypto11"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // ProviderLoader is interface for loading provider by manufacturer
@@ -46,7 +46,7 @@ func Unregister(manufacturer string) (ProviderLoader, error) {
 func LoadProvider(configLocation string) (Provider, error) {
 	tc, err := LoadTokenConfig(configLocation)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	manufacturer := tc.Manufacturer()
@@ -57,7 +57,7 @@ func LoadProvider(configLocation string) (Provider, error) {
 
 	prov, err := loader(tc)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	return prov, nil
@@ -67,26 +67,26 @@ func LoadProvider(configLocation string) (Provider, error) {
 func Load(defaultConfig string, providersConfigs []string) (*Crypto, error) {
 	p, err := LoadProvider(defaultConfig)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	c, err := New(p, nil)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	err = c.Add(p)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	for _, configLocation := range providersConfigs {
 		p, err := LoadProvider(configLocation)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 		err = c.Add(p)
 		if err != nil {
-			return nil, errors.Trace(err)
+			return nil, errors.WithStack(err)
 		}
 	}
 	return c, nil
@@ -96,7 +96,7 @@ func Load(defaultConfig string, providersConfigs []string) (*Crypto, error) {
 func Crypto11Loader(cfg TokenConfig) (Provider, error) {
 	p, err := crypto11.Init(cfg)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return p, nil
 }

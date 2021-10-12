@@ -11,7 +11,7 @@ import (
 	"github.com/go-phorce/dolly/algorithms/slices"
 	"github.com/go-phorce/dolly/xpki/csr"
 	"github.com/jinzhu/copier"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 )
 
@@ -268,7 +268,7 @@ func LoadConfig(path string) (*Config, error) {
 
 	body, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Annotate(err, "unable to read configuration file")
+		return nil, errors.WithMessage(err, "unable to read configuration file")
 	}
 
 	var cfg = new(Config)
@@ -279,7 +279,7 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	if err != nil {
-		return nil, errors.Annotate(err, "failed to unmarshal configuration")
+		return nil, errors.WithMessage(err, "failed to unmarshal configuration")
 	}
 
 	if len(cfg.Profiles) == 0 {
@@ -328,7 +328,7 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	if err = cfg.Validate(); err != nil {
-		return nil, errors.Annotate(err, "invalid configuration")
+		return nil, errors.WithMessage(err, "invalid configuration")
 	}
 
 	return cfg, nil
@@ -364,28 +364,28 @@ func (p *CertProfile) Validate() error {
 	if p.AllowedNames != "" && p.AllowedNamesRegex == nil {
 		rule, err := regexp.Compile(p.AllowedNames)
 		if err != nil {
-			return errors.Annotate(err, "failed to compile AllowedNames")
+			return errors.WithMessage(err, "failed to compile AllowedNames")
 		}
 		p.AllowedNamesRegex = rule
 	}
 	if p.AllowedDNS != "" && p.AllowedDNSRegex == nil {
 		rule, err := regexp.Compile(p.AllowedDNS)
 		if err != nil {
-			return errors.Annotate(err, "failed to compile AllowedDNS")
+			return errors.WithMessage(err, "failed to compile AllowedDNS")
 		}
 		p.AllowedDNSRegex = rule
 	}
 	if p.AllowedEmail != "" && p.AllowedEmailRegex == nil {
 		rule, err := regexp.Compile(p.AllowedEmail)
 		if err != nil {
-			return errors.Annotate(err, "failed to compile AllowedEmail")
+			return errors.WithMessage(err, "failed to compile AllowedEmail")
 		}
 		p.AllowedEmailRegex = rule
 	}
 	if p.AllowedURI != "" && p.AllowedURIRegex == nil {
 		rule, err := regexp.Compile(p.AllowedURI)
 		if err != nil {
-			return errors.Annotate(err, "failed to compile AllowedURI")
+			return errors.WithMessage(err, "failed to compile AllowedURI")
 		}
 		p.AllowedURIRegex = rule
 	}
@@ -418,11 +418,11 @@ func (c *Config) Validate() error {
 	for name, profile := range c.Profiles {
 		err = profile.Validate()
 		if err != nil {
-			return errors.Annotatef(err, "invalid %s profile", name)
+			return errors.WithMessagef(err, "invalid %s profile", name)
 		}
 		if profile.IssuerLabel != "" {
 			if !issuers[profile.IssuerLabel] {
-				return errors.Annotatef(err, "%s issuer not found for %s profile", profile.IssuerLabel, name)
+				return errors.WithMessagef(err, "%s issuer not found for %s profile", profile.IssuerLabel, name)
 			}
 		}
 	}

@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // TimeUnit specifies the time unit: 'minutes', 'hours'...
@@ -176,19 +176,14 @@ func (j *task) Duration() time.Duration {
 		switch j.unit {
 		case Seconds:
 			j.period = time.Duration(j.interval) * time.Second
-			break
 		case Minutes:
 			j.period = time.Duration(j.interval) * time.Minute
-			break
 		case Hours:
 			j.period = time.Duration(j.interval) * time.Hour
-			break
 		case Days:
 			j.period = time.Duration(j.interval) * time.Hour * 24
-			break
 		case Weeks:
 			j.period = time.Duration(j.interval) * time.Hour * 24 * 7
-			break
 		}
 	}
 	return j.period
@@ -308,33 +303,33 @@ func (j *task) Run() bool {
 }
 
 func parseTimeFormat(t string) (hour, min int, err error) {
-	var errTimeFormat = errors.NotValidf("%q time format", t)
+	var errTimeFormat = errors.Errorf("time format not valid: %q", t)
 	ts := strings.Split(t, ":")
 	if len(ts) != 2 {
-		err = errors.Trace(errTimeFormat)
+		err = errors.WithStack(errTimeFormat)
 		return
 	}
 
 	hour, err = strconv.Atoi(ts[0])
 	if err != nil {
-		err = errors.Trace(err)
+		err = errors.WithStack(err)
 		return
 	}
 	min, err = strconv.Atoi(ts[1])
 	if err != nil {
-		err = errors.Trace(err)
+		err = errors.WithStack(err)
 		return
 	}
 
 	if hour < 0 || hour > 23 || min < 0 || min > 59 {
-		err = errors.Trace(errTimeFormat)
+		err = errors.WithStack(errTimeFormat)
 		return
 	}
 	return
 }
 
 func parseTaskFormat(format string) (*task, error) {
-	var errTimeFormat = errors.NotValidf("%q task format", format)
+	var errTimeFormat = errors.Errorf("task format not valid: %q", format)
 
 	j := &task{
 		interval:  0,
@@ -352,94 +347,80 @@ func parseTaskFormat(format string) (*task, error) {
 		switch t {
 		case "every":
 			if j.interval > 0 {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.interval = 1
-			break
 		case "second", "seconds":
 			j.unit = Seconds
-			break
 		case "minute", "minutes":
 			j.unit = Minutes
-			break
 		case "hour", "hours":
 			j.unit = Hours
-			break
 		case "day", "days":
 			j.unit = Days
-			break
 		case "week", "weeks":
 			j.unit = Weeks
-			break
 		case "monday":
 			if j.interval > 1 || j.unit != Never {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.unit = Weeks
 			j.startDay = time.Monday
-			break
 		case "tuesday":
 			if j.interval > 1 || j.unit != Never {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.unit = Weeks
 			j.startDay = time.Tuesday
-			break
 		case "wednesday":
 			if j.interval > 1 || j.unit != Never {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.unit = Weeks
 			j.startDay = time.Wednesday
-			break
 		case "thursday":
 			if j.interval > 1 || j.unit != Never {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.unit = Weeks
 			j.startDay = time.Thursday
-			break
 		case "friday":
 			if j.interval > 1 || j.unit != Never {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.unit = Weeks
 			j.startDay = time.Friday
-			break
 		case "saturday":
 			if j.interval > 1 || j.unit != Never {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.unit = Weeks
 			j.startDay = time.Saturday
-			break
 		case "sunday":
 			if j.interval > 1 || j.unit != Never {
-				return nil, errors.Trace(errTimeFormat)
+				return nil, errors.WithStack(errTimeFormat)
 			}
 			j.unit = Weeks
 			j.startDay = time.Sunday
-			break
-
 		default:
 			if strings.Contains(t, ":") {
 				hour, min, err := parseTimeFormat(t)
 				if err != nil {
-					return nil, errors.Trace(errTimeFormat)
+					return nil, errors.WithStack(errTimeFormat)
 				}
 				if j.unit == Never {
 					j.unit = Days
 				} else if j.unit != Days && j.unit != Weeks {
-					return nil, errors.Trace(errTimeFormat)
+					return nil, errors.WithStack(errTimeFormat)
 				}
 				j.at(hour, min)
 			} else {
 				if j.interval > 1 {
-					return nil, errors.Trace(errTimeFormat)
+					return nil, errors.WithStack(errTimeFormat)
 				}
 				interval, err := strconv.ParseUint(t, 10, 0)
 				if err != nil || interval < 1 {
-					return nil, errors.Trace(errTimeFormat)
+					return nil, errors.WithStack(errTimeFormat)
 				}
 				j.interval = interval
 			}
@@ -449,7 +430,7 @@ func parseTaskFormat(format string) (*task, error) {
 		j.interval = 1
 	}
 	if j.unit == Never {
-		return nil, errors.Trace(errTimeFormat)
+		return nil, errors.WithStack(errTimeFormat)
 	}
 
 	return j, nil

@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-phorce/dolly/xpki/cryptoprov"
 	"github.com/go-phorce/dolly/xpki/cryptoprov/testprov"
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ import (
 func inmemloader(_ cryptoprov.TokenConfig) (cryptoprov.Provider, error) {
 	p, err := testprov.Init()
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return p, nil
 }

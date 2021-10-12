@@ -11,7 +11,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +50,7 @@ func (signer *DSAPrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.Sig
 	var sig dsaSignature
 	var err error
 	if sig.R, sig.S, err = dsa.Sign(rand, key, digest); err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	return sig.marshalDER()
 }

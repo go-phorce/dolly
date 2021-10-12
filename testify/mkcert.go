@@ -15,7 +15,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/juju/errors"
+	"github.com/pkg/errors"
 )
 
 // MakeSelfCertECDSA creates self-signed cert
@@ -23,7 +23,7 @@ func MakeSelfCertECDSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) 
 	// key pair
 	key, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	// certificate
@@ -37,12 +37,12 @@ func MakeSelfCertECDSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) 
 	}
 	der, err := x509.CreateCertificate(crand.Reader, certTemplate, certTemplate, &key.PublicKey, key)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	crt, err := x509.ParseCertificate(der)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	return crt, key, nil
@@ -52,12 +52,12 @@ func MakeSelfCertECDSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) 
 func MakeSelfCertECDSAPem(hours int) (pemCert, pemKey []byte, err error) {
 	crt, key, err := MakeSelfCertECDSA(hours)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	keyBytes, err := x509.MarshalECPrivateKey(key.(*ecdsa.PrivateKey))
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	pemKey = pem.EncodeToMemory(&pem.Block{
@@ -76,7 +76,7 @@ func MakeSelfCertRSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) {
 	// rsa key pair
 	key, err := rsa.GenerateKey(crand.Reader, 512)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	// certificate
@@ -90,12 +90,12 @@ func MakeSelfCertRSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) {
 	}
 	der, err := x509.CreateCertificate(crand.Reader, certTemplate, certTemplate, &key.PublicKey, key)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	crt, err := x509.ParseCertificate(der)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	return crt, key, nil
@@ -105,7 +105,7 @@ func MakeSelfCertRSA(hours int) (*x509.Certificate, crypto.PrivateKey, error) {
 func MakeSelfCertRSAPem(hours int) (pemCert, pemKey []byte, err error) {
 	crt, key, err := MakeSelfCertRSA(hours)
 	if err != nil {
-		return nil, nil, errors.Trace(err)
+		return nil, nil, errors.WithStack(err)
 	}
 
 	pemKey = pem.EncodeToMemory(&pem.Block{
@@ -127,7 +127,7 @@ func GenerateRSAKeyInPEM(rand io.Reader, size int) ([]byte, error) {
 	// key pair
 	key, err := rsa.GenerateKey(crand.Reader, size)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	pemKey := pem.EncodeToMemory(&pem.Block{
@@ -146,11 +146,11 @@ func GenerateECDSAKeyInPEM(rand io.Reader, c elliptic.Curve) ([]byte, error) {
 	// key pair
 	key, err := ecdsa.GenerateKey(c, rand)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 	keyBytes, err := x509.MarshalECPrivateKey(key)
 	if err != nil {
-		return nil, errors.Trace(err)
+		return nil, errors.WithStack(err)
 	}
 
 	pemKey := pem.EncodeToMemory(&pem.Block{
