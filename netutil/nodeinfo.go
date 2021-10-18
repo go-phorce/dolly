@@ -56,8 +56,7 @@ func (l *localNodeInfo) LocalIP() string {
 	return l.ipAddr
 }
 
-// NodeName returns node name derived from hostname by removing ops0- prefix
-// and sfdc.net suffix
+// NodeName returns node name derived from hostname
 func (l *localNodeInfo) NodeName() string {
 	return l.nodename
 }
