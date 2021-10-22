@@ -315,7 +315,7 @@ func flatten(kvList ...interface{}) string {
 	for i := 0; i < size; i += 2 {
 		k, ok := kvList[i].(string)
 		if !ok {
-			panic(fmt.Sprintf("key is not a string: %s", pretty(kvList[i])))
+			panic(fmt.Sprintf("key is not a string: %s", String(kvList[i])))
 		}
 		var v interface{}
 		if i+1 < size {
@@ -327,16 +327,19 @@ func flatten(kvList ...interface{}) string {
 		}
 		buf.WriteString(k)
 		buf.WriteString("=")
-		buf.WriteString(pretty(v))
+		buf.WriteString(String(v))
 
 	}
 	return buf.String()
 }
 
-func pretty(value interface{}) string {
+// String returns string value stuitable for logging
+func String(value interface{}) string {
 	if err, ok := value.(error); ok {
+		// if error does not support json.Marshaler,
+		// the print the full details
 		if _, ok := value.(json.Marshaler); !ok {
-			value = err.Error()
+			value = fmt.Sprintf("%+v", err)
 		}
 	}
 	buffer := &bytes.Buffer{}

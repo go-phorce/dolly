@@ -20,6 +20,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-phorce/dolly/xlog"
 	"github.com/pkg/errors"
@@ -163,13 +164,13 @@ func Test_WithTracedError(t *testing.T) {
 			"Test_WithTracedError(1)",
 			1,
 			"E | xlog_test: err=[originateError: msg=Test_WithTracedError(1), level=0]\n",
-			"E | xlog_test: stack=[originateError: msg=Test_WithTracedError(1), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:38\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:45\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.withTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:56\ngithub.com/go-phorce/dolly/xlog_test.Test_WithTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:183\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:45\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.withTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:56\ngithub.com/go-phorce/dolly/xlog_test.Test_WithTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:183\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.withTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:56\ngithub.com/go-phorce/dolly/xlog_test.Test_WithTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:183\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581]\n",
+			"E | xlog_test: stack=[originateError: msg=Test_WithTracedError(1), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:39\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog",
 		},
 		{
 			"Test_WithTracedError(4)",
 			2,
 			"E | xlog_test: err=[originateError: msg=Test_WithTracedError(4), level=0]\n",
-			"E | xlog_test: stack=[originateError: msg=Test_WithTracedError(4), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:38\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:45\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.withTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:56\ngithub.com/go-phorce/dolly/xlog_test.Test_WithTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:183\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:45\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.withTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:56\ngithub.com/go-phorce/dolly/xlog_test.Test_WithTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:183\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.withTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:56\ngithub.com/go-phorce/dolly/xlog_test.Test_WithTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:183\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:43\ngithub.com/go-phorce/dolly/xlog_test.withTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:56\ngithub.com/go-phorce/dolly/xlog_test.Test_WithTracedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:183\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581]\n",
+			"E | xlog_test: stack=[originateError: msg=Test_WithTracedError(4), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:39\ngithub.com/go-phorce/dolly/xlog_test.traceError\n\tgithub.com/go-phorce/dolly/xlog",
 		},
 	}
 
@@ -215,13 +216,13 @@ func Test_WithAnnotatedError(t *testing.T) {
 			"Test_WithAnnotatedError(1)",
 			1,
 			"E | xlog_test: err=[annotateError, level=0: originateError: msg=Test_WithAnnotatedError(1), level=0]\n",
-			"E | xlog_test: stack=[originateError: msg=Test_WithAnnotatedError(1), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:38\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:52\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:50\ngithub.com/go-phorce/dolly/xlog_test.withAnnotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:60\ngithub.com/go-phorce/dolly/xlog_test.Test_WithAnnotatedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:235\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\nannotateError, level=0\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:50\ngithub.com/go-phorce/dolly/xlog_test.withAnnotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:60\ngithub.com/go-phorce/dolly/xlog_test.Test_WithAnnotatedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:235\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581]\n",
+			"E | xlog_test: stack=[originateError: msg=Test_WithAnnotatedError(1), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:39\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/doll",
 		},
 		{
 			"Test_WithAnnotatedError(4)",
 			2,
 			"E | xlog_test: err=[annotateError, level=0: originateError: msg=Test_WithAnnotatedError(4), level=0]\n",
-			"E | xlog_test: stack=[originateError: msg=Test_WithAnnotatedError(4), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:38\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:52\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:50\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:50\ngithub.com/go-phorce/dolly/xlog_test.withAnnotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:60\ngithub.com/go-phorce/dolly/xlog_test.Test_WithAnnotatedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:235\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\nannotateError, level=0\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:50\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:50\ngithub.com/go-phorce/dolly/xlog_test.withAnnotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:60\ngithub.com/go-phorce/dolly/xlog_test.Test_WithAnnotatedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:235\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:50\ngithub.com/go-phorce/dolly/xlog_test.withAnnotateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:60\ngithub.com/go-phorce/dolly/xlog_test.Test_WithAnnotatedError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:235\ntesting.tRunner\n\t/usr/local/go/src/testing/testing.go:1259\nruntime.goexit\n\t/usr/local/go/src/runtime/asm_amd64.s:1581]\n",
+			"E | xlog_test: stack=[originateError: msg=Test_WithAnnotatedError(4), level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n\tgithub.com/go-phorce/dolly/xlog/xlog_test.go:39\ngithub.com/go-phorce/dolly/xlog_test.annotateError\n\tgithub.com/go-phorce/doll",
 		},
 	}
 
@@ -334,8 +335,8 @@ func Test_PrettyFormatterDebug(t *testing.T) {
 	xlog.SetGlobalLogLevel(xlog.DEBUG)
 	logger.Debug("Test Debug")
 	logger.Debugf("Test Debug")
-	result = b.String()
-	expected = "[xlog_test.go:335] D | xlog_test: src=Test_PrettyFormatterDebug, Test Debug\n"
+	result = b.String()[21:]
+	expected = "[xlog_test.go:336] D | xlog_test: src=Test_PrettyFormatterDebug, Test Debug\n"
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
@@ -392,11 +393,52 @@ func Test_StringFormatter(t *testing.T) {
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
 
-	log2.KV(xlog.INFO, "k1", 1, "k2", false)
-	result = b.String()
-	expected = "xlog_test: src=Test_StringFormatter, count=1, k1=1, k2=false\n"
+	date, err := time.Parse("2006-01-02", "2021-04-01")
+	require.NoError(t, err)
+
+	log2.KV(xlog.INFO,
+		"int", 1, // int
+		"nint", -2, // negative int
+		"uint64", uint64(123456789123456), // int
+		"bool", false,
+		"time", date, // time.Time
+		"strings", []string{"s1", "s2"},
+		"err", withAnnotateError("logs error", 2),
+	)
+	result = b.String()[21:] // skip the time
+	expected = `xlog_test: src=Test_StringFormatter, count=1, int=1, nint=-2, uint64=123456789123456, bool=false, time="2021-04-01T00:00:00Z", strings=["s1","s2"], err="originateError: msg=logs error, level=0\ngithub.com/go-phorce/dolly/xlog_test.originateError\n`
 	assert.Contains(t, result, expected, "Log format does not match")
 	b.Reset()
+}
+
+func TestXlogString(t *testing.T) {
+	date, err := time.Parse("2006-01-02", "2021-04-01")
+	require.NoError(t, err)
+
+	structVal := struct {
+		S string
+		N int
+		D time.Time
+	}{
+		"str", 1, date,
+	}
+
+	tcases := []struct {
+		name string
+		val  interface{}
+		exp  string
+	}{
+		{"int", 1, "1"},
+		{"nint", -72349568723, "-72349568723"},
+		{"bool", false, "false"},
+		{"strings", []string{"s1", "s2"}, `["s1","s2"]`},
+		{"date", date, `"2021-04-01T00:00:00Z"`},
+		{"struct", structVal, `{"S":"str","N":1,"D":"2021-04-01T00:00:00Z"}`},
+	}
+
+	for _, tc := range tcases {
+		assert.Equal(t, tc.exp, xlog.String(tc.val), tc.name)
+	}
 }
 
 func Test_LogFormatter(t *testing.T) {
