@@ -11,7 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-phorce/dolly/xhttp/header"
 	"github.com/go-phorce/dolly/xlog"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -145,5 +147,50 @@ func TestHttp_RequestLoggerWithExtractor(t *testing.T) {
 	logLine := tw.String()[prefixLength:]
 	if !strings.HasSuffix(logLine, ":JIVE:TURKEY\n") {
 		t.Errorf("Log Line should end with our custom extracted values, but was '%v'", logLine)
+	}
+}
+
+func TestHttp_RequestLoggerWithSkip(t *testing.T) {
+	tcases := []struct {
+		opt   RequestLoggerOption
+		path  string
+		agent string
+		exp   bool
+	}{
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "", Agent: ""}}), "/foo", "", true},
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "*", Agent: ""}}), "/foo", "", false},
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "*", Agent: "*"}}), "/foo", "Google HB", false},
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "", Agent: "*"}}), "/foo", "Google HB", true},
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "", Agent: "Google"}}), "/foo", "Google HB", true},
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "/foo", Agent: "Google"}}), "/foo", "Google HB", false},
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "/bar", Agent: "Google"}}), "/foo", "Google HB", true},
+		{WithLoggerSkipPaths([]LoggerSkipPath{{Path: "/foo", Agent: "Google"}}), "/foo", "Prom", true},
+	}
+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("echo: " + r.URL.Path))
+	}
+
+	for _, tc := range tcases {
+		w := httptest.NewRecorder()
+		tw := bytes.Buffer{}
+		writer := bufio.NewWriter(&tw)
+		xlog.SetFormatter(xlog.NewPrettyFormatter(writer, false))
+
+		lg := NewRequestLogger(http.HandlerFunc(handler), "", nil, time.Millisecond, "", tc.opt)
+		r, _ := http.NewRequest("GET", tc.path, nil)
+		if tc.agent != "" {
+			r.Header.Add(header.UserAgent, tc.agent)
+		}
+
+		lg.ServeHTTP(w, r)
+
+		logLine := tw.String()
+		if tc.exp {
+			assert.Contains(t, logLine, tc.path, xlog.String(tc))
+		} else {
+			assert.NotContains(t, logLine, tc.path, xlog.String(tc))
+		}
 	}
 }
