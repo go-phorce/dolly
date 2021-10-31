@@ -6,6 +6,7 @@ import (
 	goErrors "errors"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 
 	"github.com/go-phorce/dolly/xhttp/header"
@@ -49,7 +50,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 	case WriteHTTPResponse:
 		// errors.Error impls WriteHTTPResponse, so will take this path and do its thing
 		bv.WriteHTTPResponse(w, r)
-		tryLogHTTPError(bv, r)
+		httpError(bv, r)
 		return
 
 	case error:
@@ -57,7 +58,7 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 
 		if goErrors.As(bv, &resp) {
 			resp.WriteHTTPResponse(w, r)
-			tryLogHTTPError(bv, r)
+			httpError(bv, r)
 			return
 		}
 
@@ -83,17 +84,21 @@ func WriteJSON(w http.ResponseWriter, r *http.Request, bodies ...interface{}) {
 	}
 }
 
-func tryLogHTTPError(bv interface{}, r *http.Request) {
+func httpError(bv interface{}, r *http.Request) {
+	// notice that we're using 2, so it will actually log where
+	// the error happened, 0 = this function, we don't want that.
+	_, fn, line, _ := runtime.Caller(2)
+
 	if e, ok := bv.(*httperror.Error); ok {
 		if e.HTTPStatus >= 500 {
-			logger.Errorf("INTERNAL_ERROR=%s:%d:%s:%s",
-				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
+			logger.Errorf("INTERNAL_ERROR=%s:%d:%s:%s:%s:%d",
+				r.URL.Path, e.HTTPStatus, e.Code, e.Message, fn, line)
 			if e.Cause != nil {
 				logger.Errorf("err=[%+v]", e.Cause)
 			}
 		} else {
-			logger.Warningf("API_ERROR=%s:%d:%s:%s",
-				r.URL.Path, e.HTTPStatus, e.Code, e.Message)
+			logger.Warningf("API_ERROR=%s:%d:%s:%s:%s:%d",
+				r.URL.Path, e.HTTPStatus, e.Code, e.Message, fn, line)
 			if e.Cause != nil {
 				logger.Warningf("err=[%+v]", e.Cause)
 			}
