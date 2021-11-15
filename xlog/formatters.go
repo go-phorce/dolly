@@ -43,7 +43,8 @@ type Formatter interface {
 // NewStringFormatter returns string-based formatter
 func NewStringFormatter(w io.Writer) Formatter {
 	return &StringFormatter{
-		w: bufio.NewWriter(w),
+		w:          bufio.NewWriter(w),
+		withCaller: true,
 	}
 }
 
@@ -101,8 +102,9 @@ func (s *StringFormatter) Flush() {
 // NewPrettyFormatter returns an instance of PrettyFormatter
 func NewPrettyFormatter(w io.Writer, debug bool) Formatter {
 	return &PrettyFormatter{
-		w:     bufio.NewWriter(w),
-		debug: debug,
+		w:          bufio.NewWriter(w),
+		debug:      debug,
+		withCaller: true,
 	}
 }
 
@@ -161,8 +163,9 @@ func (c *PrettyFormatter) Flush() {
 // NewColorFormatter returns an instance of ColorFormatter
 func NewColorFormatter(w io.Writer, color bool) Formatter {
 	return &ColorFormatter{
-		w:     bufio.NewWriter(w),
-		color: color,
+		w:          bufio.NewWriter(w),
+		color:      color,
+		withCaller: true,
 	}
 }
 

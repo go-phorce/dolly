@@ -41,7 +41,7 @@ func TestProfiler_ProfileType(t *testing.T) {
 func TestProfiler_LogProfile(t *testing.T) {
 	logdata := &bytes.Buffer{}
 	writer := bufio.NewWriter(logdata)
-	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, false))
+	xlog.SetFormatter(xlog.NewPrettyFormatter(writer, false).WithCaller(false))
 
 	lp := LogProfile()
 	r, err := http.NewRequest(http.MethodGet, "/foo/bar", nil)
