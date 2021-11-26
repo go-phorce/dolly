@@ -172,7 +172,7 @@ func LoadPEMFiles(files ...string) ([]byte, error) {
 // JoinPEM returns concantenated PEM
 func JoinPEM(p1, p2 []byte) []byte {
 	p1 = bytes.TrimSpace(p1)
-	if len(p1) > 0 {
+	if len(p2) > 0 {
 		if len(p1) > 0 {
 			p1 = append(p1, '\n')
 		}
