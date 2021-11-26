@@ -2,6 +2,7 @@ package certutil
 
 import (
 	"crypto"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -62,13 +63,31 @@ func TestDigest_Hash256(t *testing.T) {
 }
 
 func TestDigest_Hash1(t *testing.T) {
-	h := SHA1Hex([]byte("The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule"))
+	data := []byte("The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule")
+
+	h := SHA1Hex(data)
 	assert.Equal(t, "0885aaf99b569542fd165fa44e322718f4a984e0", h)
-
-	b, err := hex.DecodeString("0885aaf99b569542fd165fa44e322718f4a984e0")
+	b, err := hex.DecodeString(h)
 	require.NoError(t, err)
-	assert.Equal(t, b, SHA1([]byte("The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule")))
+	assert.Equal(t, b, SHA1(data))
 
+	h = SHA1Base64(data)
+	assert.Equal(t, "CIWq-ZtWlUL9Fl-kTjInGPSphOA", h)
+	b, err = base64.RawURLEncoding.DecodeString(h)
+	require.NoError(t, err)
+	assert.Equal(t, b, SHA1(data))
+
+	h = SHA256Hex(data)
+	assert.Equal(t, "395585ce30617b62c80b93e8208ce866d4edc811a177fdb4b82d3911d8696423", h)
+	b, err = hex.DecodeString(h)
+	require.NoError(t, err)
+	assert.Equal(t, b, SHA256(data))
+
+	h = SHA256Base64(data)
+	assert.Equal(t, "OVWFzjBhe2LIC5PoIIzoZtTtyBGhd_20uC05EdhpZCM", h)
+	b, err = base64.RawURLEncoding.DecodeString(h)
+	require.NoError(t, err)
+	assert.Equal(t, b, SHA256(data))
 }
 
 func Test_NewHash(t *testing.T) {

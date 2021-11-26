@@ -113,22 +113,6 @@ func EncodeToPEM(out io.Writer, withComments bool, certs ...*x509.Certificate) e
 	return nil
 }
 
-// encodeToPEMString converts certificate to PEM format, with optional comments
-func encodeToPEMString(withComments bool, crt *x509.Certificate) (string, error) {
-	if crt == nil {
-		return "", nil
-	}
-	b := bytes.NewBuffer([]byte{})
-	err := EncodeToPEM(b, withComments, crt)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-	pem := string(b.Bytes())
-	pem = strings.TrimSpace(pem)
-	pem = strings.Replace(pem, "\n\n", "\n", -1)
-	return pem, nil
-}
-
 // EncodeToPEMString converts certificates to PEM format, with optional comments
 func EncodeToPEMString(withComments bool, certs ...*x509.Certificate) (string, error) {
 	if len(certs) == 0 || certs[0] == nil {
@@ -140,7 +124,7 @@ func EncodeToPEMString(withComments bool, certs ...*x509.Certificate) (string, e
 	if err != nil {
 		return "", errors.WithStack(err)
 	}
-	pem := string(b.Bytes())
+	pem := b.String()
 	pem = strings.TrimSpace(pem)
 	pem = strings.Replace(pem, "\n\n", "\n", -1)
 	return pem, nil
@@ -159,4 +143,40 @@ func CreatePoolFromPEM(pemBytes []byte) (*x509.CertPool, error) {
 	}
 
 	return pool, nil
+}
+
+// LoadPEMFiles loads and concantenates PEM files into one slice
+func LoadPEMFiles(files ...string) ([]byte, error) {
+	var pem []byte
+	for _, f := range files {
+		b, err := ioutil.ReadFile(f)
+		if err != nil {
+			return pem, errors.WithMessage(err, "failed to load PEM")
+		}
+		s := bytes.TrimSpace(b)
+		if len(s) == 0 {
+			continue
+		}
+
+		if len(pem) > 0 {
+			pem = append(pem, byte('\n'))
+			pem = append(pem, s...)
+		} else {
+			pem = s
+		}
+
+	}
+	return pem, nil
+}
+
+// JoinPEM returns concantenated PEM
+func JoinPEM(p1, p2 []byte) []byte {
+	p1 = bytes.TrimSpace(p1)
+	if len(p1) > 0 {
+		if len(p1) > 0 {
+			p1 = append(p1, '\n')
+		}
+		p1 = append(p1, bytes.TrimSpace(p2)...)
+	}
+	return p1
 }
