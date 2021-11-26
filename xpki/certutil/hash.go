@@ -2,6 +2,7 @@ package certutil
 
 import (
 	"crypto"
+	"encoding/base64"
 	"encoding/hex"
 	"hash"
 	"strings"
@@ -118,12 +119,27 @@ func SHA1Hex(data []byte) string {
 	return HashToHex(crypto.SHA1, data)
 }
 
+// SHA1Base64 returns Base64URL encoded SHA1
+func SHA1Base64(data []byte) string {
+	return HashToBase64URL(crypto.SHA1, data)
+}
+
 // SHA256Hex returns hex-encoded SHA256
 func SHA256Hex(data []byte) string {
 	return HashToHex(crypto.SHA256, data)
 }
 
+// SHA256Base64 returns Base64URL encoded SHA256
+func SHA256Base64(data []byte) string {
+	return HashToBase64URL(crypto.SHA256, data)
+}
+
 // HashToHex returns hex-encoded digest
 func HashToHex(hash crypto.Hash, data []byte) string {
 	return hex.EncodeToString(Digest(hash, data))
+}
+
+// HashToBase64URL returns Base64URL encoded digest
+func HashToBase64URL(hash crypto.Hash, data []byte) string {
+	return base64.RawURLEncoding.EncodeToString(Digest(hash, data))
 }

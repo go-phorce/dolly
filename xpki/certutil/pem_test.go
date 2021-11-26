@@ -46,3 +46,18 @@ func Test_LoadChainFromPEM(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, len(chain) > 100)
 }
+
+func TestLoadPEMFiles(t *testing.T) {
+	b, err := certutil.LoadPEMFiles("testdata/ca-bundle.pem", "testdata/int-bundle.pem")
+	require.NoError(t, err)
+
+	_, err = certutil.ParseChainFromPEM(b)
+	require.NoError(t, err)
+
+	_, err = certutil.CreatePoolFromPEM(b)
+	require.NoError(t, err)
+}
+
+func TestJoinPEM(t *testing.T) {
+	assert.Equal(t, []byte("1\n2"), certutil.JoinPEM([]byte("\n   1  \n\n\n"), []byte("\t  \n   2  \n\n\t \n   ")))
+}
