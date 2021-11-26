@@ -60,4 +60,6 @@ func TestLoadPEMFiles(t *testing.T) {
 
 func TestJoinPEM(t *testing.T) {
 	assert.Equal(t, []byte("1\n2"), certutil.JoinPEM([]byte("\n   1  \n\n\n"), []byte("\t  \n   2  \n\n\t \n   ")))
+	assert.Equal(t, []byte("1"), certutil.JoinPEM([]byte("\n   1  \n\n\n"), nil))
+	assert.Equal(t, []byte("2"), certutil.JoinPEM(nil, []byte("\t  \n   2  \n\n\t \n   ")))
 }
