@@ -86,7 +86,10 @@ func TestDefaultPolicy(t *testing.T) {
 		{false, "success", 0, 200, nil},
 		{false, retriable.NonRetriableError, 0, 400, nil},
 		{false, retriable.NonRetriableError, 0, 401, nil},
+		{false, retriable.NonRetriableError, 0, 402, nil},
+		{false, retriable.NonRetriableError, 0, 403, nil},
 		{false, retriable.NotFound, 0, 404, nil},
+		{false, retriable.NonRetriableError, 0, 430, nil},
 		{false, retriable.NonRetriableError, 0, 500, nil},
 		// connection
 		{true, "connection", 0, 0, errors.New("some error")},
@@ -291,8 +294,29 @@ func Test_Retriable_StatusNoContent(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, status)
 }
 
+func Test_Retriable400(t *testing.T) {
+	h := makeTestHandlerWithLimit(t, "/v1/test", 1, http.StatusUnauthorized, `{
+		"error": "access denied"
+	}`)
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	client := retriable.New()
+	require.NotNil(t, client)
+
+	hosts := []string{server.URL, server.URL}
+
+	w := bytes.NewBuffer([]byte{})
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	_, status, err := client.Request(ctx, http.MethodGet, hosts, "/v1/test", nil, w)
+	require.Error(t, err)
+	assert.Equal(t, http.StatusUnauthorized, status)
+}
+
 func Test_Retriable500(t *testing.T) {
-	h := makeTestHandler(t, "/v1/test", http.StatusInternalServerError, `{
+	h := makeTestHandlerWithLimit(t, "/v1/test", 2, http.StatusInternalServerError, `{
 		"error": "bug!"
 	}`)
 	server := httptest.NewServer(h)
@@ -301,7 +325,7 @@ func Test_Retriable500(t *testing.T) {
 	client := retriable.New()
 	require.NotNil(t, client)
 
-	hosts := []string{server.URL}
+	hosts := []string{server.URL, server.URL}
 
 	w := bytes.NewBuffer([]byte{})
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -641,6 +665,23 @@ func Test_DecodeResponse(t *testing.T) {
 
 func makeTestHandler(t *testing.T, expURI string, status int, responseBody string) http.Handler {
 	h := func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, expURI, r.URL.Path, "received wrong URI")
+		if status == 0 {
+			status = http.StatusOK
+		}
+		w.Header().Add("X-Test-Header", "retriable")
+		w.Header().Add("X-Test-Token", r.Header.Get("X-Test-Token"))
+		w.WriteHeader(status)
+		io.WriteString(w, responseBody)
+	}
+	return http.HandlerFunc(h)
+}
+
+func makeTestHandlerWithLimit(t *testing.T, expURI string, limit, status int, responseBody string) http.Handler {
+	count := 0
+	h := func(w http.ResponseWriter, r *http.Request) {
+		count++
+		assert.LessOrEqual(t, count, limit, "limit exceeded: count=%d, limit=%d", count, limit)
 		assert.Equal(t, expURI, r.URL.Path, "received wrong URI")
 		if status == 0 {
 			status = http.StatusOK

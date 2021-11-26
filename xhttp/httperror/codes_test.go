@@ -46,6 +46,7 @@ func Test_StatusCodes(t *testing.T) {
 		{httperror.WithRequestTooLarge("1"), http.StatusBadRequest, "request_too_large: 1"},
 		{httperror.WithFailedToReadRequestBody("1"), http.StatusInternalServerError, "request_body: 1"},
 		{httperror.WithRateLimitExceeded("1"), http.StatusTooManyRequests, "rate_limit_exceeded: 1"},
+		{httperror.WithTooEarly("1"), http.StatusTooEarly, "too_early: 1"},
 		{httperror.WithUnexpected("1"), http.StatusInternalServerError, "unexpected: 1"},
 		{httperror.WithForbidden("1"), http.StatusForbidden, "forbidden: 1"},
 		{httperror.WithUnauthorized("1"), http.StatusUnauthorized, "unauthorized: 1"},

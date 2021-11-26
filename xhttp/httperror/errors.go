@@ -88,6 +88,11 @@ func WithRateLimitExceeded(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusTooManyRequests, RateLimitExceeded, msgFormat, vals...)
 }
 
+// WithTooEarly for builds a new Error instance with TooEarly code
+func WithTooEarly(msgFormat string, vals ...interface{}) *Error {
+	return New(http.StatusTooEarly, TooEarly, msgFormat, vals...)
+}
+
 // WithUnexpected for builds a new Error instance with Unexpected code
 func WithUnexpected(msgFormat string, vals ...interface{}) *Error {
 	return New(http.StatusInternalServerError, Unexpected, msgFormat, vals...)

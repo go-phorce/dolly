@@ -701,7 +701,8 @@ func (p *Policy) ShouldRetry(r *http.Request, resp *http.Response, err error, re
 		return false, 0, NotFound
 	}
 
-	if resp.StatusCode == 400 || resp.StatusCode == 401 {
+	if resp.StatusCode != http.StatusTooManyRequests &&
+		resp.StatusCode >= 400 && resp.StatusCode < 500 {
 		return false, 0, NonRetriableError
 	}
 

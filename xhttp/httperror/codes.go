@@ -35,6 +35,8 @@ const (
 	RequestFailed = "request_failed"
 	// RequestTooLarge is returned when the client provided payload is larger than allowed for the particular resource.
 	RequestTooLarge = "request_too_large"
+	// TooEarly is returned when the client makes requests too early.
+	TooEarly = "too_early"
 	// Unauthorized is for unauthorized access.
 	Unauthorized = "unauthorized"
 	// Unexpected is returned when something went wrong.
