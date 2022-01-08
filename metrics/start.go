@@ -21,6 +21,7 @@ type Config struct {
 	TimerGranularity     time.Duration // Granularity of timers.
 	ProfileInterval      time.Duration // Interval to profile runtime metrics
 	GlobalTags           []Tag         // Tags to add to every metric
+	GlobalPrefix         string        // Prefix to add to every metric
 
 	AllowedPrefixes []string // A list of metric prefixes to allow, with '.' as the separator
 	BlockedPrefixes []string // A list of metric prefixes to block, with '.' as the separator
@@ -54,7 +55,7 @@ func DefaultConfig(serviceName string) *Config {
 	c := &Config{
 		ServiceName:          serviceName, // Use client provided service
 		HostName:             "",
-		EnableHostname:       true,             // Enable hostname prefix
+		EnableHostname:       false,            // Enable hostname prefix
 		EnableRuntimeMetrics: true,             // Enable runtime profiling
 		EnableTypePrefix:     false,            // Disable type prefix
 		TimerGranularity:     time.Millisecond, // Timers are in milliseconds

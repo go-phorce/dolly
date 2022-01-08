@@ -89,6 +89,7 @@ func Test_SetProviderPrometheus(t *testing.T) {
 		GlobalTags: []metrics.Tag{
 			{"env_tag", "test_value"},
 		},
+		GlobalPrefix: "dolly",
 	}, d)
 	require.NoError(t, err)
 	run(prov, 10)
@@ -100,8 +101,8 @@ func Test_SetProviderPrometheus(t *testing.T) {
 	promhttp.Handler().ServeHTTP(w, r)
 	require.Equal(t, http.StatusOK, w.Code)
 
-	body := string(w.Body.Bytes())
-	assert.Contains(t, body, "test_metrics_since_count")
+	body := w.Body.String()
+	assert.Contains(t, body, "dolly_test_metrics_since_count")
 	assert.Contains(t, body, `env_tag="test_value"`)
 }
 
