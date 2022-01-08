@@ -16,7 +16,9 @@ import (
 
 func Test_PublishCertExpiration(t *testing.T) {
 	im := metrics.NewInmemSink(time.Minute, time.Minute*5)
-	_, err := metrics.NewGlobal(metrics.DefaultConfig("service"), im)
+	cfg := metrics.DefaultConfig("service")
+	cfg.EnableHostname = true
+	_, err := metrics.NewGlobal(cfg, im)
 	require.NoError(t, err)
 
 	crt, _, err := testify.MakeSelfCertRSA(24)

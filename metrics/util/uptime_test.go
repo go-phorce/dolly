@@ -2,7 +2,6 @@ package util
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -40,7 +39,8 @@ func Test_PublishUptime(t *testing.T) {
 		require.True(t, exists, "Expected metric with key %s to exist, but it doesn't", key)
 		assert.Equal(t, expectedCount, s.Count, "Unexpected count for metric %s", key)
 	}
-	hostname, _ := os.Hostname()
-	assertGauge(fmt.Sprintf("svc1.%s.uptime.seconds;service=svc1", hostname))
+	//hostname, _ := os.Hostname()
+	//assertGauge(fmt.Sprintf("svc1.%s.uptime.seconds;service=svc1", hostname))
+	assertGauge(fmt.Sprintf("svc1.uptime.seconds;service=svc1"))
 	assertCounter(fmt.Sprintf("svc1.heartbeat;service=svc1"), 1)
 }

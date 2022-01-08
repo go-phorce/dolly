@@ -11,8 +11,7 @@ import (
 
 var logger = xlog.NewPackageLogger("github.com/go-phorce/dolly", "metrics")
 
-// SetGauge should retain the last value it is set to
-func (m *Metrics) SetGauge(key []string, val float32, tags ...Tag) {
+func (m *Metrics) prepare(typ string, key []string, tags ...Tag) (bool, []string, []Tag) {
 	if len(m.GlobalTags) > 0 {
 		tags = append(tags, m.GlobalTags...)
 	}
@@ -24,7 +23,7 @@ func (m *Metrics) SetGauge(key []string, val float32, tags ...Tag) {
 		}
 	}
 	if m.EnableTypePrefix {
-		key = insert(0, "gauge", key)
+		key = insert(0, typ, key)
 	}
 	if m.ServiceName != "" {
 		if m.EnableServiceLabel {
@@ -33,89 +32,50 @@ func (m *Metrics) SetGauge(key []string, val float32, tags ...Tag) {
 			key = insert(0, m.ServiceName, key)
 		}
 	}
+	if m.GlobalPrefix != "" {
+		key = insert(0, m.GlobalPrefix, key)
+	}
 	allowed, labelsFiltered := m.allowMetric(key, tags)
+	return allowed, key, labelsFiltered
+}
+
+// SetGauge should retain the last value it is set to
+func (m *Metrics) SetGauge(key []string, val float32, tags ...Tag) {
+	allowed, keys, labels := m.prepare("gauge", key, tags...)
 	if !allowed {
 		return
 	}
-	m.sink.SetGauge(key, val, labelsFiltered)
+	m.sink.SetGauge(keys, val, labels)
 }
 
 // IncrCounter should accumulate values
 func (m *Metrics) IncrCounter(key []string, val float32, tags ...Tag) {
-	if len(m.GlobalTags) > 0 {
-		tags = append(tags, m.GlobalTags...)
-	}
-	if m.HostName != "" && m.EnableHostnameLabel {
-		tags = append(tags, Tag{"host", m.HostName})
-	}
-	if m.EnableTypePrefix {
-		key = insert(0, "counter", key)
-	}
-	if m.ServiceName != "" {
-		if m.EnableServiceLabel {
-			tags = append(tags, Tag{"service", m.ServiceName})
-		} else {
-			key = insert(0, m.ServiceName, key)
-		}
-	}
-	allowed, labelsFiltered := m.allowMetric(key, tags)
+	allowed, keys, labels := m.prepare("counter", key, tags...)
 	if !allowed {
 		return
 	}
-	m.sink.IncrCounter(key, val, labelsFiltered)
+	m.sink.IncrCounter(keys, val, labels)
 }
 
 // AddSample is for timing information, where quantiles are used
 func (m *Metrics) AddSample(key []string, val float32, tags ...Tag) {
-	if len(m.GlobalTags) > 0 {
-		tags = append(tags, m.GlobalTags...)
-	}
-	if m.HostName != "" && m.EnableHostnameLabel {
-		tags = append(tags, Tag{"host", m.HostName})
-	}
-	if m.EnableTypePrefix {
-		key = insert(0, "sample", key)
-	}
-	if m.ServiceName != "" {
-		if m.EnableServiceLabel {
-			tags = append(tags, Tag{"service", m.ServiceName})
-		} else {
-			key = insert(0, m.ServiceName, key)
-		}
-	}
-	allowed, labelsFiltered := m.allowMetric(key, tags)
+	allowed, keys, labels := m.prepare("sample", key, tags...)
 	if !allowed {
 		return
 	}
-	m.sink.AddSample(key, val, labelsFiltered)
+	m.sink.AddSample(keys, val, labels)
 }
 
 // MeasureSince is for timing information
 func (m *Metrics) MeasureSince(key []string, start time.Time, tags ...Tag) {
-	if len(m.GlobalTags) > 0 {
-		tags = append(tags, m.GlobalTags...)
-	}
-	if m.HostName != "" && m.EnableHostnameLabel {
-		tags = append(tags, Tag{"host", m.HostName})
-	}
-	if m.EnableTypePrefix {
-		key = insert(0, "timer", key)
-	}
-	if m.ServiceName != "" {
-		if m.EnableServiceLabel {
-			tags = append(tags, Tag{"service", m.ServiceName})
-		} else {
-			key = insert(0, m.ServiceName, key)
-		}
-	}
-	allowed, labelsFiltered := m.allowMetric(key, tags)
+	elapsed := time.Now().Sub(start)
+	msec := float32(elapsed.Nanoseconds()) / float32(m.TimerGranularity)
+
+	allowed, keys, labels := m.prepare("timer", key, tags...)
 	if !allowed {
 		return
 	}
-	now := time.Now()
-	elapsed := now.Sub(start)
-	msec := float32(elapsed.Nanoseconds()) / float32(m.TimerGranularity)
-	m.sink.AddSample(key, msec, labelsFiltered)
+	m.sink.AddSample(keys, msec, labels)
 }
 
 // UpdateFilter overwrites the existing filter with the given rules.
