@@ -3,10 +3,9 @@ package xlog_test
 import (
 	"testing"
 
+	"github.com/go-phorce/dolly/xlog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/go-phorce/dolly/xlog"
 )
 
 func Test_LevelTrace(t *testing.T) {
