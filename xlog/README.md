@@ -1,8 +1,5 @@
 # xlog logging package
 
-[![Build Status](https://travis-ci.org/go-phorce/xlog.svg?branch=master)](https://travis-ci.org/go-phorce/xlog)
-[![Coverage Status](https://coveralls.io/repos/github/go-phorce/xlog/badge.svg?branch=master)](https://coveralls.io/github/go-phorce/xlog?branch=master)
-
 Cloned from https://github.com/coreos/pkg/tree/master/capnslog
 This clone has slight modifications on the original code,
 adding ability to specify log lever per package,
@@ -10,6 +7,25 @@ and exposing Logger interface, not an implementation structure.
 
 In this implementation the `DEBUG` level is above `TRACE` as trace
 is used to trace important functions calls and maybe enable on the cloud more friequently than `DEBUG`
+
+## How to use
+
+```
+var logger = xlog.NewPackageLogger("github.com/yourorg/yourrepo", "yourpackage")
+
+logger.KV(xlog.INFO, "version", v1, "any", override)
+```
+
+## How to configure
+
+	if withStackdriver {
+		formatter := stackdriver.NewFormatter(os.Stderr, cfg.Logs.LogsName)
+		xlog.SetFormatter(formatter)
+	} else {
+		formatter := xlog.NewColorFormatter(os.Stderr, true)
+		xlog.SetFormatter(formatter)
+	}
+
 
 ## Design Principles
 
