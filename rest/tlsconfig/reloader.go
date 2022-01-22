@@ -123,10 +123,8 @@ func (k *KeypairReloader) Reload() error {
 
 	k.inProgress = true
 	defer func() {
-		if k.inProgress {
-			k.inProgress = false
-			k.lock.Unlock()
-		}
+		k.inProgress = false
+		k.lock.Unlock()
 	}()
 
 	oldModifiedAt := k.certModifiedAt
@@ -170,8 +168,6 @@ func (k *KeypairReloader) Reload() error {
 
 	k.keypair = &newCert
 	keypair := k.tlsCert()
-	k.inProgress = false
-	k.lock.Unlock()
 
 	if oldModifiedAt != k.certModifiedAt {
 		// execute notifications outside of the lock

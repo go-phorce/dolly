@@ -9,6 +9,10 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"net"
+	"net/mail"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -42,9 +46,8 @@ func (c *configuration) generate() *Entity {
 		IssuingCertificateURL: c.issuingCertificateURL,
 		OCSPServer:            c.ocspServer,
 		CRLDistributionPoints: c.crldpURL,
-		DNSNames:              c.dnsNames,
 	}
-
+	SetSAN(templ, c.dnsNames)
 	var (
 		parent   *x509.Certificate
 		thisPriv = c.getPrivateKey()
@@ -76,6 +79,33 @@ func (c *configuration) generate() *Entity {
 		PrivateKey:  thisPriv,
 		Issuer:      c.issuer,
 		NextSN:      c.getNextSN(),
+	}
+}
+
+// SetSAN fills template's IPAddresses, EmailAddresses, and DNSNames with the
+// content of SAN, if it is not nil.
+func SetSAN(template *x509.Certificate, SAN []string) {
+	if SAN != nil {
+		template.IPAddresses = []net.IP{}
+		template.EmailAddresses = []string{}
+		template.DNSNames = []string{}
+		template.URIs = []*url.URL{}
+	}
+
+	for _, san := range SAN {
+		if strings.Contains(san, "://") {
+			u, err := url.Parse(san)
+			if err != nil {
+				panic(err)
+			}
+			template.URIs = append(template.URIs, u)
+		} else if ip := net.ParseIP(san); ip != nil {
+			template.IPAddresses = append(template.IPAddresses, ip)
+		} else if email, err := mail.ParseAddress(san); err == nil && email != nil {
+			template.EmailAddresses = append(template.EmailAddresses, email.Address)
+		} else {
+			template.DNSNames = append(template.DNSNames, san)
+		}
 	}
 }
 
