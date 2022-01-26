@@ -2,7 +2,9 @@ package certutil
 
 import (
 	"bytes"
+	"crypto/rsa"
 	"crypto/x509"
+	"encoding/asn1"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -179,4 +181,30 @@ func JoinPEM(p1, p2 []byte) []byte {
 		p1 = append(p1, bytes.TrimSpace(p2)...)
 	}
 	return p1
+}
+
+// ParseRSAPublicKeyFromPEM parses PEM encoded RSA public key
+func ParseRSAPublicKeyFromPEM(key []byte) (*rsa.PublicKey, error) {
+	var err error
+
+	// Parse PEM block
+	block, _ := pem.Decode(key)
+	if block == nil {
+		return nil, errors.New("key must be PEM encoded")
+	}
+
+	// Parse the key
+	parsedKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		if _, err = asn1.Unmarshal(block.Bytes, &parsedKey); err != nil {
+			return nil, errors.New("unable to parse RSA Public Key")
+		}
+	}
+
+	pkey, ok := parsedKey.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("not RSA Public Key")
+	}
+
+	return pkey, nil
 }
